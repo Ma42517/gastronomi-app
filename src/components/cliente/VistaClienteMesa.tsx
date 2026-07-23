@@ -59,8 +59,9 @@ export function VistaClienteMesa({
     setCarrito((c) => {
       const actual = c[itemId] ?? 0;
       if (actual <= 1) {
-        const { [itemId]: _, ...resto } = c;
-        return resto;
+        const copia = { ...c };
+        delete copia[itemId];
+        return copia;
       }
       return { ...c, [itemId]: actual - 1 };
     });
