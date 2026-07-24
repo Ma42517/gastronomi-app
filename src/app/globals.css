@@ -513,3 +513,36 @@ textarea {
     animation: none;
   }
 }
+
+
+
+/* ============================================================
+   Tarjetas "Populares" — brillo diagonal (sheen) en bucle
+   ============================================================ */
+@keyframes popularSheen {
+  0% {
+    transform: translateX(-30%) rotate(12deg);
+    opacity: 0;
+  }
+  6% {
+    opacity: 0.9;
+  }
+  20% {
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(520%) rotate(12deg);
+    opacity: 0;
+  }
+}
+
+.animate-sheen {
+  animation: popularSheen 5.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheen {
+    animation: none;
+    opacity: 0;
+  }
+}
