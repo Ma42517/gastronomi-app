@@ -141,8 +141,9 @@ export function NomAIAssistant() {
 
             {error && (
               <div className="rounded-2xl rounded-bl-md bg-red-500/15 px-3 py-2 text-xs leading-snug text-red-200">
-                No pude conectar con Ñom AI. Revisa que la clave de API esté
-                configurada.
+                {error.message
+                  ? `Ñom AI no pudo responder: ${error.message}`
+                  : "No pude conectar con Ñom AI. Revisa que la clave de API esté configurada."}
               </div>
             )}
           </div>

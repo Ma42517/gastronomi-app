@@ -60,13 +60,26 @@ export async function POST(req: Request) {
     );
   }
 
-  const { messages }: { messages: Message[] } = await req.json();
+  try {
+    const { messages }: { messages: Message[] } = await req.json();
 
-  const result = await streamText({
-    model: google("gemini-1.5-flash"),
-    system: SYSTEM_PROMPT,
-    messages: convertToCoreMessages(messages),
-  });
+    const result = await streamText({
+      // gemini-1.5-flash fue retirado por Google; usamos el modelo actual.
+      model: google("gemini-2.5-flash"),
+      system: SYSTEM_PROMPT,
+      messages: convertToCoreMessages(messages),
+    });
 
-  return result.toDataStreamResponse();
+    // Reenvía el mensaje de error REAL al frontend (en lugar de ocultarlo).
+    return result.toDataStreamResponse({
+      getErrorMessage: (error) =>
+        error instanceof Error ? error.message : String(error),
+    });
+  } catch (error) {
+    const mensaje = error instanceof Error ? error.message : "Error desconocido";
+    return new Response(JSON.stringify({ error: mensaje }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 }
