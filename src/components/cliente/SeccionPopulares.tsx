@@ -39,7 +39,7 @@ export function SeccionPopulares({ items, onVerDetalle }: SeccionPopularesProps)
               onClick={() => onVerDetalle(item)}
               className="group relative aspect-[3/4] w-44 shrink-0 snap-start overflow-hidden rounded-3xl shadow-lg ring-1 ring-black/5 transition-transform duration-300 active:scale-[0.97]"
             >
-              {/* Imagen con Ken Burns (zoom lento en bucle) */}
+              {/* Imagen "viva": deriva lentísima ping-pong (sin salto de bucle) */}
               {conFoto ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -48,7 +48,7 @@ export function SeccionPopulares({ items, onVerDetalle }: SeccionPopularesProps)
                   onError={() =>
                     setImgErrors((prev) => ({ ...prev, [item.id]: true }))
                   }
-                  className="animate-ken-burns absolute inset-0 h-full w-full object-cover"
+                  className="animate-live-photo absolute inset-0 h-full w-full object-cover"
                 />
               ) : (
                 <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-gray-800 to-gray-950">

@@ -546,3 +546,31 @@ textarea {
     opacity: 0;
   }
 }
+
+
+
+/* ============================================================
+   "Foto viva" — deriva lentísima ping-pong (sin salto de bucle)
+   Va y vuelve suavemente (alternate), por lo que nunca se nota
+   dónde reinicia. Pensada para las tarjetas "Populares".
+   ============================================================ */
+@keyframes livePhoto {
+  from {
+    transform: scale(1) translate(0, 0);
+  }
+  to {
+    transform: scale(1.09) translate(1.5%, -1.5%);
+  }
+}
+
+.animate-live-photo {
+  /* 32s de ida + 32s de vuelta = ciclo de ~64s, muy prolongado y fluido */
+  animation: livePhoto 32s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-live-photo {
+    animation: none;
+  }
+}
