@@ -32,8 +32,9 @@ const TERMINOS = [
     sub: "Rare",
     glow: "#ef4444",
     punto: "#b81f1f",
-    filtro: "saturate(1.55) contrast(1.08) brightness(1.05)",
-    tint: "rgba(140,15,20,0.18)",
+    // tint: color sólido (multiply) confinado al centro del corte.
+    tint: "rgba(165,12,18,0.55)",
+    // glowOpacity: brillo rojo jugoso en el centro (screen).
     glowOpacity: 0.85,
   },
   {
@@ -42,9 +43,8 @@ const TERMINOS = [
     sub: "Medium",
     glow: "#f87171",
     punto: "#d24b3d",
-    filtro: "saturate(1.15) contrast(1.18) brightness(1)",
-    tint: "rgba(90,20,15,0.10)",
-    glowOpacity: 0.45,
+    tint: "rgba(135,22,18,0.42)",
+    glowOpacity: 0.5,
   },
   {
     id: "medium-well",
@@ -52,9 +52,8 @@ const TERMINOS = [
     sub: "Medium Well",
     glow: "#fca5a5",
     punto: "#dda183",
-    filtro: "saturate(0.92) contrast(1.06) brightness(0.9) sepia(0.18)",
-    tint: "rgba(110,70,32,0.34)",
-    glowOpacity: 0.15,
+    tint: "rgba(118,72,30,0.55)",
+    glowOpacity: 0.2,
   },
   {
     id: "well",
@@ -62,11 +61,14 @@ const TERMINOS = [
     sub: "Well Done",
     glow: "#b45309",
     punto: "#8a5a3b",
-    filtro: "grayscale(0.32) saturate(0.7) contrast(1.12) brightness(0.78) sepia(0.4)",
-    tint: "rgba(48,26,12,0.55)",
+    tint: "rgba(52,28,14,0.78)",
     glowOpacity: 0,
   },
 ];
+
+/** Máscara radial: confina el efecto de cocción a la zona central (el corte). */
+const MASCARA_CENTRO =
+  "radial-gradient(ellipse 58% 52% at 50% 47%, #000 32%, transparent 74%)";
 
 /** Respuesta háptica sutil (solo dispositivos compatibles). */
 function vibrar(ms = 8) {
@@ -151,43 +153,42 @@ export function ConfiguradorPlatillo({
 
         {/* --- VISUALIZADOR FOTOGRÁFICO INTERACTIVO --- */}
         <div className="relative mx-4 mt-3 h-52 shrink-0 overflow-hidden rounded-3xl border border-white/10 bg-black">
-          {/* Fotografía base del corte (los filtros simulan el término) */}
+          {/* Fotografía base del corte (filtro constante, apetitoso) */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             ref={imgRef}
             src={IMG_RIBEYE}
             alt="Ribeye a la parrilla"
             className="absolute inset-0 h-full w-full object-cover will-change-transform"
-            style={{
-              filter: termino.filtro,
-              transition: "filter 0.7s ease-in-out",
-            }}
+            style={{ filter: "saturate(1.15) contrast(1.06) brightness(1.02)" }}
           />
 
-          {/* Tinte de cocción (color sólido, mezcla multiply) */}
+          {/* Tinte de cocción — CONFINADO AL CENTRO DEL CORTE vía máscara radial */}
           <div
             className="absolute inset-0"
             style={{
               backgroundColor: termino.tint,
               mixBlendMode: "multiply",
+              maskImage: MASCARA_CENTRO,
+              WebkitMaskImage: MASCARA_CENTRO,
               transition: "background-color 0.7s ease-in-out",
             }}
           />
 
-          {/* Brillo rojizo central (para el término rojo/medio, mezcla screen) */}
+          {/* Brillo rojizo jugoso, también solo en el centro (mezcla screen) */}
           <div
             className="absolute inset-0"
             style={{
               background:
-                "radial-gradient(circle at 50% 42%, rgba(220,40,35,0.9), rgba(180,20,20,0.15) 45%, transparent 66%)",
+                "radial-gradient(ellipse 52% 46% at 50% 46%, rgba(225,45,38,0.95), rgba(180,20,20,0.18) 55%, transparent 72%)",
               mixBlendMode: "screen",
               opacity: termino.glowOpacity,
               transition: "opacity 0.7s ease-in-out",
             }}
           />
 
-          {/* Degradado inferior para legibilidad de la etiqueta */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
+          {/* Degradado para legibilidad */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15" />
 
           {/* Vapor */}
           <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center gap-7">
@@ -200,13 +201,26 @@ export function ConfiguradorPlatillo({
             ))}
           </div>
 
-          {/* Etiqueta del término actual */}
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
+          {/* Guarnición sobre el plato — cae al elegirla, transiciona entre opciones */}
+          {guarnicion && (
+            <div
+              key={guarnicion.id}
+              className="animate-garnish-drop pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center"
+            >
+              <span className="text-5xl [filter:drop-shadow(0_8px_10px_rgba(0,0,0,0.55))]">
+                {guarnicion.emoji}
+              </span>
+              <span className="mt-1 h-1.5 w-12 rounded-full bg-black/40 blur-[3px]" />
+            </div>
+          )}
+
+          {/* Etiqueta del término actual (arriba, para dejar libre el plato) */}
+          <div className="absolute left-3 top-3">
             <span
               className="rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-md transition-all duration-500"
               style={{
                 borderColor: `${termino.glow}80`,
-                background: `${termino.glow}22`,
+                background: `${termino.glow}33`,
                 color: "#fff",
               }}
             >

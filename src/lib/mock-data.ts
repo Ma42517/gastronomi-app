@@ -51,6 +51,8 @@ export interface OpcionGuarnicion {
   id: string;
   nombre: string;
   precio_extra: number;
+  /** Representación visual que "cae" al plato en el configurador. */
+  emoji: string;
 }
 
 /**
@@ -205,10 +207,10 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
     item_id: "h-ribeye",
     etiqueta: "Selección del Chef",
     guarniciones: [
-      { id: "g-pure", nombre: "Puré de Papa", precio_extra: 35 },
-      { id: "g-esparragos", nombre: "Espárragos a la Parrilla", precio_extra: 45 },
-      { id: "g-papas", nombre: "Papas Rústicas", precio_extra: 30 },
-      { id: "g-ensalada", nombre: "Ensalada Verde", precio_extra: 25 },
+      { id: "g-pure", nombre: "Puré de Papa", precio_extra: 35, emoji: "🥔" },
+      { id: "g-esparragos", nombre: "Espárragos a la Parrilla", precio_extra: 45, emoji: "🌿" },
+      { id: "g-papas", nombre: "Papas Rústicas", precio_extra: 30, emoji: "🍟" },
+      { id: "g-ensalada", nombre: "Ensalada Verde", precio_extra: 25, emoji: "🥗" },
     ],
   },
 };
