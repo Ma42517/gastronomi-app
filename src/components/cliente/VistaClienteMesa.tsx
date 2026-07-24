@@ -30,7 +30,7 @@ export function VistaClienteMesa({
   const [categoriaActiva, setCategoriaActiva] = useState(categorias[0]);
   const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
   const [configuradorAbierto, setConfiguradorAbierto] = useState(false);
-  const [carritoExpandido, setCarritoExpandido] = useState(false);
+  const [ordenAbierta, setOrdenAbierta] = useState(false);
   const [detalleItem, setDetalleItem] = useState<MenuItemMock | null>(null);
   const [lealtad, setLealtad] = useState<ProgramaLealtad>(restaurante.lealtad);
   // Cross-selling de cierre (oferta de postre antes de pagar).
@@ -50,6 +50,7 @@ export function VistaClienteMesa({
     setRestauranteNombre,
     setPlatilloActual,
     setCategoriaActual,
+    setPedidoBar,
   } = useNomAI();
 
   // Platillo héroe configurable (Ribeye).
@@ -67,7 +68,7 @@ export function VistaClienteMesa({
     setEscena(
       configuradorAbierto || detalleItem
         ? "platillo"
-        : modalPagoAbierto || (carritoExpandido && totalItems > 0)
+        : modalPagoAbierto || (ordenAbierta && totalItems > 0)
           ? "carrito"
           : "categorias",
     );
@@ -75,7 +76,7 @@ export function VistaClienteMesa({
     configuradorAbierto,
     detalleItem,
     modalPagoAbierto,
-    carritoExpandido,
+    ordenAbierta,
     totalItems,
     setEscena,
   ]);
@@ -136,6 +137,23 @@ export function VistaClienteMesa({
     if (postreSugerido) agregarMenuItem(postreSugerido);
     procederAlPago();
   };
+
+  // Registra en la barra global de Ñom AI las acciones de "avanzar" del pedido
+  // (ver orden / pagar). Así la barra del chatbot es el ÚNICO control inferior y
+  // se eliminan las barras/botones flotantes que estorbaban.
+  useEffect(() => {
+    setPedidoBar({
+      onVerOrden: () => setOrdenAbierta(true),
+      onPagar: intentarPagar,
+    });
+    return () => setPedidoBar(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postreOfrecido, postreSugerido, setPedidoBar]);
+
+  // Si el carrito queda vacío (p. ej. tras pagar), cierra la hoja de la orden.
+  useEffect(() => {
+    if (totalItems === 0 && ordenAbierta) setOrdenAbierta(false);
+  }, [totalItems, ordenAbierta]);
 
   // Inyección del tema: la CSS var --brand alimenta todos los componentes hijos.
   const estiloTema = { "--brand": tema.color_primario } as CSSProperties;
@@ -224,10 +242,10 @@ export function VistaClienteMesa({
         />
       </main>
 
-      {/* CARRITO FLOTANTE (global, tiempo real) */}
+      {/* HOJA DE LA ORDEN — la abre la barra de Ñom AI (control único inferior) */}
       <CarritoFlotante
-        onPagar={intentarPagar}
-        onExpandidoChange={setCarritoExpandido}
+        abierto={ordenAbierta}
+        onCerrar={() => setOrdenAbierta(false)}
       />
 
       {/* MODAL DE PAGO / SPLIT BILL */}

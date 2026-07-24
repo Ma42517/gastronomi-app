@@ -118,7 +118,7 @@ export function ConfiguradorPlatillo({
     if (!abierto) return;
     setBarAccion(
       puedeConfirmar
-        ? { etiqueta: `Agregar · ${formatCurrency(total)}`, onAgregar: confirmar }
+        ? { etiqueta: formatCurrency(total), onAgregar: confirmar }
         : null,
     );
   }, [abierto, puedeConfirmar, total]); // eslint-disable-line react-hooks/exhaustive-deps

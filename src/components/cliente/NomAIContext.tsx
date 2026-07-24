@@ -29,6 +29,16 @@ export interface AccionBar {
   onAgregar: () => void;
 }
 
+/**
+ * Acciones de "avanzar" del pedido, expuestas en la barra global de Ñom AI para
+ * que sea el ÚNICO control inferior: ver la orden y pagar. La vista del cliente
+ * las registra; así se eliminan las barras/botones flotantes que estorbaban.
+ */
+export interface PedidoBar {
+  onVerOrden: () => void;
+  onPagar: () => void;
+}
+
 interface NomAIContextValue {
   escena: EscenaNomAI;
   setEscena: (e: EscenaNomAI) => void;
@@ -47,6 +57,9 @@ interface NomAIContextValue {
   /** Acción "Agregar al carrito" en la barra (se muestra al completar la elección). */
   barAccion: AccionBar | null;
   setBarAccion: (a: AccionBar | null) => void;
+  /** Acciones de pedido (ver orden / pagar) expuestas en la barra global. */
+  pedidoBar: PedidoBar | null;
+  setPedidoBar: (p: PedidoBar | null) => void;
   /** Control del chat (compartido: la barra global lo abre/cierra). */
   chatAbierto: boolean;
   abrirChat: () => void;
@@ -69,6 +82,7 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
   const [barRecomendacion, setBarRecomendacion] =
     useState<RecomendacionBar | null>(null);
   const [barAccion, setBarAccion] = useState<AccionBar | null>(null);
+  const [pedidoBar, setPedidoBar] = useState<PedidoBar | null>(null);
 
   const abrirChat = () => setChatAbierto(true);
   const cerrarChat = () => setChatAbierto(false);
@@ -89,6 +103,8 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
       setBarRecomendacion,
       barAccion,
       setBarAccion,
+      pedidoBar,
+      setPedidoBar,
       chatAbierto,
       abrirChat,
       cerrarChat,
@@ -101,6 +117,7 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
       barMensaje,
       barRecomendacion,
       barAccion,
+      pedidoBar,
       chatAbierto,
     ],
   );
@@ -127,6 +144,8 @@ export function useNomAI(): NomAIContextValue {
       setBarRecomendacion: () => {},
       barAccion: null,
       setBarAccion: () => {},
+      pedidoBar: null,
+      setPedidoBar: () => {},
       chatAbierto: false,
       abrirChat: () => {},
       cerrarChat: () => {},

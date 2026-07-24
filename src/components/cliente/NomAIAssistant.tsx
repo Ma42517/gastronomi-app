@@ -5,9 +5,11 @@ import { useChat } from "@ai-sdk/react";
 import {
   Check,
   ChevronUp,
+  CreditCard,
   Mic,
   Plus,
   Send,
+  ShoppingBag,
   Sparkles,
   UtensilsCrossed,
   X,
@@ -61,6 +63,7 @@ export function NomAIAssistant() {
     barRecomendacion,
     setBarRecomendacion,
     barAccion,
+    pedidoBar,
     chatAbierto,
     abrirChat,
     cerrarChat,
@@ -72,6 +75,9 @@ export function NomAIAssistant() {
   const [faseBienvenida, setFaseBienvenida] = useState<FaseBienvenida>("welcome");
 
   const addToCart = useCartStore((s) => s.addToCart);
+  const items = useCartStore((s) => s.items);
+  const totalItems = items.reduce((a, i) => a + i.cantidad, 0);
+  const totalCarrito = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, error } =
     useChat({
@@ -354,42 +360,79 @@ export function NomAIAssistant() {
                   style={{ color: brand }}
                 />
               </span>
-              {/* Mensaje de altura automática: crece con el texto y, si es muy
-                  largo, hace scroll interno — nunca se corta con "…". */}
+              {/* Mensaje de altura automática: crece con el texto para que las
+                  descripciones QUEPAN completas sin deslizar (sin scroll ni "…"). */}
               <span
                 key={mensajeBar}
-                className="animate-text-in min-w-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-snug text-white/85"
-                style={{ maxHeight: "6rem" }}
+                className="animate-text-in min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-snug text-white/85"
               >
                 {mensajeBar}
               </span>
             </button>
 
-            {/* Acción principal: cuando el cliente ya eligió todo lo obligatorio,
-                la barra ofrece "Agregar al carrito" (siempre accesible, sin taparse). */}
-            {barAccion && (
+            {/* ===== Zona de acción (compacta) — la barra del chatbot es el ÚNICO
+                control inferior: agregar platillo, cross-sell, ver orden y pagar.
+                Botones pequeños para no robarle espacio a la descripción. ===== */}
+            {barAccion ? (
+              // Agregar el platillo que se está configurando (compacto: + precio).
               <button
                 type="button"
                 onClick={barAccion.onAgregar}
-                className="flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95"
+                className="flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-xs font-bold text-white shadow-md transition active:scale-95"
                 style={{ background: brand }}
               >
                 <Plus className="h-4 w-4" strokeWidth={3} />
                 {barAccion.etiqueta}
               </button>
-            )}
+            ) : (
+              <>
+                {/* Cross-sell (State D): añadir el complemento con 1 tap */}
+                {barRecomendacion && (
+                  <button
+                    type="button"
+                    onClick={anadirRecomendacion}
+                    className="flex shrink-0 items-center gap-0.5 rounded-xl px-2.5 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95"
+                    style={{ background: brand }}
+                    aria-label={`Añadir ${barRecomendacion.nombre}`}
+                  >
+                    <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+                    {barRecomendacion.emoji ? `${barRecomendacion.emoji} ` : ""}
+                    {formatCurrency(barRecomendacion.precio)}
+                  </button>
+                )}
 
-            {/* Recomendación complementaria (State D): añadir con 1 tap */}
-            {!barAccion && barRecomendacion && (
-              <button
-                type="button"
-                onClick={anadirRecomendacion}
-                className="flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95"
-                style={{ background: brand }}
-              >
-                <Plus className="h-3.5 w-3.5" strokeWidth={3} />
-                {formatCurrency(barRecomendacion.precio)}
-              </button>
+                {/* Ver orden + Pagar (reemplazan a la barra flotante del carrito) */}
+                {totalItems > 0 && pedidoBar && (
+                  <>
+                    {!barRecomendacion && (
+                      <button
+                        type="button"
+                        onClick={pedidoBar.onVerOrden}
+                        className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/15"
+                        aria-label="Ver tu orden"
+                      >
+                        <ShoppingBag className="h-4 w-4" />
+                        <span
+                          className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                          style={{ background: brand }}
+                        >
+                          {totalItems}
+                        </span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={pedidoBar.onPagar}
+                      className="flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-xs font-bold text-white shadow-md transition active:scale-95"
+                      style={{ background: brand }}
+                      aria-label={`Pagar ${formatCurrency(totalCarrito)}`}
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      {formatCurrency(totalCarrito)}
+                    </button>
+                  </>
+                )}
+              </>
             )}
 
             {/* Abrir chat */}

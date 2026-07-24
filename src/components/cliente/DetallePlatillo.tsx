@@ -136,7 +136,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
       return;
     }
     setBarAccion({
-      etiqueta: `Agregar · ${formatCurrency(item.precio)}`,
+      etiqueta: formatCurrency(item.precio),
       onAgregar: agregar,
     });
   }, [abierto, item?.id, faltanObligatorios, agregado]); // eslint-disable-line react-hooks/exhaustive-deps
