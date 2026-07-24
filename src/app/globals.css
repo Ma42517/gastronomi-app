@@ -32,3 +32,104 @@ select,
 textarea {
   font-size: 16px;
 }
+
+
+/* ============================================================
+   Animaciones del Splash Screen — Ñom Ñom
+   ============================================================ */
+
+/* Trazo de pincel: dibuja el contorno del texto SVG */
+@keyframes brushDraw {
+  from {
+    stroke-dashoffset: 2800;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Relleno del texto una vez dibujado el contorno */
+@keyframes brushFill {
+  from {
+    fill: transparent;
+  }
+  to {
+    fill: #ffffff;
+  }
+}
+
+/* Aparición suave de abajo hacia arriba (menú de vistas) */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Flotación lenta de los halos ambientales del fondo */
+@keyframes floatSlow {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(0, -24px) scale(1.05);
+  }
+}
+
+/* Brillo tenue pulsante bajo el título */
+@keyframes glowPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* --- Clases utilitarias --- */
+.brush-text {
+  fill: transparent;
+  stroke: #ffffff;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-dasharray: 2800;
+  stroke-dashoffset: 2800;
+  animation:
+    brushDraw 2s cubic-bezier(0.77, 0, 0.18, 1) forwards,
+    brushFill 0.8s ease-out forwards 1.7s;
+  filter: drop-shadow(0 2px 14px rgba(255, 255, 255, 0.25));
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-float-slow {
+  animation: floatSlow 9s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+/* Accesibilidad: sin movimiento para quien lo prefiera */
+@media (prefers-reduced-motion: reduce) {
+  .brush-text {
+    animation: none;
+    fill: #ffffff;
+    stroke-dashoffset: 0;
+  }
+  .animate-fade-in-up,
+  .animate-float-slow,
+  .animate-glow-pulse {
+    animation: none;
+    opacity: 1;
+  }
+}
