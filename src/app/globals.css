@@ -278,3 +278,24 @@ textarea {
     animation: none;
   }
 }
+
+
+/* Micro-zoom "vivo" al cambiar de término en el visualizador fotográfico */
+@keyframes heroZoom {
+  0% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-hero-zoom {
+  animation: heroZoom 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-zoom {
+    animation: none;
+  }
+}

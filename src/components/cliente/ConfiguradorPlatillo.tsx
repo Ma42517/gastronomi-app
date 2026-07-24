@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, Flame, Plus, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock, OpcionGuarnicion } from "@/lib/mock-data";
@@ -13,12 +13,59 @@ interface ConfiguradorPlatilloProps {
   onConfirmar: () => void;
 }
 
-/** Términos de cocción (presentación). El núcleo del corte reacciona a la elección. */
+/** Foto realista del corte (base sobre la que actúan los filtros CSS). */
+const IMG_RIBEYE =
+  "https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=800&q=80";
+
+/**
+ * Términos de cocción. En lugar de dibujar la carne, aplicamos filtros CSS
+ * avanzados sobre una fotografía real para simular cada término.
+ *  - filtro: filter CSS de la imagen base.
+ *  - tint: color sólido superpuesto (mix-blend multiply) — transiciona suave.
+ *  - glowOpacity: opacidad del brillo rojizo central (mix-blend screen).
+ *  - punto: color representativo para el swatch del selector.
+ */
 const TERMINOS = [
-  { id: "rare", nombre: "Rojo", sub: "Rare", centro: "#c81e1e", scale: 1, glow: "#ef4444" },
-  { id: "medium", nombre: "Medio", sub: "Medium", centro: "#dc4b4b", scale: 0.74, glow: "#f87171" },
-  { id: "medium-well", nombre: "3/4", sub: "Medium Well", centro: "#e89b9b", scale: 0.5, glow: "#fca5a5" },
-  { id: "well", nombre: "Bien Cocido", sub: "Well Done", centro: "#9a6a49", scale: 0.26, glow: "#b45309" },
+  {
+    id: "rare",
+    nombre: "Rojo",
+    sub: "Rare",
+    glow: "#ef4444",
+    punto: "#b81f1f",
+    filtro: "saturate(1.55) contrast(1.08) brightness(1.05)",
+    tint: "rgba(140,15,20,0.18)",
+    glowOpacity: 0.85,
+  },
+  {
+    id: "medium",
+    nombre: "Medio",
+    sub: "Medium",
+    glow: "#f87171",
+    punto: "#d24b3d",
+    filtro: "saturate(1.15) contrast(1.18) brightness(1)",
+    tint: "rgba(90,20,15,0.10)",
+    glowOpacity: 0.45,
+  },
+  {
+    id: "medium-well",
+    nombre: "3/4",
+    sub: "Medium Well",
+    glow: "#fca5a5",
+    punto: "#dda183",
+    filtro: "saturate(0.92) contrast(1.06) brightness(0.9) sepia(0.18)",
+    tint: "rgba(110,70,32,0.34)",
+    glowOpacity: 0.15,
+  },
+  {
+    id: "well",
+    nombre: "Bien Cocido",
+    sub: "Well Done",
+    glow: "#b45309",
+    punto: "#8a5a3b",
+    filtro: "grayscale(0.32) saturate(0.7) contrast(1.12) brightness(0.78) sepia(0.4)",
+    tint: "rgba(48,26,12,0.55)",
+    glowOpacity: 0,
+  },
 ];
 
 /** Respuesta háptica sutil (solo dispositivos compatibles). */
@@ -46,6 +93,7 @@ export function ConfiguradorPlatillo({
 }: ConfiguradorPlatilloProps) {
   const [terminoId, setTerminoId] = useState("medium");
   const [guarnicionId, setGuarnicionId] = useState<string | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   if (!abierto) return null;
 
@@ -56,6 +104,13 @@ export function ConfiguradorPlatillo({
   const seleccionarTermino = (id: string) => {
     setTerminoId(id);
     vibrar(10);
+    // Re-dispara el micro-zoom sin recargar la imagen (truco de reflow).
+    const el = imgRef.current;
+    if (el) {
+      el.classList.remove("animate-hero-zoom");
+      void el.offsetWidth;
+      el.classList.add("animate-hero-zoom");
+    }
   };
 
   const seleccionarGuarnicion = (id: string) => {
@@ -94,15 +149,45 @@ export function ConfiguradorPlatillo({
           </button>
         </div>
 
-        {/* --- VISUALIZADOR DINÁMICO --- */}
-        <div className="relative mx-4 mt-3 h-52 shrink-0 overflow-hidden rounded-3xl border border-white/10">
-          {/* Glow ambiental que reacciona al término */}
-          <div
-            className="absolute inset-0 transition-all duration-500"
+        {/* --- VISUALIZADOR FOTOGRÁFICO INTERACTIVO --- */}
+        <div className="relative mx-4 mt-3 h-52 shrink-0 overflow-hidden rounded-3xl border border-white/10 bg-black">
+          {/* Fotografía base del corte (los filtros simulan el término) */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            ref={imgRef}
+            src={IMG_RIBEYE}
+            alt="Ribeye a la parrilla"
+            className="absolute inset-0 h-full w-full object-cover will-change-transform"
             style={{
-              background: `radial-gradient(circle at 50% 45%, ${termino.glow}55, #0a0a0a 72%)`,
+              filter: termino.filtro,
+              transition: "filter 0.7s ease-in-out",
             }}
           />
+
+          {/* Tinte de cocción (color sólido, mezcla multiply) */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundColor: termino.tint,
+              mixBlendMode: "multiply",
+              transition: "background-color 0.7s ease-in-out",
+            }}
+          />
+
+          {/* Brillo rojizo central (para el término rojo/medio, mezcla screen) */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(circle at 50% 42%, rgba(220,40,35,0.9), rgba(180,20,20,0.15) 45%, transparent 66%)",
+              mixBlendMode: "screen",
+              opacity: termino.glowOpacity,
+              transition: "opacity 0.7s ease-in-out",
+            }}
+          />
+
+          {/* Degradado inferior para legibilidad de la etiqueta */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
 
           {/* Vapor */}
           <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center gap-7">
@@ -115,84 +200,10 @@ export function ConfiguradorPlatillo({
             ))}
           </div>
 
-          {/* Corte de carne (SVG) */}
-          <svg
-            viewBox="0 0 320 220"
-            className="relative h-full w-full"
-            role="img"
-            aria-label={`Corte término ${termino.nombre}`}
-          >
-            <defs>
-              <radialGradient id="crustGrad" cx="50%" cy="42%" r="68%">
-                <stop offset="0%" stopColor="#6b3a1e" />
-                <stop offset="70%" stopColor="#4a2412" />
-                <stop offset="100%" stopColor="#38190b" />
-              </radialGradient>
-              <clipPath id="steakClip">
-                <ellipse cx="160" cy="118" rx="128" ry="74" />
-              </clipPath>
-            </defs>
-
-            {/* Sombra */}
-            <ellipse cx="160" cy="198" rx="116" ry="13" fill="rgba(0,0,0,0.4)" />
-
-            {/* Costra sellada */}
-            <ellipse
-              cx="160"
-              cy="118"
-              rx="128"
-              ry="74"
-              fill="url(#crustGrad)"
-              stroke="#251207"
-              strokeWidth="3"
-            />
-
-            {/* Banda cocida */}
-            <ellipse cx="160" cy="118" rx="104" ry="56" fill="#7a3d1f" />
-
-            {/* Núcleo (reacciona al término elegido) */}
-            <g
-              style={{
-                transformBox: "fill-box",
-                transformOrigin: "center",
-                transform: `scale(${termino.scale})`,
-                transition: "transform 0.5s cubic-bezier(0.22, 1, 0.36, 1)",
-              }}
-            >
-              <ellipse
-                cx="160"
-                cy="118"
-                rx="92"
-                ry="47"
-                style={{ fill: termino.centro, transition: "fill 0.5s ease" }}
-              />
-            </g>
-
-            {/* Marcas de parrilla */}
-            <g clipPath="url(#steakClip)" opacity="0.16">
-              <rect x="-20" y="46" width="380" height="12" fill="#000" transform="rotate(22 160 118)" />
-              <rect x="-20" y="92" width="380" height="12" fill="#000" transform="rotate(22 160 118)" />
-              <rect x="-20" y="138" width="380" height="12" fill="#000" transform="rotate(22 160 118)" />
-            </g>
-
-            {/* Marmoleo (grasa) */}
-            <g
-              clipPath="url(#steakClip)"
-              opacity="0.45"
-              stroke="#f3d9c0"
-              strokeWidth="1.5"
-              fill="none"
-              strokeLinecap="round"
-            >
-              <path d="M118 104 q16 -9 32 2 q12 8 27 -2" />
-              <path d="M150 138 q13 6 29 -3" />
-            </g>
-          </svg>
-
           {/* Etiqueta del término actual */}
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
             <span
-              className="rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-md transition-all duration-300"
+              className="rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-md transition-all duration-500"
               style={{
                 borderColor: `${termino.glow}80`,
                 background: `${termino.glow}22`,
@@ -236,7 +247,7 @@ export function ConfiguradorPlatillo({
                   >
                     <span
                       className="h-5 w-5 rounded-full border border-black/20 transition-colors duration-300"
-                      style={{ background: t.centro }}
+                      style={{ background: t.punto }}
                     />
                     <span className="text-[13px] font-bold leading-none">
                       {t.nombre}
