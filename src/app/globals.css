@@ -167,3 +167,33 @@ textarea {
     color: rgba(255, 255, 255, 0.6);
   }
 }
+
+
+/* ============================================================
+   Banner "Sommelier Ñom AI" — borde con gradiente giratorio
+   ============================================================ */
+@keyframes borderSpin {
+  from {
+    transform: translate(-50%, -50%) rotate(0turn);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(1turn);
+  }
+}
+
+/* Barrido de brillo horizontal para el CTA del banner AI */
+@keyframes aiSheen {
+  0% {
+    background-position: -150% 0;
+  }
+  100% {
+    background-position: 250% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-border-spin {
+    animation: none !important;
+    transform: translate(-50%, -50%);
+  }
+}

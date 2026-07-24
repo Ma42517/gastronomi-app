@@ -18,6 +18,16 @@ export interface TemaRestaurante {
   /** Fallback cuando no hay logo (se muestran las iniciales). */
   iniciales: string;
   eslogan?: string;
+  /** Imagen de portada del header (con gradiente de respaldo si no carga). */
+  portada_url: string;
+}
+
+/** Sugerencia de maridaje generada por "Ñom AI". */
+export interface SugerenciaSommelier {
+  titulo: string;
+  descripcion: string;
+  /** id del platillo/bebida que agrega el botón del banner. */
+  item_id: string;
 }
 
 export interface ProgramaLealtad {
@@ -42,6 +52,7 @@ export interface RestauranteMock {
   lealtad: ProgramaLealtad;
   categorias: string[];
   menu: MenuItemMock[];
+  sommelier: SugerenciaSommelier;
 }
 
 /** Línea del carrito: un platillo con su cantidad. */
@@ -61,6 +72,8 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
     logo_url: null,
     iniciales: "EP",
     eslogan: "Los tacos que unen a la familia",
+    portada_url:
+      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=1200&q=80",
   },
   lealtad: {
     sellos_actuales: 3,
@@ -117,6 +130,15 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       disponible: true,
     },
     {
+      id: "b-cerveza",
+      nombre: "Cerveza Artesanal",
+      descripcion: "IPA local de barril, 355 ml.",
+      precio: 55,
+      categoria: "Bebidas",
+      emoji: "🍺",
+      disponible: true,
+    },
+    {
       id: "b-refresco",
       nombre: "Refresco de Cristal",
       descripcion: "Coca-Cola / Sidral / Manzanita.",
@@ -145,4 +167,9 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       disponible: true,
     },
   ],
+  sommelier: {
+    titulo: "Maridaje ideal",
+    descripcion: "Cerveza Artesanal con tus Tacos al Pastor",
+    item_id: "b-cerveza",
+  },
 };
