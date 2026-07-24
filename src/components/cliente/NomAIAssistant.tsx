@@ -21,7 +21,7 @@ export function NomAIAssistant() {
   const pathname = usePathname();
 
   const [chatAbierto, setChatAbierto] = useState(false);
-  const [sugerenciaDescartada, setSugerenciaDescartada] = useState(false);
+  const [sugerenciaVisible, setSugerenciaVisible] = useState(true);
 
   const {
     messages,
@@ -61,14 +61,24 @@ export function NomAIAssistant() {
 
   // Al cambiar de escena o de ruta, vuelve a mostrar la sugerencia contextual.
   useEffect(() => {
-    setSugerenciaDescartada(false);
+    setSugerenciaVisible(true);
   }, [escena, pathname]);
 
   const brand = "var(--brand, #DC2626)";
 
   const cerrarChat = () => {
     setChatAbierto(false);
-    setSugerenciaDescartada(true);
+    setSugerenciaVisible(false);
+  };
+
+  // El avatar NO abre el chat: solo muestra/oculta la burbuja de sugerencia.
+  // (Si el chat está abierto, actúa como "cerrar").
+  const alPulsarAvatar = () => {
+    if (chatAbierto) {
+      setChatAbierto(false);
+      return;
+    }
+    setSugerenciaVisible((v) => !v);
   };
 
   return (
@@ -181,11 +191,11 @@ export function NomAIAssistant() {
       )}
 
       {/* --- BURBUJA DE SUGERENCIA CONTEXTUAL (estado base) --- */}
-      {!chatAbierto && !sugerenciaDescartada && (
+      {!chatAbierto && sugerenciaVisible && (
         <div className="animate-fade-in-up relative w-64 max-w-[80vw] rounded-2xl bg-white p-3.5 pr-8 text-gray-800 shadow-2xl ring-1 ring-black/5">
           <button
             type="button"
-            onClick={() => setSugerenciaDescartada(true)}
+            onClick={() => setSugerenciaVisible(false)}
             className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
             aria-label="Cerrar sugerencia"
           >
@@ -207,7 +217,10 @@ export function NomAIAssistant() {
 
           <button
             type="button"
-            onClick={() => setChatAbierto(true)}
+            onClick={() => {
+              setChatAbierto(true);
+              setSugerenciaVisible(false);
+            }}
             className="mt-2.5 w-full rounded-full px-3 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95"
             style={{ background: brand }}
           >
@@ -221,9 +234,9 @@ export function NomAIAssistant() {
       {/* --- AVATAR FLOTANTE --- */}
       <button
         type="button"
-        onClick={() => setChatAbierto((v) => !v)}
+        onClick={alPulsarAvatar}
         className="animate-float-avatar relative flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-neutral-900/70 text-white shadow-xl backdrop-blur-xl transition active:scale-95"
-        aria-label={chatAbierto ? "Minimizar Ñom AI" : "Abrir Ñom AI"}
+        aria-label={chatAbierto ? "Cerrar chat de Ñom AI" : "Mostrar sugerencia de Ñom AI"}
       >
         <span
           className="absolute inset-0 rounded-full opacity-60 blur-md"

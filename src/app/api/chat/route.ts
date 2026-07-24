@@ -64,8 +64,9 @@ export async function POST(req: Request) {
     const { messages }: { messages: Message[] } = await req.json();
 
     const result = await streamText({
-      // Modelo Gemini vigente (1.0/1.5/2.0 fueron descontinuados por Google).
-      model: google("gemini-2.5-flash"),
+      // Modelo Flash vigente y GA (los 1.0/1.5/2.0 y 2.5 ya no aplican para
+      // nuevos usuarios). gemini-3.6-flash es el workhorse actual de Google.
+      model: google("gemini-3.6-flash"),
       system: SYSTEM_PROMPT,
       messages: convertToCoreMessages(messages),
     });
