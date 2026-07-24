@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { MapPin, Plus, Sparkles, X } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { MapPin } from "lucide-react";
 import type { MenuItemMock, ProgramaLealtad, RestauranteMock } from "@/lib/mock-data";
 import { useCartStore } from "@/lib/cart-store";
 import { TarjetaSellos } from "./TarjetaSellos";
@@ -12,6 +11,7 @@ import { PlatilloHeroCard } from "./PlatilloHeroCard";
 import { ConfiguradorPlatillo } from "./ConfiguradorPlatillo";
 import { DetallePlatillo } from "./DetallePlatillo";
 import { MenuInteractivo } from "./MenuInteractivo";
+import { CarritoDrawer } from "./CarritoDrawer";
 import { ModalPago } from "./ModalPago";
 import { useNomAI } from "./NomAIContext";
 
@@ -31,9 +31,6 @@ export function VistaClienteMesa({
   const [configuradorAbierto, setConfiguradorAbierto] = useState(false);
   const [detalleItem, setDetalleItem] = useState<MenuItemMock | null>(null);
   const [lealtad, setLealtad] = useState<ProgramaLealtad>(restaurante.lealtad);
-  // Cross-selling de cierre (oferta de postre antes de pagar).
-  const [ofertaCierre, setOfertaCierre] = useState(false);
-  const [postreOfrecido, setPostreOfrecido] = useState(false);
 
   // --- Carrito global (Zustand) ---
   const items = useCartStore((s) => s.items);
@@ -47,7 +44,8 @@ export function VistaClienteMesa({
     setRestauranteNombre,
     setPlatilloActual,
     setCategoriaActual,
-    setPedidoBar,
+    carritoAbierto,
+    cerrarCarrito,
   } = useNomAI();
 
   // Platillo héroe configurable (Ribeye).
@@ -62,13 +60,13 @@ export function VistaClienteMesa({
   }, [tema.nombre_restaurante, setRestauranteNombre]);
 
   // La escena controla la visibilidad de la barra de Ñom AI: solo se muestra en
-  // "categorias". Durante un platillo (tarjeta inline) o el checkout/oferta de
-  // cierre (modal de pago) la barra se OCULTA para evitar colisiones de botones.
+  // "categorias". Durante un platillo (tarjeta inline), el drawer del carrito o
+  // el checkout, la barra se OCULTA para evitar colisiones de botones.
   useEffect(() => {
     setEscena(
       configuradorAbierto || detalleItem
         ? "platillo"
-        : modalPagoAbierto || ofertaCierre
+        : modalPagoAbierto || carritoAbierto
           ? "carrito"
           : "categorias",
     );
@@ -76,7 +74,7 @@ export function VistaClienteMesa({
     configuradorAbierto,
     detalleItem,
     modalPagoAbierto,
-    ofertaCierre,
+    carritoAbierto,
     setEscena,
   ]);
 
@@ -114,37 +112,14 @@ export function VistaClienteMesa({
       sellos_actuales: Math.min(l.sellos_actuales + 1, l.sellos_para_recompensa),
     }));
     clearCart();
-    setPostreOfrecido(false);
   };
 
-  // Intercepta "Ver orden y pagar": ofrece un postre (una vez) antes del checkout.
-  const intentarPagar = () => {
-    if (!postreOfrecido && postreSugerido) {
-      setPostreOfrecido(true);
-      setOfertaCierre(true);
-      return;
-    }
+  // REGLA DE ORO: el pago del drawer va DIRECTO al checkout. La IA NO interrumpe
+  // este clic con sugerencias (el postre se ofrece ANTES, como banner del drawer).
+  const pagarAhora = () => {
+    cerrarCarrito();
     setModalPagoAbierto(true);
   };
-
-  const procederAlPago = () => {
-    setOfertaCierre(false);
-    setModalPagoAbierto(true);
-  };
-
-  const aceptarPostre = () => {
-    if (postreSugerido) agregarMenuItem(postreSugerido);
-    procederAlPago();
-  };
-
-  // Registra en la barra de Ñom AI la acción de "pagar". El desglose de la orden
-  // (ver items, +/-) ahora vive DENTRO del chat expandido de la IA, no en un
-  // drawer aparte; por eso la barra ya no necesita un handler de "ver orden".
-  useEffect(() => {
-    setPedidoBar({ onPagar: intentarPagar });
-    return () => setPedidoBar(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postreOfrecido, postreSugerido, setPedidoBar]);
 
   // Inyección del tema: la CSS var --brand alimenta todos los componentes hijos.
   const estiloTema = { "--brand": tema.color_primario } as CSSProperties;
@@ -259,62 +234,17 @@ export function VistaClienteMesa({
         onCerrar={() => setDetalleItem(null)}
       />
 
-      {/* CROSS-SELLING DE CIERRE — Ñom AI intercepta el pago con un postre */}
-      {ofertaCierre && postreSugerido && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center">
-          <button
-            type="button"
-            aria-label="Cerrar"
-            onClick={() => setOfertaCierre(false)}
-            className="animate-backdrop-in absolute inset-0 bg-black/60 backdrop-blur-sm"
-          />
-          <div className="animate-fade-in-up relative mx-4 mb-4 w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-900 p-5 text-white shadow-2xl">
-            <div className="mb-2 flex items-center justify-between">
-              <p
-                className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"
-                style={{ color: "var(--brand)" }}
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Ñom AI
-              </p>
-              <button
-                type="button"
-                onClick={() => setOfertaCierre(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-full text-white/50 transition hover:bg-white/10 hover:text-white"
-                aria-label="Cerrar"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <p className="text-sm leading-snug text-white/85">
-              ¡Tu orden está casi lista! ¿Se te antoja un{" "}
-              <span className="font-semibold">postre</span> para cerrar con
-              broche de oro? 🍮
-            </p>
-
-            <div className="mt-4 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={aceptarPostre}
-                className="flex w-full items-center justify-center gap-1.5 rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-sm transition active:scale-[0.98]"
-                style={{ background: "var(--brand)" }}
-              >
-                <Plus className="h-4 w-4" strokeWidth={3} />
-                Añadir {postreSugerido.nombre} ·{" "}
-                {formatCurrency(postreSugerido.precio)}
-              </button>
-              <button
-                type="button"
-                onClick={procederAlPago}
-                className="w-full rounded-2xl border border-white/15 bg-transparent px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/5 active:scale-[0.98]"
-              >
-                No gracias, proceder al pago
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* DRAWER DEL CARRITO — independiente del chat. La sugerencia de postre es
+          un banner ANTES de pagar; el botón de pago va directo al checkout. */}
+      <CarritoDrawer
+        abierto={carritoAbierto}
+        onCerrar={cerrarCarrito}
+        onPagar={pagarAhora}
+        sugerido={postreSugerido}
+        onAgregarSugerido={() =>
+          postreSugerido && agregarMenuItem(postreSugerido)
+        }
+      />
     </div>
   );
 }

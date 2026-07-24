@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import {
   Check,
-  CreditCard,
   Mic,
-  Minus,
   Plus,
   Send,
   ShoppingBag,
@@ -59,9 +57,9 @@ export function NomAIAssistant() {
     platilloActual,
     categoriaActual,
     restauranteNombre,
-    barMensaje,
     escena,
-    pedidoBar,
+    carritoAbierto,
+    abrirCarrito,
     chatAbierto,
     abrirChat,
     cerrarChat,
@@ -71,19 +69,16 @@ export function NomAIAssistant() {
   const [agregados, setAgregados] = useState<string[]>([]);
   const [userLocation] = useState("Zamora, Michoacán");
   const [faseBienvenida, setFaseBienvenida] = useState<FaseBienvenida>("welcome");
-  // Cuando true, el chat expandido muestra el DESGLOSE DE LA ORDEN arriba de la
-  // conversación (unificación carrito + IA: se elimina el drawer aparte).
-  const [verOrden, setVerOrden] = useState(false);
 
   const addToCart = useCartStore((s) => s.addToCart);
-  const removeFromCart = useCartStore((s) => s.removeFromCart);
   const items = useCartStore((s) => s.items);
   const totalItems = items.reduce((a, i) => a + i.cantidad, 0);
   const totalCarrito = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
+  const hayItems = totalItems > 0;
 
   // La barra flotante SOLO es visible en la escena de menú/categorías. Durante un
-  // platillo (tarjeta inline) o el checkout (modal de pago) se oculta por completo.
-  const barVisible = !chatAbierto && escena === "categorias";
+  // platillo (tarjeta inline), el drawer del carrito o el checkout se oculta.
+  const barVisible = !chatAbierto && !carritoAbierto && escena === "categorias";
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, error } =
     useChat({
@@ -120,38 +115,18 @@ export function NomAIAssistant() {
 
   const brand = "var(--brand, #DC2626)";
 
-  // Mensaje de la barra. El mensaje contextual (barMensaje: platillo abierto,
-  // opción elegida, etc.) SIEMPRE tiene prioridad sobre el flujo de bienvenida.
+  // Texto de la barra INTELIGENTE según el estado del carrito:
+  //  - carrito vacío  → saludo/bienvenida de Ñom AI.
+  //  - con productos  → "Ver orden y Pagar" (toca el texto/total para abrir el
+  //    drawer del carrito; el avatar abre el chat conversacional).
   const bienvenidaInicial = `¡Bienvenido a ${
     restauranteNombre || TAQUERIA_EL_PRIMO.tema.nombre_restaurante
   }!`;
-  const mensajeBar =
-    barMensaje ??
-    (faseBienvenida === "welcome" ? bienvenidaInicial : MENSAJE_BIENVENIDA);
-
-  // Al cerrar el chat se reinicia el modo "ver orden".
-  useEffect(() => {
-    if (!chatAbierto) setVerOrden(false);
-  }, [chatAbierto]);
-
-  // Abre el chat mostrando el DESGLOSE DE LA ORDEN (desde el botón del carrito).
-  const abrirOrden = () => {
-    setVerOrden(true);
-    abrirChat();
-  };
-
-  // Abre el chat en modo conversación normal.
-  const abrirChatPlano = () => {
-    setVerOrden(false);
-    abrirChat();
-  };
-
-  // Pagar desde el panel de orden: cierra el chat y dispara el checkout (el modal
-  // de pago ocultará la barra de la IA para evitar botones duplicados).
-  const pagarDesdeChat = () => {
-    cerrarChat();
-    pedidoBar?.onPagar();
-  };
+  const mensajeBar = hayItems
+    ? "Ver orden y Pagar"
+    : faseBienvenida === "welcome"
+      ? bienvenidaInicial
+      : MENSAJE_BIENVENIDA;
 
   // Añadir desde una tarjeta del chat (tool suggestItemTool).
   const agregarSugerido = (
@@ -209,101 +184,8 @@ export function NomAIAssistant() {
               </button>
             </div>
 
-            {/* Mensajes */}
+            {/* Mensajes (chat conversacional puro — el carrito vive en su drawer) */}
             <div ref={scrollRef} className="flex-1 space-y-2.5 overflow-y-auto p-3">
-              {/* ===== DESGLOSE DE LA ORDEN (unificado dentro del chat) =====
-                  Se muestra al tocar el botón del carrito en la barra. La IA lanza
-                  un mensaje proactivo arriba del desglose de "Tu orden". */}
-              {verOrden && (
-                <div className="space-y-2.5">
-                  <div className="flex items-start">
-                    <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-white/10 px-3 py-2 text-sm leading-snug text-white/90">
-                      Aquí tienes tu orden. ¿Todo listo para pagar o se te antoja
-                      un postre? 🍮
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                    {items.length === 0 ? (
-                      <p className="py-3 text-center text-sm text-white/50">
-                        Tu orden está vacía.
-                      </p>
-                    ) : (
-                      <>
-                        <ul className="space-y-3">
-                          {items.map((ci) => (
-                            <li key={ci.id} className="flex items-center gap-3">
-                              {ci.emoji ? (
-                                <span className="text-xl">{ci.emoji}</span>
-                              ) : (
-                                <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/10 text-white/40">
-                                  <UtensilsCrossed className="h-4 w-4" />
-                                </span>
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold text-white">
-                                  {ci.nombre}
-                                </p>
-                                <p className="text-xs text-white/50">
-                                  {formatCurrency(ci.precio)} c/u
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => removeFromCart(ci.id)}
-                                  className="flex h-7 w-7 items-center justify-center rounded-full border text-white transition active:scale-95"
-                                  style={{ borderColor: brand }}
-                                  aria-label={`Quitar un ${ci.nombre}`}
-                                >
-                                  <Minus className="h-3.5 w-3.5" strokeWidth={3} />
-                                </button>
-                                <span className="w-4 text-center text-sm font-bold text-white">
-                                  {ci.cantidad}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    addToCart({
-                                      id: ci.id,
-                                      nombre: ci.nombre,
-                                      precio: ci.precio,
-                                      emoji: ci.emoji,
-                                    })
-                                  }
-                                  className="flex h-7 w-7 items-center justify-center rounded-full text-white transition active:scale-95"
-                                  style={{ background: brand }}
-                                  aria-label={`Agregar un ${ci.nombre}`}
-                                >
-                                  <Plus className="h-3.5 w-3.5" strokeWidth={3} />
-                                </button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-
-                        <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
-                          <span className="text-sm text-white/70">Total</span>
-                          <span className="text-base font-extrabold text-white">
-                            {formatCurrency(totalCarrito)}
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={pagarDesdeChat}
-                          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-md transition active:scale-[0.98]"
-                          style={{ background: brand }}
-                        >
-                          <CreditCard className="h-4 w-4" />
-                          Pagar {formatCurrency(totalCarrito)}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {messages.map((m) => {
                 const esUser = m.role === "user";
                 const sugerencias = !esUser
@@ -456,41 +338,44 @@ export function NomAIAssistant() {
           colisionar con las tarjetas/modales (ver barVisible). */}
       {barVisible && (
         <div className="fixed inset-x-0 bottom-0 z-[55] mx-auto max-w-md p-2.5 sm:p-3">
-          <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-neutral-900/90 p-2.5 shadow-2xl backdrop-blur-xl">
-            {/* Ícono + mensaje (tocar abre el chat en modo conversación) */}
+          <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-neutral-900/90 p-2.5 shadow-2xl backdrop-blur-xl">
+            {/* AVATAR → abre el CHAT conversacional (Acción B) */}
             <button
               type="button"
-              onClick={abrirChatPlano}
-              className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+              onClick={abrirChat}
+              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 text-white"
+              aria-label="Abrir chat de Ñom AI"
             >
-              <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 text-white">
-                <span
-                  className="absolute inset-0 animate-pulse rounded-full opacity-60 blur-md"
-                  style={{
-                    background: `radial-gradient(circle, ${brand}, transparent 72%)`,
-                  }}
-                />
-                <Sparkles
-                  className="relative h-5 w-5"
-                  style={{ color: brand }}
-                />
-              </span>
-              {/* Mensaje de altura automática: crece con el texto (sin "…"). */}
+              <span
+                className="absolute inset-0 animate-pulse rounded-full opacity-60 blur-md"
+                style={{
+                  background: `radial-gradient(circle, ${brand}, transparent 72%)`,
+                }}
+              />
+              <Sparkles className="relative h-5 w-5" style={{ color: brand }} />
+            </button>
+
+            {/* TEXTO → abre el DRAWER del carrito si hay items (Acción A);
+                si el carrito está vacío, invita a preguntarle al chat. */}
+            <button
+              type="button"
+              onClick={hayItems ? abrirCarrito : abrirChat}
+              className="min-w-0 flex-1 text-left"
+              aria-label={hayItems ? "Ver orden y pagar" : "Preguntar a Ñom AI"}
+            >
               <span
                 key={mensajeBar}
-                className="animate-text-in min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-snug text-white/85"
+                className="animate-text-in block whitespace-pre-wrap break-words text-sm font-medium leading-snug text-white/85"
               >
                 {mensajeBar}
               </span>
             </button>
 
-            {/* Botón del carrito: expande el chat mostrando el desglose de la
-                orden (con +/- y el botón de pagar). ÚNICA vía de compra: sin
-                botones de pagar duplicados en la barra. */}
-            {totalItems > 0 && (
+            {/* $ TOTAL → abre el DRAWER del carrito (Acción A) */}
+            {hayItems && (
               <button
                 type="button"
-                onClick={abrirOrden}
+                onClick={abrirCarrito}
                 className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-white shadow-md transition active:scale-95"
                 style={{ background: brand }}
                 aria-label="Ver tu orden y pagar"
