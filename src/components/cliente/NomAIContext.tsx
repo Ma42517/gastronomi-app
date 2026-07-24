@@ -11,21 +11,30 @@ import {
 /** Escena activa dentro de la experiencia del cliente. */
 export type EscenaNomAI = "categorias" | "platillo" | "carrito";
 
+/** Recomendación complementaria mostrada en la barra (con acción de 1 tap). */
+export interface RecomendacionBar {
+  id: string;
+  nombre: string;
+  precio: number;
+  emoji?: string;
+}
+
 interface NomAIContextValue {
   escena: EscenaNomAI;
   setEscena: (e: EscenaNomAI) => void;
   restauranteNombre: string;
   setRestauranteNombre: (n: string) => void;
-  /** Nombre del platillo que el cliente está viendo (para contexto de la IA). */
   platilloActual: string;
   setPlatilloActual: (n: string) => void;
-  /** Categoría del platillo actual (Tacos, Bebidas, Especiales…). */
   categoriaActual: string;
   setCategoriaActual: (c: string) => void;
-  /** Mensaje de venta cruzada disparado al agregar un platillo. */
-  crossSell: { mensaje: string; nonce: number } | null;
-  dispararCrossSell: (mensaje: string) => void;
-  /** Control del chat (compartido: banner inline y burbuja pueden abrirlo). */
+  /** Mensaje contextual de la barra (null = mensaje de bienvenida por default). */
+  barMensaje: string | null;
+  setBarMensaje: (m: string | null) => void;
+  /** Recomendación con botón de acción directa en la barra (State D). */
+  barRecomendacion: RecomendacionBar | null;
+  setBarRecomendacion: (r: RecomendacionBar | null) => void;
+  /** Control del chat (compartido: la barra global lo abre/cierra). */
   chatAbierto: boolean;
   abrirChat: () => void;
   cerrarChat: () => void;
@@ -34,9 +43,8 @@ interface NomAIContextValue {
 const NomAIContext = createContext<NomAIContextValue | null>(null);
 
 /**
- * Provee la "escena" contextual y el nombre del restaurante a Ñom AI.
- * Vive en el layout del cliente para que el asistente NO se recargue al
- * cambiar de pantalla, solo actualice su mensaje.
+ * Estado global de Ñom AI. Vive en el layout del cliente para que la barra
+ * sea única y persistente en TODAS las pantallas (home, menú, detalle, carrito).
  */
 export function NomAIProvider({ children }: { children: ReactNode }) {
   const [escena, setEscena] = useState<EscenaNomAI>("categorias");
@@ -44,13 +52,9 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
   const [platilloActual, setPlatilloActual] = useState("");
   const [categoriaActual, setCategoriaActual] = useState("");
   const [chatAbierto, setChatAbierto] = useState(false);
-  const [crossSell, setCrossSell] = useState<{
-    mensaje: string;
-    nonce: number;
-  } | null>(null);
-
-  const dispararCrossSell = (mensaje: string) =>
-    setCrossSell((prev) => ({ mensaje, nonce: (prev?.nonce ?? 0) + 1 }));
+  const [barMensaje, setBarMensaje] = useState<string | null>(null);
+  const [barRecomendacion, setBarRecomendacion] =
+    useState<RecomendacionBar | null>(null);
 
   const abrirChat = () => setChatAbierto(true);
   const cerrarChat = () => setChatAbierto(false);
@@ -65,13 +69,23 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
       setPlatilloActual,
       categoriaActual,
       setCategoriaActual,
-      crossSell,
-      dispararCrossSell,
+      barMensaje,
+      setBarMensaje,
+      barRecomendacion,
+      setBarRecomendacion,
       chatAbierto,
       abrirChat,
       cerrarChat,
     }),
-    [escena, restauranteNombre, platilloActual, categoriaActual, crossSell, chatAbierto],
+    [
+      escena,
+      restauranteNombre,
+      platilloActual,
+      categoriaActual,
+      barMensaje,
+      barRecomendacion,
+      chatAbierto,
+    ],
   );
 
   return <NomAIContext.Provider value={value}>{children}</NomAIContext.Provider>;
@@ -90,8 +104,10 @@ export function useNomAI(): NomAIContextValue {
       setPlatilloActual: () => {},
       categoriaActual: "",
       setCategoriaActual: () => {},
-      crossSell: null,
-      dispararCrossSell: () => {},
+      barMensaje: null,
+      setBarMensaje: () => {},
+      barRecomendacion: null,
+      setBarRecomendacion: () => {},
       chatAbierto: false,
       abrirChat: () => {},
       cerrarChat: () => {},

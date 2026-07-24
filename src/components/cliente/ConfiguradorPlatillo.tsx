@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Flame, Plus, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock, OpcionGuarnicion } from "@/lib/mock-data";
+import { useNomAI } from "./NomAIContext";
 
 interface ConfiguradorPlatilloProps {
   abierto: boolean;
@@ -24,6 +25,19 @@ const TERMINOS = [
   { id: "medium-well", nombre: "3/4", sub: "Medium Well", glow: "#fca5a5", punto: "#dda183" },
   { id: "well", nombre: "Bien Cocido", sub: "Well Done", glow: "#b45309", punto: "#8a5a3b" },
 ];
+
+/** Mensaje de invitación (Estado B) mientras el cliente no elige nada. */
+const INVITE_TERMINO = "¡Buena elección! Ahora elige tu término 👇";
+
+/** Reacciones de Ñom AI por término (Estado C: solo tras un clic real). */
+const REACCIONES_TERMINO: Record<string, string> = {
+  rare: "Término Rojo: centro rojo y muy jugoso, la carne en su punto más suave. Para quien ama la textura tierna.",
+  medium:
+    "Término Medio: centro rosado y jugoso, el equilibrio perfecto entre sabor y textura.",
+  "medium-well":
+    "Término 3/4: apenas un toque rosado, más cocido pero conservando su jugosidad.",
+  well: "Bien Cocido: cocción completa y sin rosado, para quien prefiere la carne bien hecha.",
+};
 
 /**
  * Clases del overlay de término (bg con opacidad + blend mode).
@@ -63,10 +77,25 @@ export function ConfiguradorPlatillo({
   onCerrar,
   onConfirmar,
 }: ConfiguradorPlatilloProps) {
+  const { setBarMensaje, setBarRecomendacion } = useNomAI();
+
   const [terminoId, setTerminoId] = useState("medium");
   const [guarnicionId, setGuarnicionId] = useState<string | null>(null);
   // Guarda la última guarnición mostrada para que la PIP no se vacíe al hacer fade-out.
   const [pipData, setPipData] = useState<OpcionGuarnicion | null>(null);
+
+  // Estado B: al abrir el configurador, la barra global invita a elegir el
+  // término (sin describir la opción preseleccionada por default). Al cerrar,
+  // la barra vuelve al mensaje de bienvenida.
+  useEffect(() => {
+    if (!abierto) return;
+    setBarMensaje(INVITE_TERMINO);
+    setBarRecomendacion(null);
+    return () => {
+      setBarMensaje(null);
+      setBarRecomendacion(null);
+    };
+  }, [abierto]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!abierto) return null;
 
@@ -74,13 +103,24 @@ export function ConfiguradorPlatillo({
   const guarnicion = guarniciones.find((g) => g.id === guarnicionId) ?? null;
   const total = item.precio + (guarnicion?.precio_extra ?? 0);
 
+  // Estado C: describe el término SOLO tras un clic real del cliente.
   const seleccionarTermino = (id: string) => {
     setTerminoId(id);
+    setBarMensaje(REACCIONES_TERMINO[id] ?? "¡Buena elección!");
     vibrar(10);
   };
 
+  // Estado C: describe la guarnición elegida; al quitarla, vuelve a invitar.
   const seleccionarGuarnicion = (g: OpcionGuarnicion) => {
-    setGuarnicionId((actual) => (actual === g.id ? null : g.id));
+    setGuarnicionId((actual) => {
+      const quitar = actual === g.id;
+      setBarMensaje(
+        quitar
+          ? INVITE_TERMINO
+          : `${g.nombre}: una guarnición que combina muy bien con tu corte. 🔥`,
+      );
+      return quitar ? null : g.id;
+    });
     setPipData(g); // se conserva para el fade-out
     vibrar(8);
   };

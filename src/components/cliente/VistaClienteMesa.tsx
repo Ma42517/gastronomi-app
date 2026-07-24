@@ -50,7 +50,6 @@ export function VistaClienteMesa({
     setRestauranteNombre,
     setPlatilloActual,
     setCategoriaActual,
-    dispararCrossSell,
   } = useNomAI();
 
   // Platillo héroe configurable (Ribeye).
@@ -246,12 +245,7 @@ export function VistaClienteMesa({
           item={heroItem}
           guarniciones={hero.guarniciones}
           onCerrar={() => setConfiguradorAbierto(false)}
-          onConfirmar={() => {
-            agregarMenuItem(heroItem);
-            dispararCrossSell(
-              "¡Un corte espectacular! ¿Le sumamos una Cerveza Artesanal bien fría para acompañar? 🍺",
-            );
-          }}
+          onConfirmar={() => agregarMenuItem(heroItem)}
         />
       )}
 
@@ -264,7 +258,7 @@ export function VistaClienteMesa({
 
       {/* CROSS-SELLING DE CIERRE — Ñom AI intercepta el pago con un postre */}
       {ofertaCierre && postreSugerido && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center">
           <button
             type="button"
             aria-label="Cerrar"
