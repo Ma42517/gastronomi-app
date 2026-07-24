@@ -35,7 +35,6 @@ export interface AccionBar {
  * las registra; así se eliminan las barras/botones flotantes que estorbaban.
  */
 export interface PedidoBar {
-  onVerOrden: () => void;
   onPagar: () => void;
 }
 

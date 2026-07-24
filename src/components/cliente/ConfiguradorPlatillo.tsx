@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, Flame, Plus, X } from "lucide-react";
+import { useState } from "react";
+import { Check, Flame, Plus, Sparkles, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock, OpcionGuarnicion } from "@/lib/mock-data";
-import { useNomAI } from "./NomAIContext";
 
 interface ConfiguradorPlatilloProps {
   abierto: boolean;
@@ -77,13 +76,13 @@ export function ConfiguradorPlatillo({
   onCerrar,
   onConfirmar,
 }: ConfiguradorPlatilloProps) {
-  const { setBarMensaje, setBarRecomendacion, setBarAccion } = useNomAI();
-
   // Ninguna opción llega preseleccionada: el término empieza sin elegir.
   const [terminoId, setTerminoId] = useState<string | null>(null);
   const [guarnicionId, setGuarnicionId] = useState<string | null>(null);
   // Guarda la última guarnición mostrada para que la PIP no se vacíe al hacer fade-out.
   const [pipData, setPipData] = useState<OpcionGuarnicion | null>(null);
+  // Reacción de Ñom AI mostrada en la TARJETA INLINE (ya NO en la barra fija).
+  const [reaccion, setReaccion] = useState<string>(INVITE_TERMINO);
 
   const termino = TERMINOS.find((t) => t.id === terminoId) ?? null;
   const guarnicion = guarniciones.find((g) => g.id === guarnicionId) ?? null;
@@ -97,46 +96,20 @@ export function ConfiguradorPlatillo({
     onCerrar();
   };
 
-  // Estado B: al abrir el configurador, la barra global invita a elegir el
-  // término (sin describir la opción preseleccionada por default). Al cerrar,
-  // la barra vuelve al mensaje de bienvenida.
-  useEffect(() => {
-    if (!abierto) return;
-    setBarMensaje(INVITE_TERMINO);
-    setBarRecomendacion(null);
-    setBarAccion(null);
-    return () => {
-      setBarMensaje(null);
-      setBarRecomendacion(null);
-      setBarAccion(null);
-    };
-  }, [abierto]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Publica/limpia "Agregar al carrito" en la barra global: aparece en cuanto el
-  // cliente elige el término (obligatorio) y desaparece al cerrar el configurador.
-  useEffect(() => {
-    if (!abierto) return;
-    setBarAccion(
-      puedeConfirmar
-        ? { etiqueta: formatCurrency(total), onAgregar: confirmar }
-        : null,
-    );
-  }, [abierto, puedeConfirmar, total]); // eslint-disable-line react-hooks/exhaustive-deps
-
   if (!abierto) return null;
 
-  // Estado C: describe el término SOLO tras un clic real del cliente.
+  // Describe el término SOLO tras un clic real del cliente (nunca por default).
   const seleccionarTermino = (id: string) => {
     setTerminoId(id);
-    setBarMensaje(REACCIONES_TERMINO[id] ?? "¡Buena elección!");
+    setReaccion(REACCIONES_TERMINO[id] ?? "¡Buena elección!");
     vibrar(10);
   };
 
-  // Estado C: describe la guarnición elegida; al quitarla, vuelve a invitar.
+  // Describe la guarnición elegida; al quitarla, vuelve a invitar.
   const seleccionarGuarnicion = (g: OpcionGuarnicion) => {
     setGuarnicionId((actual) => {
       const quitar = actual === g.id;
-      setBarMensaje(
+      setReaccion(
         quitar
           ? INVITE_TERMINO
           : `${g.nombre}: una guarnición que combina muy bien con tu corte. 🔥`,
@@ -350,10 +323,19 @@ export function ConfiguradorPlatillo({
           </div>
         </div>
 
-        {/* --- BARRA INFERIOR: precio en vivo + agregar ---
-            pb amplio para que el botón quede POR ENCIMA de la barra global de
-            Ñom AI (que va fija abajo) y siempre sea utilizable en desktop. */}
-        <div className="shrink-0 border-t border-white/10 bg-neutral-900/60 p-4 pb-24 backdrop-blur-md">
+        {/* --- BARRA INFERIOR: tarjeta inline de Ñom AI + precio en vivo + agregar.
+            La barra global de Ñom AI se oculta mientras el configurador está
+            abierto, así que este pie no necesita espacio extra ni colisiona. */}
+        <div className="shrink-0 space-y-3 border-t border-white/10 bg-neutral-900/60 p-4 pb-6 backdrop-blur-md">
+          {/* Tarjeta Ñom AI integrada (estática): reacciona a la selección. */}
+          <div className="flex items-start gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5">
+            <Sparkles
+              className="mt-0.5 h-4 w-4 shrink-0"
+              style={{ color: "var(--brand)" }}
+            />
+            <p className="text-sm leading-snug text-white/85">{reaccion}</p>
+          </div>
+
           <button
             type="button"
             onClick={confirmar}

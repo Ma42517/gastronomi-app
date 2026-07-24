@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Plus, UtensilsCrossed, X } from "lucide-react";
+import { Check, MessageCircle, Plus, Sparkles, UtensilsCrossed, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
 import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
@@ -53,11 +53,15 @@ function sugerirCrossSell(item: MenuItemMock): MenuItemMock | null {
  */
 export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProps) {
   const addToCart = useCartStore((s) => s.addToCart);
-  const { setBarMensaje, setBarRecomendacion, setBarAccion } = useNomAI();
+  const { abrirChat } = useNomAI();
 
   const [agregado, setAgregado] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [selecciones, setSelecciones] = useState<Record<string, string[]>>({});
+  // Tarjeta INLINE de Ñom AI (ya NO barra fija): reacción tras un clic real y,
+  // solo tras agregar, la sugerencia de complemento.
+  const [reaccion, setReaccion] = useState<string | null>(null);
+  const [sugeridoAgregado, setSugeridoAgregado] = useState(false);
 
   const esBebida = item?.categoria === "Bebidas";
   const mensajeCrossSell = esBebida
@@ -73,7 +77,6 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     (g) => (selecciones[g.id]?.length ?? 0) === 0,
   );
 
-  // ESTADO D: al agregar, recomendación complementaria en la barra.
   const agregar = () => {
     if (!item) return;
     addToCart({
@@ -82,22 +85,23 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
       precio: item.precio,
       emoji: item.emoji,
     });
+    // Timing estricto: la sugerencia de complemento solo aparece AHORA (tras
+    // agregar el platillo principal), nunca antes.
     setAgregado(true);
-    setBarAccion(null);
-    setBarMensaje(mensajeCrossSell);
-    setBarRecomendacion(
-      sugerido
-        ? {
-            id: sugerido.id,
-            nombre: sugerido.nombre,
-            precio: sugerido.precio,
-            emoji: sugerido.emoji,
-          }
-        : null,
-    );
   };
 
-  // Al abrir/cambiar de platillo: prepara opciones y empuja el ESTADO B a la barra.
+  const agregarSugeridoInline = () => {
+    if (!sugerido) return;
+    addToCart({
+      id: sugerido.id,
+      nombre: sugerido.nombre,
+      precio: sugerido.precio,
+      emoji: sugerido.emoji,
+    });
+    setSugeridoAgregado(true);
+  };
+
+  // Al abrir/cambiar de platillo: reinicia selección y estado de la tarjeta.
   useEffect(() => {
     if (!abierto || !item) return;
     // Ninguna opción llega preseleccionada: el cliente elige manualmente cada
@@ -109,43 +113,15 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     setSelecciones(init);
     setAgregado(false);
     setImgError(false);
-
-    // Estado B: invita a elegir (sin describir la opción por default) o describe.
-    const primerGrupo = item.modifiers?.[0];
-    setBarMensaje(
-      primerGrupo
-        ? `¡Buena elección! Ahora ${primerGrupo.titulo.toLowerCase()} 👇`
-        : `¡Buena elección! ${item.descripcion}`,
-    );
-    setBarRecomendacion(null);
-
-    // Al cerrar el detalle, la barra vuelve al mensaje de bienvenida.
-    return () => {
-      setBarMensaje(null);
-      setBarRecomendacion(null);
-      setBarAccion(null);
-    };
+    setReaccion(null);
+    setSugeridoAgregado(false);
   }, [abierto, item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Publica/limpia la acción "Agregar al carrito" en la barra global: aparece en
-  // cuanto el cliente eligió todo lo obligatorio y desaparece tras agregar.
-  useEffect(() => {
-    if (!abierto || !item) return;
-    if (agregado || faltanObligatorios) {
-      setBarAccion(null);
-      return;
-    }
-    setBarAccion({
-      etiqueta: formatCurrency(item.precio),
-      onAgregar: agregar,
-    });
-  }, [abierto, item?.id, faltanObligatorios, agregado]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!abierto || !item) return null;
 
   const brand = "var(--brand, #DC2626)";
 
-  // ESTADO C: solo con un clic REAL del usuario se describe la opción.
+  // Solo con un clic REAL del usuario se describe la opción (nunca por default).
   const toggle = (grupo: GrupoModificador, opcionId: string) => {
     setSelecciones((prev) => {
       const actual = prev[grupo.id] ?? [];
@@ -157,8 +133,15 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
           : [...actual, opcionId],
       };
     });
-    setBarMensaje(REACCIONES[opcionId] ?? "¡Buena elección!");
+    setReaccion(REACCIONES[opcionId] ?? "¡Buena elección!");
   };
+
+  // Texto de la tarjeta inline (timing estricto):
+  //  - antes de agregar: contexto/reacción a la opción elegida (SIN extras).
+  //  - después de agregar: recomendación de complemento (con botón de acción).
+  const textoTarjeta = agregado
+    ? mensajeCrossSell
+    : reaccion ?? `¡Buena elección! ${item.descripcion}`;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center">
@@ -298,6 +281,52 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
               </>
             )}
           </button>
+
+          {/* ===== Tarjeta Ñom AI INTEGRADA (estática, position: static) =====
+              Va DEBAJO del botón de agregar; no es barra fija ni tiene chevron.
+              Timing estricto: no sugiere complementos ni muestra botón de extra
+              hasta que el usuario agrega el platillo principal a la cuenta. */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p
+              className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"
+              style={{ color: brand }}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Ñom AI
+            </p>
+            <p className="text-sm leading-snug text-white/85">{textoTarjeta}</p>
+
+            {agregado && sugerido ? (
+              <button
+                type="button"
+                onClick={agregarSugeridoInline}
+                disabled={sugeridoAgregado}
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-70"
+                style={{ background: sugeridoAgregado ? "#16a34a" : brand }}
+              >
+                {sugeridoAgregado ? (
+                  <>
+                    <Check className="h-4 w-4" strokeWidth={3} />
+                    {sugerido.nombre} añadido ✓
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" strokeWidth={3} />
+                    Añadir {sugerido.nombre} · {formatCurrency(sugerido.precio)}
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={abrirChat}
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-white/10 px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/15 active:scale-[0.98]"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Hablar con Ñom AI
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

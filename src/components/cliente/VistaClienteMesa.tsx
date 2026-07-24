@@ -12,7 +12,6 @@ import { PlatilloHeroCard } from "./PlatilloHeroCard";
 import { ConfiguradorPlatillo } from "./ConfiguradorPlatillo";
 import { DetallePlatillo } from "./DetallePlatillo";
 import { MenuInteractivo } from "./MenuInteractivo";
-import { CarritoFlotante } from "./CarritoFlotante";
 import { ModalPago } from "./ModalPago";
 import { useNomAI } from "./NomAIContext";
 
@@ -30,7 +29,6 @@ export function VistaClienteMesa({
   const [categoriaActiva, setCategoriaActiva] = useState(categorias[0]);
   const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
   const [configuradorAbierto, setConfiguradorAbierto] = useState(false);
-  const [ordenAbierta, setOrdenAbierta] = useState(false);
   const [detalleItem, setDetalleItem] = useState<MenuItemMock | null>(null);
   const [lealtad, setLealtad] = useState<ProgramaLealtad>(restaurante.lealtad);
   // Cross-selling de cierre (oferta de postre antes de pagar).
@@ -42,7 +40,6 @@ export function VistaClienteMesa({
   const addToCart = useCartStore((s) => s.addToCart);
   const clearCart = useCartStore((s) => s.clearCart);
   const total = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
-  const totalItems = items.reduce((a, i) => a + i.cantidad, 0);
 
   // Contexto de Ñom AI.
   const {
@@ -64,11 +61,14 @@ export function VistaClienteMesa({
     setRestauranteNombre(tema.nombre_restaurante);
   }, [tema.nombre_restaurante, setRestauranteNombre]);
 
+  // La escena controla la visibilidad de la barra de Ñom AI: solo se muestra en
+  // "categorias". Durante un platillo (tarjeta inline) o el checkout/oferta de
+  // cierre (modal de pago) la barra se OCULTA para evitar colisiones de botones.
   useEffect(() => {
     setEscena(
       configuradorAbierto || detalleItem
         ? "platillo"
-        : modalPagoAbierto || (ordenAbierta && totalItems > 0)
+        : modalPagoAbierto || ofertaCierre
           ? "carrito"
           : "categorias",
     );
@@ -76,8 +76,7 @@ export function VistaClienteMesa({
     configuradorAbierto,
     detalleItem,
     modalPagoAbierto,
-    ordenAbierta,
-    totalItems,
+    ofertaCierre,
     setEscena,
   ]);
 
@@ -138,22 +137,14 @@ export function VistaClienteMesa({
     procederAlPago();
   };
 
-  // Registra en la barra global de Ñom AI las acciones de "avanzar" del pedido
-  // (ver orden / pagar). Así la barra del chatbot es el ÚNICO control inferior y
-  // se eliminan las barras/botones flotantes que estorbaban.
+  // Registra en la barra de Ñom AI la acción de "pagar". El desglose de la orden
+  // (ver items, +/-) ahora vive DENTRO del chat expandido de la IA, no en un
+  // drawer aparte; por eso la barra ya no necesita un handler de "ver orden".
   useEffect(() => {
-    setPedidoBar({
-      onVerOrden: () => setOrdenAbierta(true),
-      onPagar: intentarPagar,
-    });
+    setPedidoBar({ onPagar: intentarPagar });
     return () => setPedidoBar(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postreOfrecido, postreSugerido, setPedidoBar]);
-
-  // Si el carrito queda vacío (p. ej. tras pagar), cierra la hoja de la orden.
-  useEffect(() => {
-    if (totalItems === 0 && ordenAbierta) setOrdenAbierta(false);
-  }, [totalItems, ordenAbierta]);
 
   // Inyección del tema: la CSS var --brand alimenta todos los componentes hijos.
   const estiloTema = { "--brand": tema.color_primario } as CSSProperties;
@@ -241,12 +232,6 @@ export function VistaClienteMesa({
           onVerDetalle={setDetalleItem}
         />
       </main>
-
-      {/* HOJA DE LA ORDEN — la abre la barra de Ñom AI (control único inferior) */}
-      <CarritoFlotante
-        abierto={ordenAbierta}
-        onCerrar={() => setOrdenAbierta(false)}
-      />
 
       {/* MODAL DE PAGO / SPLIT BILL */}
       <ModalPago
