@@ -217,9 +217,30 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
         imagen_url:
           "https://images.unsplash.com/photo-1593922146430-8199eb3c1a82?auto=format&fit=crop&w=400&q=80",
       },
-      { id: "g-esparragos", nombre: "Espárragos a la Parrilla", precio_extra: 45, emoji: "🌿" },
-      { id: "g-papas", nombre: "Papas Rústicas", precio_extra: 30, emoji: "🍟" },
-      { id: "g-ensalada", nombre: "Ensalada Verde", precio_extra: 25, emoji: "🥗" },
+      {
+        id: "g-esparragos",
+        nombre: "Espárragos a la Parrilla",
+        precio_extra: 45,
+        emoji: "🌿",
+        imagen_url:
+          "https://images.unsplash.com/photo-1580013759032-c96505e24c1f?auto=format&fit=crop&w=400&q=80",
+      },
+      {
+        id: "g-papas",
+        nombre: "Papas Rústicas",
+        precio_extra: 30,
+        emoji: "🍟",
+        imagen_url:
+          "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=400&q=80",
+      },
+      {
+        id: "g-ensalada",
+        nombre: "Ensalada Verde",
+        precio_extra: 25,
+        emoji: "🥗",
+        imagen_url:
+          "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400&q=80",
+      },
     ],
   },
 };
