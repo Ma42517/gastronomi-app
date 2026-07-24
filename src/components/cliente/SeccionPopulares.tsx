@@ -30,7 +30,7 @@ export function SeccionPopulares({ items, onVerDetalle }: SeccionPopularesProps)
       </h2>
 
       <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {items.map((item, i) => {
+        {items.map((item) => {
           const conFoto = item.imagen_url && !imgErrors[item.id];
           return (
             <button
@@ -39,7 +39,9 @@ export function SeccionPopulares({ items, onVerDetalle }: SeccionPopularesProps)
               onClick={() => onVerDetalle(item)}
               className="group relative aspect-[3/4] w-44 shrink-0 snap-start overflow-hidden rounded-3xl shadow-lg ring-1 ring-black/5 transition-transform duration-300 active:scale-[0.97]"
             >
-              {/* Imagen "viva": deriva lentísima ping-pong (sin salto de bucle) */}
+              {/* Foto con RESPIRACIÓN (zoom in/out) directo en la <img>.
+                  El contenedor (button) tiene overflow-hidden, así no se
+                  desborda al hacer zoom. Sin capas/brillos encima de la foto. */}
               {conFoto ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -48,24 +50,16 @@ export function SeccionPopulares({ items, onVerDetalle }: SeccionPopularesProps)
                   onError={() =>
                     setImgErrors((prev) => ({ ...prev, [item.id]: true }))
                   }
-                  className="animate-live-photo absolute inset-0 h-full w-full object-cover"
+                  className="animate-breathe absolute inset-0 h-full w-full object-cover"
                 />
               ) : (
                 <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-gray-800 to-gray-950">
-                  <span className="text-5xl">{item.emoji}</span>
+                  <span className="animate-breathe text-5xl">{item.emoji}</span>
                 </div>
               )}
 
-              {/* Degradado para legibilidad del texto */}
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-black/5" />
-
-              {/* Brillo diagonal (sheen) en bucle, escalonado por tarjeta */}
-              <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div
-                  className="animate-sheen absolute -inset-y-4 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/35 to-transparent"
-                  style={{ animationDelay: `${i * 1.3}s` }}
-                />
-              </div>
+              {/* Degradado SOLO en la base para legibilidad del nombre/precio */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
 
               {/* Badge POPULAR con degradado de marca */}
               <span

@@ -517,33 +517,28 @@ textarea {
 
 
 /* ============================================================
-   Tarjetas "Populares" — brillo diagonal (sheen) en bucle
+   Tarjetas "Populares" — efecto de RESPIRACIÓN (zoom in/out)
+   Aplicado directo a la <img>; escala 1 -> 1.12 -> 1 en 5s.
+   Claramente visible, sin capas ni brillos encima de la foto.
    ============================================================ */
-@keyframes popularSheen {
-  0% {
-    transform: translateX(-30%) rotate(12deg);
-    opacity: 0;
-  }
-  6% {
-    opacity: 0.9;
-  }
-  20% {
-    opacity: 0;
-  }
+@keyframes breathe {
+  0%,
   100% {
-    transform: translateX(520%) rotate(12deg);
-    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
   }
 }
 
-.animate-sheen {
-  animation: popularSheen 5.5s ease-in-out infinite;
+.animate-breathe {
+  animation: breathe 5s ease-in-out infinite;
+  will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-sheen {
+  .animate-breathe {
     animation: none;
-    opacity: 0;
   }
 }
 
