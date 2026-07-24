@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Plus, Sparkles, UtensilsCrossed, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
+import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
 import type { GrupoModificador, MenuItemMock } from "@/lib/mock-data";
 import { useNomAI } from "./NomAIContext";
 
@@ -21,6 +22,23 @@ const REACCIONES_SALSA: Record<string, string> = {
     "¡La habanero es intensa! Solo para valientes. ¿Un agua fresca para calmar el fuego? 🧊",
 };
 
+/** Sugiere el ítem de venta cruzada perfecto según la categoría del platillo. */
+function sugerirCrossSell(item: MenuItemMock): MenuItemMock | null {
+  const menu = TAQUERIA_EL_PRIMO.menu;
+  const disp = (id: string) =>
+    menu.find((m) => m.id === id && m.disponible && m.id !== item.id) ?? null;
+  if (item.categoria === "Bebidas") return disp("t-pastor");
+  if (item.categoria === "Especiales") return disp("b-cerveza");
+  // Tacos / Extras -> una bebida bien fría
+  return (
+    disp("b-horchata") ??
+    menu.find(
+      (m) => m.categoria === "Bebidas" && m.disponible && m.id !== item.id,
+    ) ??
+    null
+  );
+}
+
 /**
  * Detalle premium (dark) DINÁMICO para cualquier platillo:
  * foto real, descripción apetitosa y modificadores. La sugerencia de Ñom AI se
@@ -31,6 +49,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   const { dispararCrossSell, abrirChat } = useNomAI();
 
   const [agregado, setAgregado] = useState(false);
+  const [agregadoSugerido, setAgregadoSugerido] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [selecciones, setSelecciones] = useState<Record<string, string[]>>({});
 
@@ -43,6 +62,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     });
     setSelecciones(init);
     setAgregado(false);
+    setAgregadoSugerido(false);
     setImgError(false);
   }, [abierto, item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -50,6 +70,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
 
   const brand = "var(--brand, #DC2626)";
   const esBebida = item.categoria === "Bebidas";
+  const sugerido = sugerirCrossSell(item);
 
   const toggle = (grupo: GrupoModificador, opcionId: string) => {
     setSelecciones((prev) => {
@@ -80,15 +101,27 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     setAgregado(true);
   };
 
-  // Texto del banner inline de Ñom AI (reacciona a salsa y a la venta).
+  // Acción directa: añade el ítem sugerido al carrito real desde la tarjeta.
+  const agregarSugerido = () => {
+    if (!sugerido || agregadoSugerido) return;
+    addToCart({
+      id: sugerido.id,
+      nombre: sugerido.nombre,
+      precio: sugerido.precio,
+      emoji: sugerido.emoji,
+    });
+    setAgregadoSugerido(true);
+  };
+
+  // Texto del banner inline de Ñom AI (reacciona a salsa y a la sugerencia).
   const salsaSel = selecciones["salsa"]?.[0];
-  const mensajeInline = agregado
-    ? mensajeCrossSell
+  const mensajeInline = agregadoSugerido
+    ? `¡Listo! ${sugerido?.nombre ?? "Tu extra"} añadido a la cuenta. 🎉`
     : salsaSel && REACCIONES_SALSA[salsaSel]
       ? REACCIONES_SALSA[salsaSel]
-      : esBebida
-        ? "Refrescante elección. ¿La acompañamos con unos Tacos al Pastor? 🌮"
-        : "¡Se ve delicioso! ¿Le sumamos una bebida bien fría para acompañar? 🥤";
+      : sugerido
+        ? `El acompañante ideal para esto es ${sugerido.nombre}. ¿Lo sumamos?`
+        : "¿Te ayudo a elegir algo más para tu mesa?";
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center">
@@ -232,14 +265,40 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
             >
               {mensajeInline}
             </p>
-            <button
-              type="button"
-              onClick={abrirChat}
-              className="mt-3 w-full rounded-full px-3 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95"
-              style={{ background: brand }}
-            >
-              Hablar con Ñom AI
-            </button>
+
+            <div className="mt-3 space-y-2">
+              {/* Acción directa: añade el ítem sugerido a la cuenta real */}
+              {sugerido && (
+                <button
+                  type="button"
+                  onClick={agregarSugerido}
+                  disabled={agregadoSugerido}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold text-white shadow-sm transition active:scale-95"
+                  style={{ background: agregadoSugerido ? "#16a34a" : brand }}
+                >
+                  {agregadoSugerido ? (
+                    <>
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                      {sugerido.nombre} añadido ✓
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" strokeWidth={3} />
+                      Añadir {sugerido.nombre} · {formatCurrency(sugerido.precio)}
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Secundario: abrir el chat completo si el cliente lo prefiere */}
+              <button
+                type="button"
+                onClick={abrirChat}
+                className="w-full rounded-xl border border-white/15 bg-transparent px-3 py-2 text-xs font-semibold text-white/80 transition hover:bg-white/5 active:scale-95"
+              >
+                Hablar con Ñom AI
+              </button>
+            </div>
           </div>
         </div>
       </div>

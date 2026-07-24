@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { Check, Mic, Plus, Send, Sparkles, UtensilsCrossed, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -46,19 +45,15 @@ export function NomAIAssistant() {
     restauranteNombre,
     platilloActual,
     categoriaActual,
-    crossSell,
     chatAbierto,
     abrirChat,
     cerrarChat,
   } = useNomAI();
-  const pathname = usePathname();
 
-  const [sugerenciaVisible, setSugerenciaVisible] = useState(true);
+  const [sugerenciaVisible, setSugerenciaVisible] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   // Ids de tool-calls ya agregados al carrito (para el estado "Añadido ✓").
   const [agregados, setAgregados] = useState<string[]>([]);
-  // Mensaje de venta cruzada que sobreescribe la sugerencia contextual.
-  const [mensajeOverride, setMensajeOverride] = useState<string | null>(null);
   // TODO: atar a la API de geolocalización del navegador. Por ahora fijo.
   const [userLocation] = useState("Zamora, Michoacán");
 
@@ -100,26 +95,24 @@ export function NomAIAssistant() {
     });
   }, [messages, isLoading, chatAbierto]);
 
-  // Al cambiar de escena o de ruta, muestra la sugerencia contextual y limpia
-  // cualquier venta cruzada previa.
+  // BIENVENIDA INTELIGENTE: solo la 1ª vez por sesión, y se auto-colapsa a 4s
+  // dejando únicamente el botón circular flotante.
+  const bienvenidaRef = useRef(false);
   useEffect(() => {
+    if (bienvenidaRef.current) return;
+    bienvenidaRef.current = true;
+    if (typeof window === "undefined") return;
+    if (sessionStorage.getItem("hasSeenWelcome")) return;
+    sessionStorage.setItem("hasSeenWelcome", "1");
     setSugerenciaVisible(true);
-    setMensajeOverride(null);
-  }, [escena, pathname]);
-
-  // VENTA CRUZADA: al agregar un platillo, la burbuja actualiza su texto.
-  // (Solo muestra la burbuja; NUNCA abre el chat automáticamente.)
-  useEffect(() => {
-    if (!crossSell) return;
-    setMensajeOverride(crossSell.mensaje);
-    setSugerenciaVisible(true);
-  }, [crossSell]);
+    const t = setTimeout(() => setSugerenciaVisible(false), 4000);
+    return () => clearTimeout(t);
+  }, []);
 
   const brand = "var(--brand, #DC2626)";
 
   const manejarCerrarChat = () => {
     cerrarChat();
-    setMensajeOverride(null);
   };
 
   // El avatar NO abre el chat: solo muestra/oculta la burbuja de sugerencia.
@@ -337,10 +330,7 @@ export function NomAIAssistant() {
         <div className="animate-fade-in-up relative w-64 max-w-[80vw] rounded-2xl bg-white p-3.5 pr-8 text-gray-800 shadow-2xl ring-1 ring-black/5">
           <button
             type="button"
-            onClick={() => {
-              setSugerenciaVisible(false);
-              setMensajeOverride(null);
-            }}
+            onClick={() => setSugerenciaVisible(false)}
             className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
             aria-label="Cerrar sugerencia"
           >
@@ -357,10 +347,10 @@ export function NomAIAssistant() {
 
           {/* key => transición suave al cambiar el texto */}
           <p
-            key={mensajeOverride ?? escena}
+            key={escena}
             className="animate-text-in text-sm leading-snug text-gray-700"
           >
-            {mensajeOverride ?? sugerencia}
+            {sugerencia}
           </p>
 
           <button
@@ -368,7 +358,6 @@ export function NomAIAssistant() {
             onClick={() => {
               abrirChat();
               setSugerenciaVisible(false);
-              setMensajeOverride(null);
             }}
             className="mt-2.5 w-full rounded-full px-3 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95"
             style={{ background: brand }}
