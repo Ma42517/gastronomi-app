@@ -72,7 +72,6 @@ export function ConfiguradorPlatillo({
 
   const termino = TERMINOS.find((t) => t.id === terminoId) ?? TERMINOS[1];
   const guarnicion = guarniciones.find((g) => g.id === guarnicionId) ?? null;
-  const pipVisible = guarnicion !== null;
   const total = item.precio + (guarnicion?.precio_extra ?? 0);
 
   const seleccionarTermino = (id: string) => {
@@ -104,26 +103,80 @@ export function ConfiguradorPlatillo({
 
       {/* Bottom sheet — glassmorphism oscuro */}
       <div className="animate-sheet-up relative mt-auto flex max-h-[95vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border-t border-white/10 bg-neutral-900/85 text-white shadow-2xl backdrop-blur-2xl">
-        {/* --- VISUALIZADOR: contenedor único a todo lo ancho --- */}
-        <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-t-3xl bg-black">
-          {/* Foto base del Ribeye — VIVA con Ken Burns, SIN filtro */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={IMG_RIBEYE}
-            alt="Ribeye a la parrilla"
-            className="animate-ken-burns absolute inset-0 h-full w-full object-cover"
-          />
-
-          {/* Capa de término — focalizada al centro con máscara CSS */}
+        {/* --- VISUALIZADOR: layout dinámico Split-Screen --- */}
+        <div className="relative flex aspect-video w-full shrink-0 overflow-hidden rounded-t-3xl bg-zinc-900">
+          {/* MITAD IZQUIERDA — Carne (100% sin guarnición, 50% con guarnición) */}
           <div
-            className={`pointer-events-none absolute inset-0 transition-colors duration-700 ${
-              TERMINO_OVERLAY[terminoId] ?? TERMINO_OVERLAY.medium
+            className={`relative h-full shrink-0 overflow-hidden transition-all duration-500 ease-in-out ${
+              guarnicion ? "w-1/2" : "w-full"
             }`}
-            style={{
-              WebkitMaskImage: MASCARA_TERMINO,
-              maskImage: MASCARA_TERMINO,
-            }}
-          />
+          >
+            {/* Foto base del Ribeye — VIVA con Ken Burns, SIN filtro */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={IMG_RIBEYE}
+              alt="Ribeye a la parrilla"
+              className="animate-ken-burns absolute inset-0 h-full w-full object-cover"
+            />
+
+            {/* Capa de término — focalizada al centro con máscara CSS (solo sobre la carne) */}
+            <div
+              className={`pointer-events-none absolute inset-0 transition-colors duration-700 ${
+                TERMINO_OVERLAY[terminoId] ?? TERMINO_OVERLAY.medium
+              }`}
+              style={{
+                WebkitMaskImage: MASCARA_TERMINO,
+                maskImage: MASCARA_TERMINO,
+              }}
+            />
+
+            {/* Etiqueta del término actual */}
+            <div className="absolute bottom-3 left-3">
+              <span
+                className="rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-md transition-all duration-500"
+                style={{
+                  borderColor: `${termino.glow}80`,
+                  background: `${termino.glow}33`,
+                  color: "#fff",
+                }}
+              >
+                {termino.nombre} · {termino.sub}
+              </span>
+            </div>
+          </div>
+
+          {/* MITAD DERECHA — Guarnición (0% oculta, 50% visible), cambia dinámicamente */}
+          <div
+            className={`relative h-full shrink-0 overflow-hidden transition-all duration-500 ease-in-out ${
+              guarnicion ? "w-1/2" : "w-0"
+            }`}
+          >
+            {pipData?.imagen_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={pipData.id}
+                src={pipData.imagen_url}
+                alt={pipData.nombre}
+                onError={(e) => {
+                  e.currentTarget.style.opacity = "0";
+                }}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            )}
+            {/* Separador sutil entre las dos mitades */}
+            <div className="absolute inset-y-0 left-0 w-px bg-white/15" />
+            {/* Nombre de la guarnición */}
+            {pipData && (
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-8">
+                <p className="text-xs font-bold leading-tight text-white">
+                  {pipData.nombre}
+                </p>
+                <p className="text-[10px] text-white/65">
+                  +{formatCurrency(pipData.precio_extra)}
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Scrim superior para legibilidad de controles */}
           <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/55 to-transparent" />
@@ -142,42 +195,6 @@ export function ConfiguradorPlatillo({
           >
             <X className="h-5 w-5" />
           </button>
-
-          {/* Etiqueta del término actual */}
-          <div className="absolute bottom-3 left-3">
-            <span
-              className="rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-md transition-all duration-500"
-              style={{
-                borderColor: `${termino.glow}80`,
-                background: `${termino.glow}33`,
-                color: "#fff",
-              }}
-            >
-              {termino.nombre} · {termino.sub}
-            </span>
-          </div>
-
-          {/* GUARNICIÓN — PIP flotante en la esquina inferior derecha */}
-          <div
-            className={`absolute bottom-4 right-4 h-24 w-24 overflow-hidden rounded-full border-2 border-white/20 shadow-xl transition-all duration-500 ${
-              pipVisible
-                ? "scale-100 opacity-100"
-                : "pointer-events-none scale-90 opacity-0"
-            }`}
-          >
-            <div className="absolute inset-0 bg-neutral-800" />
-            {pipData?.imagen_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={pipData.imagen_url}
-                alt={pipData.nombre}
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-                className="relative h-full w-full object-cover"
-              />
-            )}
-          </div>
         </div>
 
         {/* --- CONTENIDO CONFIGURABLE (scroll) --- */}

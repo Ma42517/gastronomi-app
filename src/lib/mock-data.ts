@@ -215,7 +215,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
         precio_extra: 35,
         emoji: "🥔",
         imagen_url:
-          "https://images.unsplash.com/photo-1593922146430-8199eb3c1a82?auto=format&fit=crop&w=400&q=80",
+          "https://images.unsplash.com/photo-1593922146430-8199eb3c1a82?auto=format&fit=crop&w=600&q=80",
       },
       {
         id: "g-esparragos",
@@ -223,7 +223,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
         precio_extra: 45,
         emoji: "🌿",
         imagen_url:
-          "https://images.unsplash.com/photo-1580013759032-c96505e24c1f?auto=format&fit=crop&w=400&q=80",
+          "https://images.unsplash.com/photo-1554502078-ef0df4cf4df6?auto=format&fit=crop&w=600&q=80",
       },
       {
         id: "g-papas",
@@ -231,7 +231,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
         precio_extra: 30,
         emoji: "🍟",
         imagen_url:
-          "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=400&q=80",
+          "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=600&q=80",
       },
       {
         id: "g-ensalada",
@@ -239,7 +239,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
         precio_extra: 25,
         emoji: "🥗",
         imagen_url:
-          "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400&q=80",
+          "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=600&q=80",
       },
     ],
   },
