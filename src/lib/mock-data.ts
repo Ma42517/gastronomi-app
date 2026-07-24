@@ -46,6 +46,23 @@ export interface MenuItemMock {
   disponible: boolean;
 }
 
+/** Opción de guarnición para un platillo configurable (con costo extra). */
+export interface OpcionGuarnicion {
+  id: string;
+  nombre: string;
+  precio_extra: number;
+}
+
+/**
+ * Configuración de un "Platillo Héroe" personalizable (experiencia tipo
+ * configurador de autos). Referencia un MenuItemMock por id para el carrito.
+ */
+export interface PlatilloHeroConfig {
+  item_id: string;
+  etiqueta: string;
+  guarniciones: OpcionGuarnicion[];
+}
+
 export interface RestauranteMock {
   id: string;
   tema: TemaRestaurante;
@@ -53,6 +70,7 @@ export interface RestauranteMock {
   categorias: string[];
   menu: MenuItemMock[];
   sommelier: SugerenciaSommelier;
+  hero: PlatilloHeroConfig;
 }
 
 /** Línea del carrito: un platillo con su cantidad. */
@@ -82,6 +100,17 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
   },
   categorias: ["Tacos", "Bebidas", "Extras"],
   menu: [
+    // --- Platillo Héroe (configurable, no se lista en las categorías) ---
+    {
+      id: "h-ribeye",
+      nombre: "Ribeye Añejado",
+      descripcion:
+        "Corte de 400g madurado 30 días, sellado a la parrilla. Personaliza tu término y guarnición.",
+      precio: 320,
+      categoria: "Especiales",
+      emoji: "🥩",
+      disponible: true,
+    },
     // --- Tacos ---
     {
       id: "t-pastor",
@@ -171,5 +200,15 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
     titulo: "Maridaje ideal",
     descripcion: "Cerveza Artesanal con tus Tacos al Pastor",
     item_id: "b-cerveza",
+  },
+  hero: {
+    item_id: "h-ribeye",
+    etiqueta: "Selección del Chef",
+    guarniciones: [
+      { id: "g-pure", nombre: "Puré de Papa", precio_extra: 35 },
+      { id: "g-esparragos", nombre: "Espárragos a la Parrilla", precio_extra: 45 },
+      { id: "g-papas", nombre: "Papas Rústicas", precio_extra: 30 },
+      { id: "g-ensalada", nombre: "Ensalada Verde", precio_extra: 25 },
+    ],
   },
 };

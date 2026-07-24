@@ -11,6 +11,8 @@ import type {
 } from "@/lib/mock-data";
 import { TarjetaSellos } from "./TarjetaSellos";
 import { SommelierBanner } from "./SommelierBanner";
+import { PlatilloHeroCard } from "./PlatilloHeroCard";
+import { ConfiguradorPlatillo } from "./ConfiguradorPlatillo";
 import { MenuInteractivo } from "./MenuInteractivo";
 import { CarritoFlotante } from "./CarritoFlotante";
 import { ModalPago } from "./ModalPago";
@@ -24,12 +26,16 @@ export function VistaClienteMesa({
   restaurante,
   numeroMesa,
 }: VistaClienteMesaProps) {
-  const { tema, menu, categorias, sommelier } = restaurante;
+  const { tema, menu, categorias, sommelier, hero } = restaurante;
 
   const [categoriaActiva, setCategoriaActiva] = useState(categorias[0]);
   // Carrito: mapa itemId -> cantidad
   const [carrito, setCarrito] = useState<Record<string, number>>({});
   const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
+  const [configuradorAbierto, setConfiguradorAbierto] = useState(false);
+
+  // Platillo héroe configurable (Ribeye).
+  const heroItem = menu.find((m) => m.id === hero.item_id);
   // La lealtad es estado local para poder animar el +1 tras pagar (mock).
   const [lealtad, setLealtad] = useState<ProgramaLealtad>(restaurante.lealtad);
 
@@ -142,6 +148,15 @@ export function VistaClienteMesa({
 
       {/* CONTENIDO — hoja redondeada que sube sobre la portada */}
       <main className="relative z-10 -mt-4 flex-1 space-y-5 rounded-t-3xl bg-gray-50 px-5 pb-32 pt-5">
+        {/* PLATILLO HÉROE — experiencia interactiva (lo primero que se ve) */}
+        {heroItem && (
+          <PlatilloHeroCard
+            item={heroItem}
+            etiqueta={hero.etiqueta}
+            onPersonalizar={() => setConfiguradorAbierto(true)}
+          />
+        )}
+
         <TarjetaSellos lealtad={lealtad} />
 
         <SommelierBanner sugerencia={sommelier} onAgregar={agregarSugerenciaAI} />
@@ -174,6 +189,17 @@ export function VistaClienteMesa({
         onCerrar={() => setModalPagoAbierto(false)}
         onPagoExitoso={onPagoExitoso}
       />
+
+      {/* CONFIGURADOR INMERSIVO DEL PLATILLO HÉROE */}
+      {heroItem && (
+        <ConfiguradorPlatillo
+          abierto={configuradorAbierto}
+          item={heroItem}
+          guarniciones={hero.guarniciones}
+          onCerrar={() => setConfiguradorAbierto(false)}
+          onConfirmar={() => agregar(heroItem)}
+        />
+      )}
     </div>
   );
 }
