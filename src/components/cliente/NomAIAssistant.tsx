@@ -33,11 +33,10 @@ function resolverItem(nombre: string, precio?: number) {
 }
 
 /**
- * "Ñom AI": Capitán de Meseros virtual.
- *  - Estado base: avatar flotante + UNA burbuja de sugerencia CONTEXTUAL
- *    (el texto cambia según la escena/ruta para guiar y hacer upselling).
- *  - Solo al pulsar "Hablar con Ñom AI" se abre el chat real (Vercel AI SDK).
- * White-label vía --brand.
+ * "Ñom AI" — componente camaleónico con dos estados:
+ *  ESTADO 1 (Home): bienvenida (3s) → retracción → barra inferior con latido →
+ *  al tocarla se expande al chat completo.
+ *  ESTADO 2 (Detalle): el flotante se OCULTA (la IA vive inline en el platillo).
  */
 export function NomAIAssistant() {
   const {
@@ -50,19 +49,18 @@ export function NomAIAssistant() {
     cerrarChat,
   } = useNomAI();
 
-  const [sugerenciaVisible, setSugerenciaVisible] = useState(false);
+  // Fase del Estado 1: bienvenida (con texto) o barra (reposo).
+  const [fase, setFase] = useState<"bienvenida" | "barra">("barra");
   const [aviso, setAviso] = useState<string | null>(null);
-  // Ids de tool-calls ya agregados al carrito (para el estado "Añadido ✓").
   const [agregados, setAgregados] = useState<string[]>([]);
-  // TODO: atar a la API de geolocalización del navegador. Por ahora fijo.
   const [userLocation] = useState("Zamora, Michoacán");
 
   const addToCart = useCartStore((s) => s.addToCart);
+  const cartCount = useCartStore((s) => s.items.length);
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, error } =
     useChat({
       api: "/api/chat",
-      // Contexto dinámico enviado al backend en cada mensaje.
       body: {
         currentDish: platilloActual,
         category: categoriaActual,
@@ -73,19 +71,14 @@ export function NomAIAssistant() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Mensaje contextual (Context Awareness) según la escena activa.
-  const sugerencia = useMemo(() => {
-    switch (escena) {
-      case "platillo":
-        return "¡Uff, excelente elección! Este corte sale increíble con un buen acompañamiento. ¿Le agregamos una guarnición para compartir?";
-      case "carrito":
-        return "¡Casi listos! 🍷 Tu pedido se ve delicioso. ¿Te agrego un postre o una bebida fría antes de confirmar?";
-      default:
-        return `¡Bienvenido a ${
-          restauranteNombre || "nuestro restaurante"
-        }! ✨ ¿Vienes con mucha hambre hoy o prefieres que te recomiende nuestra especialidad más vendida?`;
-    }
-  }, [escena, restauranteNombre]);
+  // Texto de bienvenida contextual.
+  const sugerencia = useMemo(
+    () =>
+      `¡Bienvenido a ${
+        restauranteNombre || "nuestro restaurante"
+      }! ✨ ¿Te recomiendo nuestra especialidad?`,
+    [restauranteNombre],
+  );
 
   // Auto-scroll del chat.
   useEffect(() => {
@@ -95,8 +88,8 @@ export function NomAIAssistant() {
     });
   }, [messages, isLoading, chatAbierto]);
 
-  // BIENVENIDA INTELIGENTE: solo la 1ª vez por sesión, y se auto-colapsa a 4s
-  // dejando únicamente el botón circular flotante.
+  // BIENVENIDA (one-time por sesión): muestra el texto 3s y luego se retrae
+  // ("Pac-Man") dejando la barra de reposo.
   const bienvenidaRef = useRef(false);
   useEffect(() => {
     if (bienvenidaRef.current) return;
@@ -104,28 +97,15 @@ export function NomAIAssistant() {
     if (typeof window === "undefined") return;
     if (sessionStorage.getItem("hasSeenWelcome")) return;
     sessionStorage.setItem("hasSeenWelcome", "1");
-    setSugerenciaVisible(true);
-    const t = setTimeout(() => setSugerenciaVisible(false), 4000);
+    setFase("bienvenida");
+    const t = setTimeout(() => setFase("barra"), 3000);
     return () => clearTimeout(t);
   }, []);
 
   const brand = "var(--brand, #DC2626)";
+  // Sube por encima del carrito cuando hay artículos (sin taparlo).
+  const anclaBottom = cartCount > 0 ? "bottom-24" : "bottom-4";
 
-  const manejarCerrarChat = () => {
-    cerrarChat();
-  };
-
-  // El avatar NO abre el chat: solo muestra/oculta la burbuja de sugerencia.
-  // (Si el chat está abierto, actúa como "cerrar").
-  const alPulsarAvatar = () => {
-    if (chatAbierto) {
-      cerrarChat();
-      return;
-    }
-    setSugerenciaVisible((v) => !v);
-  };
-
-  // Acción de la tarjeta: AÑADE AL CARRITO GLOBAL (conexión crítica) + toast.
   const agregarSugerido = (
     toolCallId: string,
     nombre: string,
@@ -134,7 +114,6 @@ export function NomAIAssistant() {
     if (agregados.includes(toolCallId)) return;
     const item = resolverItem(nombre, precio);
     addToCart(item);
-    console.log("[Carrito] Añadido desde Ñom AI:", item);
     setAgregados((prev) => [...prev, toolCallId]);
     setAviso(`✓ ${item.nombre} añadido a la cuenta`);
     window.setTimeout(() => setAviso(null), 2200);
@@ -142,10 +121,11 @@ export function NomAIAssistant() {
 
   return (
     <>
-      <div className="fixed bottom-24 right-4 z-[60] flex flex-col items-end gap-3">
-      {/* --- VENTANA DE CHAT (solo tras pulsar "Hablar con Ñom AI") --- */}
+      {/* ============ VENTANA DE CHAT (expandida) ============ */}
       {chatAbierto && (
-        <div className="animate-fade-in-up flex h-[26rem] max-h-[70vh] w-80 max-w-[86vw] flex-col overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/80 shadow-2xl backdrop-blur-2xl">
+        <div
+          className={`animate-fade-in-up fixed ${anclaBottom} right-4 z-[60] flex h-[26rem] max-h-[70vh] w-80 max-w-[86vw] flex-col overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/85 shadow-2xl backdrop-blur-2xl`}
+        >
           {/* Header */}
           <div className="flex items-center gap-3 border-b border-white/10 bg-white/5 p-3">
             <div
@@ -168,7 +148,7 @@ export function NomAIAssistant() {
             </div>
             <button
               type="button"
-              onClick={manejarCerrarChat}
+              onClick={cerrarChat}
               className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
               aria-label="Minimizar chat"
             >
@@ -207,7 +187,7 @@ export function NomAIAssistant() {
                     </div>
                   )}
 
-                  {/* Tarjeta premium generada por el tool suggestItemTool */}
+                  {/* Tarjeta generada por el tool suggestItemTool */}
                   {sugerencias.map((inv) => {
                     const args = inv.args as {
                       itemName?: string;
@@ -325,71 +305,51 @@ export function NomAIAssistant() {
         </div>
       )}
 
-      {/* --- BURBUJA DE SUGERENCIA (oculta dentro del detalle: ahí va inline) --- */}
-      {escena !== "platillo" && !chatAbierto && sugerenciaVisible && (
-        <div className="animate-fade-in-up relative w-64 max-w-[80vw] rounded-2xl bg-white p-3.5 pr-8 text-gray-800 shadow-2xl ring-1 ring-black/5">
+      {/* ============ ESTADO 1 (Home): bienvenida / barra de reposo ============ */}
+      {/* Se OCULTA por completo dentro del detalle (Estado 2 = inline). */}
+      {!chatAbierto && escena !== "platillo" && (
+        <div
+          className={`fixed ${anclaBottom} right-4 z-30 flex items-center justify-end gap-2`}
+        >
+          {fase === "bienvenida" ? (
+            /* Burbuja de bienvenida (se retrae a los 3s) */
+            <button
+              type="button"
+              onClick={abrirChat}
+              className="animate-fade-in-up relative max-w-[62vw] rounded-2xl bg-white px-4 py-2.5 text-left text-sm font-medium text-gray-700 shadow-2xl ring-1 ring-black/5"
+            >
+              {sugerencia}
+              <span className="absolute -right-1.5 bottom-3 h-3 w-3 rotate-45 bg-white" />
+            </button>
+          ) : (
+            /* Barra de reposo (se despliega desde el logo hacia la izquierda) */
+            <button
+              type="button"
+              onClick={abrirChat}
+              className="animate-bar-deploy flex items-center gap-2 rounded-full border border-white/10 bg-neutral-900/80 py-3 pl-4 pr-3 text-sm font-medium text-white/85 shadow-xl backdrop-blur-xl transition hover:bg-neutral-900"
+            >
+              <Sparkles className="h-4 w-4" style={{ color: brand }} />
+              Pregúntale a Ñom AI
+            </button>
+          )}
+
+          {/* Logo circular con LATIDO continuo (siempre visible en Estado 1) */}
           <button
             type="button"
-            onClick={() => setSugerenciaVisible(false)}
-            className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
-            aria-label="Cerrar sugerencia"
+            onClick={abrirChat}
+            className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/15 bg-neutral-900/80 text-white shadow-xl backdrop-blur-xl transition active:scale-95"
+            aria-label="Abrir Ñom AI"
           >
-            <X className="h-4 w-4" />
+            {/* Halo con latido (animate-pulse) */}
+            <span
+              className="absolute inset-0 animate-pulse rounded-full opacity-60 blur-md"
+              style={{ background: `radial-gradient(circle, ${brand}, transparent 72%)` }}
+            />
+            <span className="absolute inset-0 rounded-full ring-1 ring-inset ring-white/20" />
+            <Sparkles className="relative h-6 w-6" style={{ color: brand }} />
           </button>
-
-          <p
-            className="mb-1 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide"
-            style={{ color: brand }}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Ñom AI
-          </p>
-
-          {/* key => transición suave al cambiar el texto */}
-          <p
-            key={escena}
-            className="animate-text-in text-sm leading-snug text-gray-700"
-          >
-            {sugerencia}
-          </p>
-
-          <button
-            type="button"
-            onClick={() => {
-              abrirChat();
-              setSugerenciaVisible(false);
-            }}
-            className="mt-2.5 w-full rounded-full px-3 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95"
-            style={{ background: brand }}
-          >
-            Hablar con Ñom AI
-          </button>
-
-          <div className="absolute -bottom-1.5 right-7 h-3.5 w-3.5 rotate-45 bg-white" />
         </div>
       )}
-
-      {/* --- AVATAR FLOTANTE (oculto dentro del detalle: ahí va inline) --- */}
-      {escena !== "platillo" && (
-      <button
-        type="button"
-        onClick={alPulsarAvatar}
-        className="animate-float-avatar relative flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-neutral-900/70 text-white shadow-xl backdrop-blur-xl transition active:scale-95"
-        aria-label={chatAbierto ? "Cerrar chat de Ñom AI" : "Mostrar sugerencia de Ñom AI"}
-      >
-        <span
-          className="absolute inset-0 rounded-full opacity-60 blur-md"
-          style={{ background: `radial-gradient(circle, ${brand}, transparent 72%)` }}
-        />
-        <span className="absolute inset-0 rounded-full ring-1 ring-inset ring-white/20" />
-        {chatAbierto ? (
-          <X className="relative h-6 w-6" />
-        ) : (
-          <Sparkles className="relative h-6 w-6" style={{ color: brand }} />
-        )}
-      </button>
-      )}
-      </div>
 
       {/* Aviso tipo toast al agregar desde el chat */}
       {aviso && (

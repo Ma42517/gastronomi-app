@@ -438,3 +438,27 @@ textarea {
     animation: none;
   }
 }
+
+
+/* Ñom AI — la barra de reposo se despliega desde el logo hacia la izquierda */
+@keyframes barDeploy {
+  from {
+    opacity: 0;
+    transform: scaleX(0.15);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+.animate-bar-deploy {
+  transform-origin: right center;
+  animation: barDeploy 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-bar-deploy {
+    animation: none;
+  }
+}

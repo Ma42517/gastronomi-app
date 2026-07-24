@@ -251,7 +251,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
           </button>
 
           {/* Banner inline de Ñom AI — DEBAJO del botón, integrado al menú */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
             <p
               className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"
               style={{ color: brand }}
