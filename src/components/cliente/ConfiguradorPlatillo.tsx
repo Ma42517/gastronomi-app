@@ -18,12 +18,8 @@ const IMG_RIBEYE =
   "https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=800&q=80";
 
 /**
- * Términos de cocción. En lugar de dibujar la carne, aplicamos filtros CSS
- * avanzados sobre una fotografía real para simular cada término.
- *  - filtro: filter CSS de la imagen base.
- *  - tint: color sólido superpuesto (mix-blend multiply) — transiciona suave.
- *  - glowOpacity: opacidad del brillo rojizo central (mix-blend screen).
- *  - punto: color representativo para el swatch del selector.
+ * Términos de cocción. El efecto de cocción se confina al CENTRO del corte
+ * mediante una máscara radial, para no teñir toda la fotografía.
  */
 const TERMINOS = [
   {
@@ -32,9 +28,7 @@ const TERMINOS = [
     sub: "Rare",
     glow: "#ef4444",
     punto: "#b81f1f",
-    // tint: color sólido (multiply) confinado al centro del corte.
     tint: "rgba(165,12,18,0.55)",
-    // glowOpacity: brillo rojo jugoso en el centro (screen).
     glowOpacity: 0.85,
   },
   {
@@ -95,7 +89,8 @@ export function ConfiguradorPlatillo({
 }: ConfiguradorPlatilloProps) {
   const [terminoId, setTerminoId] = useState("medium");
   const [guarnicionId, setGuarnicionId] = useState<string | null>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
+  const [imgGuarnicionError, setImgGuarnicionError] = useState(false);
+  const lightRef = useRef<HTMLDivElement>(null);
 
   if (!abierto) return null;
 
@@ -106,17 +101,18 @@ export function ConfiguradorPlatillo({
   const seleccionarTermino = (id: string) => {
     setTerminoId(id);
     vibrar(10);
-    // Re-dispara el micro-zoom sin recargar la imagen (truco de reflow).
-    const el = imgRef.current;
+    // Destello de luz que cruza la imagen (reflow para re-disparar).
+    const el = lightRef.current;
     if (el) {
-      el.classList.remove("animate-hero-zoom");
+      el.classList.remove("animate-light-sweep");
       void el.offsetWidth;
-      el.classList.add("animate-hero-zoom");
+      el.classList.add("animate-light-sweep");
     }
   };
 
   const seleccionarGuarnicion = (id: string) => {
     setGuarnicionId((actual) => (actual === id ? null : id));
+    setImgGuarnicionError(false);
     vibrar(8);
   };
 
@@ -151,82 +147,123 @@ export function ConfiguradorPlatillo({
           </button>
         </div>
 
-        {/* --- VISUALIZADOR FOTOGRÁFICO INTERACTIVO --- */}
-        <div className="relative mx-4 mt-3 h-52 shrink-0 overflow-hidden rounded-3xl border border-white/10 bg-black">
-          {/* Fotografía base del corte (filtro constante, apetitoso) */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            ref={imgRef}
-            src={IMG_RIBEYE}
-            alt="Ribeye a la parrilla"
-            className="absolute inset-0 h-full w-full object-cover will-change-transform"
-            style={{ filter: "saturate(1.15) contrast(1.06) brightness(1.02)" }}
-          />
-
-          {/* Tinte de cocción — CONFINADO AL CENTRO DEL CORTE vía máscara radial */}
+        {/* --- VISUALIZADOR: layout dinámico side-by-side --- */}
+        <div className="relative mx-4 mt-3 flex h-52 shrink-0 overflow-hidden">
+          {/* PANEL CARNE — 100% sin guarnición, ~63% con guarnición */}
           <div
-            className="absolute inset-0"
-            style={{
-              backgroundColor: termino.tint,
-              mixBlendMode: "multiply",
-              maskImage: MASCARA_CENTRO,
-              WebkitMaskImage: MASCARA_CENTRO,
-              transition: "background-color 0.7s ease-in-out",
-            }}
-          />
-
-          {/* Brillo rojizo jugoso, también solo en el centro (mezcla screen) */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(ellipse 52% 46% at 50% 46%, rgba(225,45,38,0.95), rgba(180,20,20,0.18) 55%, transparent 72%)",
-              mixBlendMode: "screen",
-              opacity: termino.glowOpacity,
-              transition: "opacity 0.7s ease-in-out",
-            }}
-          />
-
-          {/* Degradado para legibilidad */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15" />
-
-          {/* Vapor */}
-          <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center gap-7">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className="steam-line h-12 w-1 rounded-full bg-white/25 blur-[2px]"
-                style={{ animationDelay: `${i * 0.6}s` }}
+            className={`h-full transition-all duration-700 ease-in-out ${
+              guarnicion ? "w-[63%] pr-1.5" : "w-full"
+            }`}
+          >
+            <div className="relative h-full w-full overflow-hidden rounded-3xl border border-white/10 bg-black">
+              {/* Fotografía base — "viva" con Ken Burns */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={IMG_RIBEYE}
+                alt="Ribeye a la parrilla"
+                className="animate-ken-burns absolute inset-0 h-full w-full object-cover"
+                style={{ filter: "saturate(1.15) contrast(1.06) brightness(1.02)" }}
               />
-            ))}
+
+              {/* Tinte de cocción — confinado al centro del corte */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundColor: termino.tint,
+                  mixBlendMode: "multiply",
+                  maskImage: MASCARA_CENTRO,
+                  WebkitMaskImage: MASCARA_CENTRO,
+                  transition: "background-color 0.7s ease-in-out",
+                }}
+              />
+
+              {/* Brillo rojizo jugoso, solo en el centro */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  background:
+                    "radial-gradient(ellipse 52% 46% at 50% 46%, rgba(225,45,38,0.95), rgba(180,20,20,0.18) 55%, transparent 72%)",
+                  mixBlendMode: "screen",
+                  opacity: termino.glowOpacity,
+                  transition: "opacity 0.7s ease-in-out",
+                }}
+              />
+
+              {/* Destello de luz al cambiar de término */}
+              <div
+                ref={lightRef}
+                className="pointer-events-none absolute inset-y-0 left-0 w-1/2"
+                style={{
+                  background:
+                    "linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
+                  mixBlendMode: "screen",
+                  opacity: 0,
+                }}
+              />
+
+              {/* Degradado para legibilidad de la etiqueta */}
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/25" />
+
+              {/* Vapor */}
+              <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center gap-7">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="steam-line h-12 w-1 rounded-full bg-white/25 blur-[2px]"
+                    style={{ animationDelay: `${i * 0.6}s` }}
+                  />
+                ))}
+              </div>
+
+              {/* Etiqueta del término actual */}
+              <div className="absolute left-3 top-3">
+                <span
+                  className="rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-md transition-all duration-500"
+                  style={{
+                    borderColor: `${termino.glow}80`,
+                    background: `${termino.glow}33`,
+                    color: "#fff",
+                  }}
+                >
+                  {termino.nombre} · {termino.sub}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Guarnición sobre el plato — cae al elegirla, transiciona entre opciones */}
+          {/* PANEL GUARNICIÓN — entra deslizándose desde la derecha */}
           {guarnicion && (
             <div
               key={guarnicion.id}
-              className="animate-garnish-drop pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center"
+              className="animate-garnish-slide h-full w-[37%] pl-1.5"
             >
-              <span className="text-5xl [filter:drop-shadow(0_8px_10px_rgba(0,0,0,0.55))]">
-                {guarnicion.emoji}
-              </span>
-              <span className="mt-1 h-1.5 w-12 rounded-full bg-black/40 blur-[3px]" />
+              <div className="relative h-full w-full overflow-hidden rounded-3xl border border-white/10">
+                {guarnicion.imagen_url && !imgGuarnicionError ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={guarnicion.imagen_url}
+                    alt={guarnicion.nombre}
+                    onError={() => setImgGuarnicionError(true)}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-neutral-700 to-neutral-800 text-5xl">
+                    {guarnicion.emoji}
+                  </div>
+                )}
+
+                {/* Nombre de la guarnición */}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-2.5 pt-6">
+                  <p className="text-[11px] font-bold leading-tight text-white">
+                    {guarnicion.nombre}
+                  </p>
+                  <p className="text-[10px] text-white/60">
+                    +{formatCurrency(guarnicion.precio_extra)}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
-
-          {/* Etiqueta del término actual (arriba, para dejar libre el plato) */}
-          <div className="absolute left-3 top-3">
-            <span
-              className="rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-md transition-all duration-500"
-              style={{
-                borderColor: `${termino.glow}80`,
-                background: `${termino.glow}33`,
-                color: "#fff",
-              }}
-            >
-              {termino.nombre} · {termino.sub}
-            </span>
-          </div>
         </div>
 
         {/* --- CONTENIDO CONFIGURABLE (scroll) --- */}

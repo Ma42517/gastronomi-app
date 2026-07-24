@@ -326,3 +326,68 @@ textarea {
     animation: none;
   }
 }
+
+
+/* ============================================================
+   Visualizador "vivo" — Ken Burns, destello de luz y guarnición
+   ============================================================ */
+
+/* Respiración Ken Burns: zoom y paneo lentísimos, en bucle */
+@keyframes kenBurns {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.05) translate(-1.5%, -1%);
+  }
+  100% {
+    transform: scale(1) translate(0, 0);
+  }
+}
+
+.animate-ken-burns {
+  animation: kenBurns 18s ease-in-out infinite;
+}
+
+/* Destello de luz que cruza al cambiar de término */
+@keyframes lightSweep {
+  0% {
+    transform: translateX(-160%);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateX(320%);
+    opacity: 0;
+  }
+}
+
+.animate-light-sweep {
+  animation: lightSweep 0.9s ease-out;
+}
+
+/* Guarnición entra deslizándose desde la derecha */
+@keyframes garnishSlide {
+  0% {
+    transform: translateX(110%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-garnish-slide {
+  animation: garnishSlide 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ken-burns,
+  .animate-light-sweep,
+  .animate-garnish-slide {
+    animation: none;
+  }
+}
