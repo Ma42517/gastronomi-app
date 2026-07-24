@@ -13,7 +13,7 @@ interface CategoriaPillsProps {
  */
 export function CategoriaPills({ categorias, activa, onSelect }: CategoriaPillsProps) {
   return (
-    <nav className="sticky top-0 z-30 -mx-5 flex gap-2 overflow-x-auto bg-gray-50/95 px-5 py-3 backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav className="sticky top-0 z-40 -mx-5 flex gap-2 overflow-x-auto border-b border-gray-100/60 bg-white/90 px-5 py-2 backdrop-blur-md [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {categorias.map((cat) => {
         const isActive = cat === activa;
         return (
