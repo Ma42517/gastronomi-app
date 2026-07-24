@@ -415,3 +415,26 @@ textarea {
     animation: none;
   }
 }
+
+
+/* Transición suave del texto contextual de Ñom AI */
+@keyframes textIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-text-in {
+  animation: textIn 0.35s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-text-in {
+    animation: none;
+  }
+}

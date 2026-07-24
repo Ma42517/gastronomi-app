@@ -1,27 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useChat } from "ai/react";
 import { Mic, Send, Sparkles, X } from "lucide-react";
-
-interface NomAIAssistantProps {
-  /** Sugerencia contextual mostrada en la burbuja discreta. */
-  sugerencia?: string;
-}
+import { useNomAI } from "./NomAIContext";
 
 const SALUDO =
   "¡Hola! Soy Ñom AI. ¿Tienes antojo de algo en especial o alguna alergia que deba conocer?";
 
 /**
- * "Ñom AI": asistente discreto.
- *  - Base: avatar flotante + UNA burbuja de sugerencia contextual.
- *  - Solo si el usuario pulsa "Hablar con Ñom AI" se abre el chat interactivo,
- *    conectado a un LLM real vía Vercel AI SDK (hook useChat -> /api/chat).
- * White-label vía --brand (con respaldo).
+ * "Ñom AI": Capitán de Meseros virtual.
+ *  - Estado base: avatar flotante + UNA burbuja de sugerencia CONTEXTUAL
+ *    (el texto cambia según la escena/ruta para guiar y hacer upselling).
+ *  - Solo al pulsar "Hablar con Ñom AI" se abre el chat real (Vercel AI SDK).
+ * White-label vía --brand.
  */
-export function NomAIAssistant({
-  sugerencia = "¡Buena elección! ¿Quieres que te recomiende el maridaje perfecto?",
-}: NomAIAssistantProps) {
+export function NomAIAssistant() {
+  const { escena, restauranteNombre } = useNomAI();
+  const pathname = usePathname();
+
   const [chatAbierto, setChatAbierto] = useState(false);
   const [sugerenciaDescartada, setSugerenciaDescartada] = useState(false);
 
@@ -39,12 +37,32 @@ export function NomAIAssistant({
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Mensaje contextual (Context Awareness) según la escena activa.
+  const sugerencia = useMemo(() => {
+    switch (escena) {
+      case "platillo":
+        return "¡Uff, excelente elección! Este corte sale increíble con un buen acompañamiento. ¿Le agregamos una guarnición para compartir?";
+      case "carrito":
+        return "¡Casi listos! 🍷 Tu pedido se ve delicioso. ¿Te agrego un postre o una bebida fría antes de confirmar?";
+      default:
+        return `¡Bienvenido a ${
+          restauranteNombre || "nuestro restaurante"
+        }! ✨ ¿Vienes con mucha hambre hoy o prefieres que te recomiende nuestra especialidad más vendida?`;
+    }
+  }, [escena, restauranteNombre]);
+
+  // Auto-scroll del chat.
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
   }, [messages, isLoading, chatAbierto]);
+
+  // Al cambiar de escena o de ruta, vuelve a mostrar la sugerencia contextual.
+  useEffect(() => {
+    setSugerenciaDescartada(false);
+  }, [escena, pathname]);
 
   const brand = "var(--brand, #DC2626)";
 
@@ -109,7 +127,6 @@ export function NomAIAssistant({
               ),
             )}
 
-            {/* "Escribiendo…" */}
             {isLoading && (
               <div className="flex w-fit items-center gap-1 rounded-2xl rounded-bl-md bg-white/10 px-3 py-2.5">
                 {[0, 1, 2].map((i) => (
@@ -122,7 +139,6 @@ export function NomAIAssistant({
               </div>
             )}
 
-            {/* Error (ej. falta OPENAI_API_KEY) */}
             {error && (
               <div className="rounded-2xl rounded-bl-md bg-red-500/15 px-3 py-2 text-xs leading-snug text-red-200">
                 No pude conectar con Ñom AI. Revisa que la clave de API esté
@@ -163,7 +179,7 @@ export function NomAIAssistant({
         </div>
       )}
 
-      {/* --- BURBUJA DE SUGERENCIA DISCRETA (estado base) --- */}
+      {/* --- BURBUJA DE SUGERENCIA CONTEXTUAL (estado base) --- */}
       {!chatAbierto && !sugerenciaDescartada && (
         <div className="animate-fade-in-up relative w-64 max-w-[80vw] rounded-2xl bg-white p-3.5 pr-8 text-gray-800 shadow-2xl ring-1 ring-black/5">
           <button
@@ -182,7 +198,11 @@ export function NomAIAssistant({
             <Sparkles className="h-3.5 w-3.5" />
             Ñom AI
           </p>
-          <p className="text-sm leading-snug text-gray-700">{sugerencia}</p>
+
+          {/* key={escena} => transición suave al cambiar de pantalla */}
+          <p key={escena} className="animate-text-in text-sm leading-snug text-gray-700">
+            {sugerencia}
+          </p>
 
           <button
             type="button"
@@ -193,7 +213,6 @@ export function NomAIAssistant({
             Hablar con Ñom AI
           </button>
 
-          {/* Piquito hacia el avatar */}
           <div className="absolute -bottom-1.5 right-7 h-3.5 w-3.5 rotate-45 bg-white" />
         </div>
       )}

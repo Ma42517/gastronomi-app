@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, Minus, Plus, ShoppingBag } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { CarritoLinea } from "@/lib/mock-data";
@@ -12,6 +12,8 @@ interface CarritoFlotanteProps {
   onAgregar: (linea: CarritoLinea) => void;
   onQuitar: (itemId: string) => void;
   onPagar: () => void;
+  /** Notifica al padre cuando el detalle del carrito se abre/cierra. */
+  onExpandidoChange?: (expandido: boolean) => void;
 }
 
 export function CarritoFlotante({
@@ -21,8 +23,14 @@ export function CarritoFlotante({
   onAgregar,
   onQuitar,
   onPagar,
+  onExpandidoChange,
 }: CarritoFlotanteProps) {
   const [expandido, setExpandido] = useState(false);
+
+  // Informa al padre (para el contexto de Ñom AI). Antes del early return.
+  useEffect(() => {
+    onExpandidoChange?.(expandido);
+  }, [expandido, onExpandidoChange]);
 
   if (totalItems === 0) return null;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { MapPin } from "lucide-react";
 import type {
@@ -16,7 +16,7 @@ import { ConfiguradorPlatillo } from "./ConfiguradorPlatillo";
 import { MenuInteractivo } from "./MenuInteractivo";
 import { CarritoFlotante } from "./CarritoFlotante";
 import { ModalPago } from "./ModalPago";
-import { NomAIAssistant } from "./NomAIAssistant";
+import { useNomAI } from "./NomAIContext";
 
 interface VistaClienteMesaProps {
   restaurante: RestauranteMock;
@@ -34,6 +34,10 @@ export function VistaClienteMesa({
   const [carrito, setCarrito] = useState<Record<string, number>>({});
   const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
   const [configuradorAbierto, setConfiguradorAbierto] = useState(false);
+  const [carritoExpandido, setCarritoExpandido] = useState(false);
+
+  // Contexto de Ñom AI (mensajes según la escena activa).
+  const { setEscena, setRestauranteNombre } = useNomAI();
 
   // Platillo héroe configurable (Ribeye).
   const heroItem = menu.find((m) => m.id === hero.item_id);
@@ -58,6 +62,27 @@ export function VistaClienteMesa({
     () => lineas.reduce((acc, l) => acc + l.cantidad, 0),
     [lineas],
   );
+
+  // --- Ñom AI: informar nombre del restaurante y escena activa ---
+  useEffect(() => {
+    setRestauranteNombre(tema.nombre_restaurante);
+  }, [tema.nombre_restaurante, setRestauranteNombre]);
+
+  useEffect(() => {
+    setEscena(
+      configuradorAbierto
+        ? "platillo"
+        : modalPagoAbierto || (carritoExpandido && totalItems > 0)
+          ? "carrito"
+          : "categorias",
+    );
+  }, [
+    configuradorAbierto,
+    modalPagoAbierto,
+    carritoExpandido,
+    totalItems,
+    setEscena,
+  ]);
 
   // --- Handlers ---
   const agregar = (item: MenuItemMock) =>
@@ -181,6 +206,7 @@ export function VistaClienteMesa({
         onAgregar={(l) => agregar(l.item)}
         onQuitar={quitar}
         onPagar={() => setModalPagoAbierto(true)}
+        onExpandidoChange={setCarritoExpandido}
       />
 
       {/* MODAL DE PAGO / SPLIT BILL */}
@@ -201,9 +227,6 @@ export function VistaClienteMesa({
           onConfirmar={() => agregar(heroItem)}
         />
       )}
-
-      {/* ASISTENTE VIRTUAL "ÑOM AI" — disponible en toda la vista del cliente */}
-      <NomAIAssistant />
     </div>
   );
 }
