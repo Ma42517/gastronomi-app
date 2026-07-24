@@ -187,9 +187,14 @@ export default function Home() {
           })}
         </div>
 
-        <p className="mt-10 text-center font-sans text-xs text-white/30">
-          Ñom Ñom · Next.js + Supabase · Entorno de desarrollo
-        </p>
+        <div className="mt-10 text-center">
+          <p className="font-sans text-sm tracking-wide text-white/45">
+            Escanea. Ordena. Paga. Así de fácil.
+          </p>
+          <p className="mt-1.5 font-sans text-xs text-white/25">
+            Ñom Ñom · Next.js + Supabase · Entorno de desarrollo
+          </p>
+        </div>
       </section>
     </main>
   );
