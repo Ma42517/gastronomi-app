@@ -14,12 +14,21 @@ interface DetallePlatilloProps {
   onCerrar: () => void;
 }
 
-/** Reacciones de Ñom AI a la salsa elegida (hardcodeadas). */
-const REACCIONES_SALSA: Record<string, string> = {
-  roja: "Nuestra salsa roja es ideal para los que disfrutan menos picor pero mucho sabor.",
+/** Reacciones de Ñom AI por opción elegida (salsa, preparación, extras). */
+const REACCIONES: Record<string, string> = {
+  // Salsas
+  roja: "La salsa roja tiene poco picor pero mucho sabor. Ideal si prefieres disfrutar sin que pique de más.",
   verde: "La salsa verde es fresca y con un picor equilibrado. ¡Combina con todo!",
   habanero:
-    "¡La habanero es intensa! Solo para valientes. ¿Un agua fresca para calmar el fuego? 🧊",
+    "La habanero es intensa y muy picante. Solo para valientes 🔥. ¿Un agua fresca para calmar el fuego?",
+  // Preparación
+  "con-todo": "Con todo: cebolla, cilantro y su salsa. La experiencia completa.",
+  "sin-cebolla":
+    "Sin cebolla, para un sabor más limpio y directo. ¡Buena elección!",
+  // Extras (queso fundido)
+  chorizo: "Con chorizo extra: más sabor y un toque picosito.",
+  champinones: "Champiñones extra: un toque terroso y muy jugoso.",
+  doble: "¡Doble porción! Perfecto para compartir en grande.",
 };
 
 /** Sugiere el ítem de venta cruzada perfecto según la categoría del platillo. */
@@ -52,6 +61,8 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   const [agregadoSugerido, setAgregadoSugerido] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [selecciones, setSelecciones] = useState<Record<string, string[]>>({});
+  // Última opción tocada por el usuario (para reaccionar a cada cambio).
+  const [ultimaOpcion, setUltimaOpcion] = useState<string | null>(null);
 
   useEffect(() => {
     if (!abierto || !item) return;
@@ -64,6 +75,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     setAgregado(false);
     setAgregadoSugerido(false);
     setImgError(false);
+    setUltimaOpcion(null);
   }, [abierto, item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!abierto || !item) return null;
@@ -73,6 +85,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   const sugerido = sugerirCrossSell(item);
 
   const toggle = (grupo: GrupoModificador, opcionId: string) => {
+    setUltimaOpcion(opcionId); // Ñom AI reacciona a cada cambio de opción
     setSelecciones((prev) => {
       const actual = prev[grupo.id] ?? [];
       if (grupo.tipo === "single") return { ...prev, [grupo.id]: [opcionId] };
@@ -113,17 +126,22 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     setAgregadoSugerido(true);
   };
 
+  // Descripción "buena elección" con datos REALES del producto (sin inventar).
+  const descripcionIA = `¡Buena elección! ${item.descripcion} Y por ${formatCurrency(
+    item.precio,
+  )}, es un antojo que vale la pena.`;
+
   // Texto del banner inline de Ñom AI:
-  //  - ANTES de agregar: solo contexto (reacción a la salsa) — sin sugerir extras.
-  //  - DESPUÉS de agregar: reacciona con la venta cruzada.
-  const salsaSel = selecciones["salsa"]?.[0];
+  //  - Al abrir: descripción del producto (datos reales).
+  //  - Al cambiar una opción (salsa/preparación/extra): reacción a esa opción.
+  //  - Tras agregar: venta cruzada.
   const mensajeInline = agregadoSugerido
     ? `¡Listo! ${sugerido?.nombre ?? "Tu extra"} añadido a la cuenta. 🎉`
     : agregado
       ? mensajeCrossSell
-      : salsaSel && REACCIONES_SALSA[salsaSel]
-        ? REACCIONES_SALSA[salsaSel]
-        : "Cuéntame si tienes dudas del platillo o alguna alergia. ¡Estoy para ayudarte!";
+      : ultimaOpcion && REACCIONES[ultimaOpcion]
+        ? REACCIONES[ultimaOpcion]
+        : descripcionIA;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center">

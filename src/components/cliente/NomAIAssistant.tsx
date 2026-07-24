@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { Check, Mic, Plus, Send, Sparkles, UtensilsCrossed, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -10,6 +10,8 @@ import { useNomAI } from "./NomAIContext";
 
 const SALUDO =
   "¡Hola! Soy Ñom AI. ¿Tienes antojo de algo en especial o alguna alergia que deba conocer?";
+
+const MENSAJE_BIENVENIDA = "¡Hola! Soy Ñom AI, pregúntame sobre el menú 👋";
 
 /** Resuelve el item sugerido por la IA a un producto real del menú. */
 function resolverItem(nombre: string, precio?: number) {
@@ -41,7 +43,6 @@ function resolverItem(nombre: string, precio?: number) {
 export function NomAIAssistant() {
   const {
     escena,
-    restauranteNombre,
     platilloActual,
     categoriaActual,
     chatAbierto,
@@ -49,8 +50,8 @@ export function NomAIAssistant() {
     cerrarChat,
   } = useNomAI();
 
-  // Fase del Estado 1: bienvenida (con texto) o barra (reposo).
-  const [fase, setFase] = useState<"bienvenida" | "barra">("barra");
+  // Bienvenida temporal (Estado 1); al terminar queda solo el círculo.
+  const [mostrarBienvenida, setMostrarBienvenida] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [agregados, setAgregados] = useState<string[]>([]);
   const [userLocation] = useState("Zamora, Michoacán");
@@ -71,15 +72,6 @@ export function NomAIAssistant() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Texto de bienvenida contextual.
-  const sugerencia = useMemo(
-    () =>
-      `¡Bienvenido a ${
-        restauranteNombre || "nuestro restaurante"
-      }! ✨ ¿Te recomiendo nuestra especialidad?`,
-    [restauranteNombre],
-  );
-
   // Auto-scroll del chat.
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -97,8 +89,8 @@ export function NomAIAssistant() {
     if (typeof window === "undefined") return;
     if (sessionStorage.getItem("hasSeenWelcome")) return;
     sessionStorage.setItem("hasSeenWelcome", "1");
-    setFase("bienvenida");
-    const t = setTimeout(() => setFase("barra"), 3000);
+    setMostrarBienvenida(true);
+    const t = setTimeout(() => setMostrarBienvenida(false), 3500);
     return () => clearTimeout(t);
   }, []);
 
@@ -311,29 +303,15 @@ export function NomAIAssistant() {
         <div
           className={`fixed ${anclaBottom} right-4 z-30 flex items-center justify-end gap-2`}
         >
-          {fase === "bienvenida" ? (
-            /* Burbuja de bienvenida (se retrae a los 3s) */
-            <button
-              type="button"
-              onClick={abrirChat}
-              className="animate-fade-in-up relative max-w-[62vw] rounded-2xl bg-white px-4 py-2.5 text-left text-sm font-medium text-gray-700 shadow-2xl ring-1 ring-black/5"
-            >
-              {sugerencia}
+          {/* Bienvenida temporal (3–4s); luego queda SOLO el círculo */}
+          {mostrarBienvenida && (
+            <div className="animate-fade-in-up relative max-w-[62vw] rounded-2xl bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-2xl ring-1 ring-black/5">
+              {MENSAJE_BIENVENIDA}
               <span className="absolute -right-1.5 bottom-3 h-3 w-3 rotate-45 bg-white" />
-            </button>
-          ) : (
-            /* Barra de reposo (se despliega desde el logo hacia la izquierda) */
-            <button
-              type="button"
-              onClick={abrirChat}
-              className="animate-bar-deploy flex items-center gap-2 rounded-full border border-white/10 bg-neutral-900/80 py-3 pl-4 pr-3 text-sm font-medium text-white/85 shadow-xl backdrop-blur-xl transition hover:bg-neutral-900"
-            >
-              <Sparkles className="h-4 w-4" style={{ color: brand }} />
-              Pregúntale a Ñom AI
-            </button>
+            </div>
           )}
 
-          {/* Logo circular con LATIDO continuo (siempre visible en Estado 1) */}
+          {/* Botón circular (estado contraído ~56px) con latido sutil */}
           <button
             type="button"
             onClick={abrirChat}
