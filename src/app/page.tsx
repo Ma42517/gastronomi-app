@@ -108,6 +108,18 @@ export default function Home() {
         </div>
       </div>
 
+      {/* --- Eslogan pequeño y elegante, justo debajo del logo (con shimmer) --- */}
+      <p
+        className={`absolute left-0 right-0 top-[86px] z-20 px-6 text-center sm:top-[104px] ${
+          mostrarMenu ? "animate-fade-in-up opacity-0" : "opacity-0"
+        }`}
+        style={{ animationDelay: "150ms" }}
+      >
+        <span className="eslogan-shimmer font-sans text-[11px] font-medium tracking-[0.35em] sm:text-xs">
+          ESCANEA · ORDENA · PAGA
+        </span>
+      </p>
+
       {/* --- Eslogan del splash (independiente para no escalar con el título) --- */}
       <p
         className={`absolute left-0 right-0 top-[62%] z-20 px-6 text-center font-sans text-base tracking-wide text-white/60 transition-all duration-700 ${
@@ -187,14 +199,9 @@ export default function Home() {
           })}
         </div>
 
-        <div className="mt-10 text-center">
-          <p className="font-sans text-sm tracking-wide text-white/45">
-            Escanea. Ordena. Paga. Así de fácil.
-          </p>
-          <p className="mt-1.5 font-sans text-xs text-white/25">
-            Ñom Ñom · Next.js + Supabase · Entorno de desarrollo
-          </p>
-        </div>
+        <p className="mt-10 text-center font-sans text-xs text-white/25">
+          Ñom Ñom · Next.js + Supabase · Entorno de desarrollo
+        </p>
       </section>
     </main>
   );
