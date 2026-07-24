@@ -16,6 +16,8 @@
     "react-dom": "18.3.1",
     "@supabase/supabase-js": "^2.45.0",
     "@supabase/ssr": "^0.5.1",
+    "ai": "3.4.x",
+    "@ai-sdk/openai": "0.0.x",
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.5.2",
     "lucide-react": "^0.427.0"
