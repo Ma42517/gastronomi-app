@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Plus, UtensilsCrossed, X } from "lucide-react";
+import { Check, Plus, Sparkles, UtensilsCrossed, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
 import type { GrupoModificador, MenuItemMock } from "@/lib/mock-data";
@@ -13,20 +13,27 @@ interface DetallePlatilloProps {
   onCerrar: () => void;
 }
 
+/** Reacciones de Ñom AI a la salsa elegida (hardcodeadas). */
+const REACCIONES_SALSA: Record<string, string> = {
+  roja: "Nuestra salsa roja es ideal para los que disfrutan menos picor pero mucho sabor.",
+  verde: "La salsa verde es fresca y con un picor equilibrado. ¡Combina con todo!",
+  habanero:
+    "¡La habanero es intensa! Solo para valientes. ¿Un agua fresca para calmar el fuego? 🧊",
+};
+
 /**
  * Detalle premium (dark) DINÁMICO para cualquier platillo:
- * foto real (con placeholder de respaldo), descripción apetitosa y sus
- * modificadores específicos. Conectado al carrito global + venta cruzada.
+ * foto real, descripción apetitosa y modificadores. La sugerencia de Ñom AI se
+ * muestra INLINE (debajo del botón), no como burbuja flotante invasiva.
  */
 export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProps) {
   const addToCart = useCartStore((s) => s.addToCart);
-  const { dispararCrossSell } = useNomAI();
+  const { dispararCrossSell, abrirChat } = useNomAI();
 
   const [agregado, setAgregado] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [selecciones, setSelecciones] = useState<Record<string, string[]>>({});
 
-  // Reinicia estado al abrir / cambiar de platillo (con defaults de modifiers).
   useEffect(() => {
     if (!abierto || !item) return;
     const init: Record<string, string[]> = {};
@@ -41,6 +48,9 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
 
   if (!abierto || !item) return null;
 
+  const brand = "var(--brand, #DC2626)";
+  const esBebida = item.categoria === "Bebidas";
+
   const toggle = (grupo: GrupoModificador, opcionId: string) => {
     setSelecciones((prev) => {
       const actual = prev[grupo.id] ?? [];
@@ -54,6 +64,10 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     });
   };
 
+  const mensajeCrossSell = esBebida
+    ? "¡Buena elección! ¿Le sumamos unos Tacos al Pastor para acompañar? 🌮"
+    : "¡Excelente elección! ¿Gustas añadir un refresco bien frío para acompañar? 🥤";
+
   const agregar = () => {
     addToCart({
       id: item.id,
@@ -61,17 +75,20 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
       precio: item.precio,
       emoji: item.emoji,
     });
-    // Venta cruzada: la burbuja de Ñom AI reacciona al instante.
-    const esBebida = item.categoria === "Bebidas";
-    dispararCrossSell(
-      esBebida
-        ? "¡Buena elección! ¿Le sumamos unos Tacos al Pastor para acompañar? 🌮"
-        : "¡Excelente elección! ¿Gustas añadir un refresco bien frío para acompañar? 🥤",
-    );
+    // Sincroniza la burbuja flotante para cuando el cliente cierre el detalle.
+    dispararCrossSell(mensajeCrossSell);
     setAgregado(true);
   };
 
-  const brand = "var(--brand, #DC2626)";
+  // Texto del banner inline de Ñom AI (reacciona a salsa y a la venta).
+  const salsaSel = selecciones["salsa"]?.[0];
+  const mensajeInline = agregado
+    ? mensajeCrossSell
+    : salsaSel && REACCIONES_SALSA[salsaSel]
+      ? REACCIONES_SALSA[salsaSel]
+      : esBebida
+        ? "Refrescante elección. ¿La acompañamos con unos Tacos al Pastor? 🌮"
+        : "¡Se ve delicioso! ¿Le sumamos una bebida bien fría para acompañar? 🥤";
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center">
@@ -82,7 +99,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
         className="animate-backdrop-in absolute inset-0 bg-black/70 backdrop-blur-sm"
       />
 
-      <div className="animate-sheet-up relative mt-auto flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border-t border-white/10 bg-neutral-900/90 text-white shadow-2xl backdrop-blur-2xl">
+      <div className="animate-sheet-up relative mt-auto flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border-t border-white/10 bg-neutral-900/95 text-white shadow-2xl backdrop-blur-2xl">
         {/* Foto real (placeholder premium si falla o no hay) */}
         <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-zinc-900">
           {item.imagen_url && !imgError ? (
@@ -121,8 +138,8 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
           </button>
         </div>
 
-        {/* Contenido (scroll) */}
-        <div className="flex-1 space-y-5 overflow-y-auto px-5 pb-4 pt-4">
+        {/* Contenido (scroll): info + modificadores + botón + banner de Ñom AI */}
+        <div className="flex-1 space-y-5 overflow-y-auto px-5 pb-6 pt-4">
           <div>
             <h2 className="text-2xl font-extrabold leading-tight">
               {item.nombre}
@@ -176,10 +193,8 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
               </div>
             </div>
           ))}
-        </div>
 
-        {/* Barra inferior */}
-        <div className="shrink-0 border-t border-white/10 bg-neutral-900/60 p-4 pb-6 backdrop-blur-md">
+          {/* Botón rojo de Agregar (dentro del scroll) */}
           <button
             type="button"
             onClick={agregar}
@@ -201,6 +216,31 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
               </>
             )}
           </button>
+
+          {/* Banner inline de Ñom AI — DEBAJO del botón, integrado al menú */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p
+              className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"
+              style={{ color: brand }}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Ñom AI
+            </p>
+            <p
+              key={mensajeInline}
+              className="animate-text-in text-sm leading-snug text-white/80"
+            >
+              {mensajeInline}
+            </p>
+            <button
+              type="button"
+              onClick={abrirChat}
+              className="mt-3 w-full rounded-full px-3 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95"
+              style={{ background: brand }}
+            >
+              Hablar con Ñom AI
+            </button>
+          </div>
         </div>
       </div>
     </div>

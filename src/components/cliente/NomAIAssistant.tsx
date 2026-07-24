@@ -41,10 +41,18 @@ function resolverItem(nombre: string, precio?: number) {
  * White-label vía --brand.
  */
 export function NomAIAssistant() {
-  const { escena, restauranteNombre, platilloActual, crossSell } = useNomAI();
+  const {
+    escena,
+    restauranteNombre,
+    platilloActual,
+    categoriaActual,
+    crossSell,
+    chatAbierto,
+    abrirChat,
+    cerrarChat,
+  } = useNomAI();
   const pathname = usePathname();
 
-  const [chatAbierto, setChatAbierto] = useState(false);
   const [sugerenciaVisible, setSugerenciaVisible] = useState(true);
   const [aviso, setAviso] = useState<string | null>(null);
   // Ids de tool-calls ya agregados al carrito (para el estado "Añadido ✓").
@@ -60,7 +68,11 @@ export function NomAIAssistant() {
     useChat({
       api: "/api/chat",
       // Contexto dinámico enviado al backend en cada mensaje.
-      body: { currentDish: platilloActual, location: userLocation },
+      body: {
+        currentDish: platilloActual,
+        category: categoriaActual,
+        location: userLocation,
+      },
       initialMessages: [{ id: "saludo", role: "assistant", content: SALUDO }],
     });
 
@@ -105,16 +117,16 @@ export function NomAIAssistant() {
 
   const brand = "var(--brand, #DC2626)";
 
-  const cerrarChat = () => {
-    setChatAbierto(false);
-    setSugerenciaVisible(false);
+  const manejarCerrarChat = () => {
+    cerrarChat();
+    setMensajeOverride(null);
   };
 
   // El avatar NO abre el chat: solo muestra/oculta la burbuja de sugerencia.
   // (Si el chat está abierto, actúa como "cerrar").
   const alPulsarAvatar = () => {
     if (chatAbierto) {
-      setChatAbierto(false);
+      cerrarChat();
       return;
     }
     setSugerenciaVisible((v) => !v);
@@ -163,7 +175,7 @@ export function NomAIAssistant() {
             </div>
             <button
               type="button"
-              onClick={cerrarChat}
+              onClick={manejarCerrarChat}
               className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
               aria-label="Minimizar chat"
             >
@@ -320,8 +332,8 @@ export function NomAIAssistant() {
         </div>
       )}
 
-      {/* --- BURBUJA DE SUGERENCIA CONTEXTUAL (estado base) --- */}
-      {!chatAbierto && sugerenciaVisible && (
+      {/* --- BURBUJA DE SUGERENCIA (oculta dentro del detalle: ahí va inline) --- */}
+      {escena !== "platillo" && !chatAbierto && sugerenciaVisible && (
         <div className="animate-fade-in-up relative w-64 max-w-[80vw] rounded-2xl bg-white p-3.5 pr-8 text-gray-800 shadow-2xl ring-1 ring-black/5">
           <button
             type="button"
@@ -354,7 +366,7 @@ export function NomAIAssistant() {
           <button
             type="button"
             onClick={() => {
-              setChatAbierto(true);
+              abrirChat();
               setSugerenciaVisible(false);
               setMensajeOverride(null);
             }}
@@ -368,7 +380,8 @@ export function NomAIAssistant() {
         </div>
       )}
 
-      {/* --- AVATAR FLOTANTE --- */}
+      {/* --- AVATAR FLOTANTE (oculto dentro del detalle: ahí va inline) --- */}
+      {escena !== "platillo" && (
       <button
         type="button"
         onClick={alPulsarAvatar}
@@ -386,6 +399,7 @@ export function NomAIAssistant() {
           <Sparkles className="relative h-6 w-6" style={{ color: brand }} />
         )}
       </button>
+      )}
       </div>
 
       {/* Aviso tipo toast al agregar desde el chat */}

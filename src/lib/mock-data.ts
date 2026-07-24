@@ -127,10 +127,6 @@ const MODIFICADORES_TACO: GrupoModificador[] = [
   },
 ];
 
-/** Foto por palabras clave (LoremFlickr; source.unsplash.com fue descontinuado). */
-const foto = (keywords: string, lock: number) =>
-  `https://loremflickr.com/600/400/${keywords}?lock=${lock}`;
-
 // ---------------------------------------------------------------------------
 // MOCK: "Taquería El Primo"
 // ---------------------------------------------------------------------------
@@ -162,7 +158,8 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Especiales",
       emoji: "🥩",
       disponible: true,
-      imagen_url: foto("ribeye,steak", 21),
+      imagen_url:
+        "https://images.unsplash.com/photo-1558030006-450675393462?q=80&w=800",
     },
     // --- Tacos ---
     {
@@ -174,7 +171,8 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Tacos",
       emoji: "🌮",
       disponible: true,
-      imagen_url: foto("tacos,pastor", 22),
+      imagen_url:
+        "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?q=80&w=800",
       modifiers: MODIFICADORES_TACO,
     },
     {
@@ -186,7 +184,8 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Tacos",
       emoji: "🌮",
       disponible: true,
-      imagen_url: foto("tacos,beef", 23),
+      imagen_url:
+        "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?q=80&w=800",
       modifiers: MODIFICADORES_TACO,
     },
     {
@@ -198,7 +197,8 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Tacos",
       emoji: "🌮",
       disponible: true,
-      imagen_url: foto("tacos,mexican", 24),
+      imagen_url:
+        "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?q=80&w=800",
       modifiers: MODIFICADORES_TACO,
     },
     // --- Bebidas ---
@@ -211,7 +211,6 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Bebidas",
       emoji: "🥤",
       disponible: true,
-      imagen_url: foto("horchata,drink", 25),
     },
     {
       id: "b-jamaica",
@@ -222,7 +221,6 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Bebidas",
       emoji: "🧉",
       disponible: true,
-      imagen_url: foto("hibiscus,drink", 26),
     },
     {
       id: "b-cerveza",
@@ -233,7 +231,6 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Bebidas",
       emoji: "🍺",
       disponible: true,
-      imagen_url: foto("craft,beer", 27),
     },
     {
       id: "b-refresco",
@@ -243,7 +240,6 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Bebidas",
       emoji: "🥤",
       disponible: false,
-      imagen_url: foto("soda,bottle", 28),
     },
     // --- Extras ---
     {
@@ -255,7 +251,6 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Extras",
       emoji: "🥑",
       disponible: true,
-      imagen_url: foto("guacamole", 29),
     },
     {
       id: "e-quesofundido",
@@ -266,7 +261,6 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Extras",
       emoji: "🧀",
       disponible: true,
-      imagen_url: foto("cheese,melted", 30),
       modifiers: [
         {
           id: "extras-queso",

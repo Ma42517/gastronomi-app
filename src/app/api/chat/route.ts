@@ -40,13 +40,18 @@ function construirMenuTexto(): string {
   ].join("\n");
 }
 
-/** System prompt dinámico: inyecta ubicación y platillo actual del cliente. */
-function construirSystemPrompt(currentDish?: string, location?: string): string {
+/** System prompt dinámico: inyecta ubicación, platillo y categoría actual. */
+function construirSystemPrompt(
+  currentDish?: string,
+  location?: string,
+  category?: string,
+): string {
   const nombre = TAQUERIA_EL_PRIMO.tema.nombre_restaurante;
   const ubicacion = location?.trim() || "una ubicación no especificada";
   const platillo =
     currentDish?.trim() ||
     "el menú general (todavía no abre un platillo específico)";
+  const categoria = category?.trim() || "sin categoría específica";
 
   return `Eres Ñom AI, el mejor mesero de "${nombre}".
 
@@ -60,7 +65,13 @@ CÓMO RECOMENDAR:
 CONTEXTO:
 - Ubicación del cliente: ${ubicacion}. Úsala de forma muy sutil solo si suma (clima, vibra local).
 - El cliente está viendo: ${platillo}. Si dice "esto", "este platillo" o "esta carne", se refiere a ese.
-- NO cuentes trivia ni datos históricos. Enfócate 100% en descripciones apetitosas (ingredientes, textura, aromas) y en venta cruzada (sugerir el complemento o bebida perfecta).
+- NO cuentes trivia ni datos históricos. Enfócate 100% en descripciones apetitosas (ingredientes, textura, aromas) y en venta cruzada.
+
+REGLA DE CATEGORÍA (ESTRICTA, evita alucinaciones):
+- Categoría del platillo actual: ${categoria}.
+- Si es "Tacos", "Extras" o comida rápida: NUNCA sugieras guarniciones (como puré o espárragos); sugiere BEBIDAS o POSTRES.
+- Si es "Cortes" o "Especiales" (como el Ribeye): sugiere GUARNICIONES o una copa de vino/cerveza.
+- NUNCA llames "corte" a un taco ni confundas las categorías.
 
 MENÚ DISPONIBLE:
 ${construirMenuTexto()}`;
@@ -83,14 +94,19 @@ export async function POST(req: Request) {
       messages,
       currentDish,
       location,
-    }: { messages: Message[]; currentDish?: string; location?: string } =
-      await req.json();
+      category,
+    }: {
+      messages: Message[];
+      currentDish?: string;
+      location?: string;
+      category?: string;
+    } = await req.json();
 
     const result = await streamText({
       // Modelo Flash vigente y GA (los 1.0/1.5/2.0 y 2.5 ya no aplican para
       // nuevos usuarios). gemini-3.6-flash es el workhorse actual de Google.
       model: google("gemini-3.6-flash"),
-      system: construirSystemPrompt(currentDish, location),
+      system: construirSystemPrompt(currentDish, location, category),
       messages: convertToCoreMessages(messages),
       tools: {
         // La IA llama a esta herramienta al recomendar algo concreto; el
