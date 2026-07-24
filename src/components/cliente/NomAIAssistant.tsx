@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
-import { Mic, Send, Sparkles, X } from "lucide-react";
+import { Mic, Plus, Send, Sparkles, X } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 import { useNomAI } from "./NomAIContext";
 
 const SALUDO =
@@ -17,11 +18,14 @@ const SALUDO =
  * White-label vía --brand.
  */
 export function NomAIAssistant() {
-  const { escena, restauranteNombre } = useNomAI();
+  const { escena, restauranteNombre, platilloActual } = useNomAI();
   const pathname = usePathname();
 
   const [chatAbierto, setChatAbierto] = useState(false);
   const [sugerenciaVisible, setSugerenciaVisible] = useState(true);
+  const [aviso, setAviso] = useState<string | null>(null);
+  // TODO: atar a la API de geolocalización del navegador. Por ahora fijo.
+  const [userLocation] = useState("Zamora, Michoacán");
 
   const {
     messages,
@@ -32,6 +36,8 @@ export function NomAIAssistant() {
     error,
   } = useChat({
     api: "/api/chat",
+    // Contexto dinámico enviado al backend en cada mensaje.
+    body: { currentDish: platilloActual, location: userLocation },
     initialMessages: [{ id: "saludo", role: "assistant", content: SALUDO }],
   });
 
@@ -81,8 +87,16 @@ export function NomAIAssistant() {
     setSugerenciaVisible((v) => !v);
   };
 
+  // Acción del botón de "Agregar" que sugiere la IA (por ahora, toast + log).
+  const agregarSugerido = (nombre: string) => {
+    console.log("[Carrito] Agregado desde Ñom AI:", nombre);
+    setAviso(`✓ ${nombre} agregado al carrito`);
+    window.setTimeout(() => setAviso(null), 2200);
+  };
+
   return (
-    <div className="fixed bottom-24 right-4 z-[60] flex flex-col items-end gap-3">
+    <>
+      <div className="fixed bottom-24 right-4 z-[60] flex flex-col items-end gap-3">
       {/* --- VENTANA DE CHAT (solo tras pulsar "Hablar con Ñom AI") --- */}
       {chatAbierto && (
         <div className="animate-fade-in-up flex h-[26rem] max-h-[70vh] w-80 max-w-[86vw] flex-col overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/80 shadow-2xl backdrop-blur-2xl">
@@ -118,24 +132,63 @@ export function NomAIAssistant() {
 
           {/* Mensajes */}
           <div ref={scrollRef} className="flex-1 space-y-2.5 overflow-y-auto p-3">
-            {messages.map((m) =>
-              m.role === "user" ? (
+            {messages.map((m) => {
+              const esUser = m.role === "user";
+              const sugerencias = !esUser
+                ? (m.toolInvocations ?? []).filter(
+                    (inv) =>
+                      inv.toolName === "suggestItem" &&
+                      inv.state === "result",
+                  )
+                : [];
+              return (
                 <div
                   key={m.id}
-                  className="ml-auto max-w-[80%] rounded-2xl rounded-br-md px-3 py-2 text-sm leading-snug text-white"
-                  style={{ background: brand }}
+                  className={`flex flex-col gap-1.5 ${
+                    esUser ? "items-end" : "items-start"
+                  }`}
                 >
-                  {m.content}
+                  {m.content && (
+                    <div
+                      className={
+                        esUser
+                          ? "max-w-[80%] rounded-2xl rounded-br-md px-3 py-2 text-sm leading-snug text-white"
+                          : "max-w-[80%] rounded-2xl rounded-bl-md bg-white/10 px-3 py-2 text-sm leading-snug text-white/90"
+                      }
+                      style={esUser ? { background: brand } : undefined}
+                    >
+                      {m.content}
+                    </div>
+                  )}
+
+                  {/* Botones interactivos generados por el tool suggestItem */}
+                  {sugerencias.map((inv) => {
+                    const args = inv.args as {
+                      itemName?: string;
+                      price?: number;
+                    };
+                    const nombre = args?.itemName ?? "este platillo";
+                    const precio =
+                      typeof args?.price === "number" ? args.price : undefined;
+                    return (
+                      <button
+                        key={inv.toolCallId}
+                        type="button"
+                        onClick={() => agregarSugerido(nombre)}
+                        className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold text-white shadow-md transition active:scale-95"
+                        style={{ background: brand }}
+                      >
+                        <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+                        Agregar {nombre}
+                        {precio !== undefined
+                          ? ` · ${formatCurrency(precio)}`
+                          : ""}
+                      </button>
+                    );
+                  })}
                 </div>
-              ) : (
-                <div
-                  key={m.id}
-                  className="max-w-[80%] rounded-2xl rounded-bl-md bg-white/10 px-3 py-2 text-sm leading-snug text-white/90"
-                >
-                  {m.content}
-                </div>
-              ),
-            )}
+              );
+            })}
 
             {isLoading && (
               <div className="flex w-fit items-center gap-1 rounded-2xl rounded-bl-md bg-white/10 px-3 py-2.5">
@@ -249,6 +302,14 @@ export function NomAIAssistant() {
           <Sparkles className="relative h-6 w-6" style={{ color: brand }} />
         )}
       </button>
-    </div>
+      </div>
+
+      {/* Aviso tipo toast al agregar desde el chat */}
+      {aviso && (
+        <div className="animate-fade-in-up fixed bottom-8 left-1/2 z-[70] -translate-x-1/2 rounded-full bg-neutral-900/90 px-4 py-2 text-sm font-semibold text-white shadow-2xl backdrop-blur">
+          {aviso}
+        </div>
+      )}
+    </>
   );
 }

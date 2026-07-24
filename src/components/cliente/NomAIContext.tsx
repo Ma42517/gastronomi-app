@@ -16,6 +16,9 @@ interface NomAIContextValue {
   setEscena: (e: EscenaNomAI) => void;
   restauranteNombre: string;
   setRestauranteNombre: (n: string) => void;
+  /** Nombre del platillo que el cliente está viendo (para contexto de la IA). */
+  platilloActual: string;
+  setPlatilloActual: (n: string) => void;
 }
 
 const NomAIContext = createContext<NomAIContextValue | null>(null);
@@ -28,10 +31,18 @@ const NomAIContext = createContext<NomAIContextValue | null>(null);
 export function NomAIProvider({ children }: { children: ReactNode }) {
   const [escena, setEscena] = useState<EscenaNomAI>("categorias");
   const [restauranteNombre, setRestauranteNombre] = useState("");
+  const [platilloActual, setPlatilloActual] = useState("");
 
   const value = useMemo(
-    () => ({ escena, setEscena, restauranteNombre, setRestauranteNombre }),
-    [escena, restauranteNombre],
+    () => ({
+      escena,
+      setEscena,
+      restauranteNombre,
+      setRestauranteNombre,
+      platilloActual,
+      setPlatilloActual,
+    }),
+    [escena, restauranteNombre, platilloActual],
   );
 
   return <NomAIContext.Provider value={value}>{children}</NomAIContext.Provider>;
@@ -46,6 +57,8 @@ export function useNomAI(): NomAIContextValue {
       setEscena: () => {},
       restauranteNombre: "",
       setRestauranteNombre: () => {},
+      platilloActual: "",
+      setPlatilloActual: () => {},
     };
   }
   return ctx;

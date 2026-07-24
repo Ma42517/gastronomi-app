@@ -37,7 +37,7 @@ export function VistaClienteMesa({
   const [carritoExpandido, setCarritoExpandido] = useState(false);
 
   // Contexto de Ñom AI (mensajes según la escena activa).
-  const { setEscena, setRestauranteNombre } = useNomAI();
+  const { setEscena, setRestauranteNombre, setPlatilloActual } = useNomAI();
 
   // Platillo héroe configurable (Ribeye).
   const heroItem = menu.find((m) => m.id === hero.item_id);
@@ -83,6 +83,11 @@ export function VistaClienteMesa({
     totalItems,
     setEscena,
   ]);
+
+  // Informa a Ñom AI qué platillo está viendo el cliente.
+  useEffect(() => {
+    setPlatilloActual(configuradorAbierto && heroItem ? heroItem.nombre : "");
+  }, [configuradorAbierto, heroItem, setPlatilloActual]);
 
   // --- Handlers ---
   const agregar = (item: MenuItemMock) =>
