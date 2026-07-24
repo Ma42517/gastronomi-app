@@ -28,19 +28,11 @@ const REACCIONES: Record<string, string> = {
   doble: "¡Doble porción! Perfecto para compartir en grande.",
 };
 
-/** Sugiere el ítem de venta cruzada según la categoría del platillo. */
+/** Venta cruzada de cierre: sugiere un postre (flan) para acompañar. */
 function sugerirCrossSell(item: MenuItemMock): MenuItemMock | null {
-  const menu = TAQUERIA_EL_PRIMO.menu;
-  const disp = (id: string) =>
-    menu.find((m) => m.id === id && m.disponible && m.id !== item.id) ?? null;
-  if (item.categoria === "Bebidas") return disp("t-pastor");
-  if (item.categoria === "Especiales") return disp("b-cerveza");
+  if (item.categoria === "Postres") return null;
   return (
-    disp("b-horchata") ??
-    menu.find(
-      (m) => m.categoria === "Bebidas" && m.disponible && m.id !== item.id,
-    ) ??
-    null
+    TAQUERIA_EL_PRIMO.menu.find((m) => m.id === "p-flan" && m.disponible) ?? null
   );
 }
 
@@ -63,10 +55,8 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   const [reaccion, setReaccion] = useState<string | null>(null);
   const [sugeridoAgregado, setSugeridoAgregado] = useState(false);
 
-  const esBebida = item?.categoria === "Bebidas";
-  const mensajeCrossSell = esBebida
-    ? "¡Buena elección! ¿Le sumamos unos Tacos al Pastor para acompañar? 🌮"
-    : "¡Excelente elección! ¿Gustas añadir un refresco bien frío para acompañar? 🥤";
+  const mensajeCrossSell =
+    "¡Excelente elección! ¿Le sumas un postre para cerrar con broche de oro? 🍮";
 
   const sugerido = item ? sugerirCrossSell(item) : null;
 

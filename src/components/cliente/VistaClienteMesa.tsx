@@ -6,11 +6,12 @@ import { MapPin } from "lucide-react";
 import type { MenuItemMock, ProgramaLealtad, RestauranteMock } from "@/lib/mock-data";
 import { useCartStore } from "@/lib/cart-store";
 import { TarjetaSellos } from "./TarjetaSellos";
-import { SommelierBanner } from "./SommelierBanner";
+import { CategoriaPills } from "./CategoriaPills";
+import { SeccionPopulares } from "./SeccionPopulares";
 import { PlatilloHeroCard } from "./PlatilloHeroCard";
 import { ConfiguradorPlatillo } from "./ConfiguradorPlatillo";
 import { DetallePlatillo } from "./DetallePlatillo";
-import { MenuInteractivo } from "./MenuInteractivo";
+import { MenuInteractivo, anchorCategoria } from "./MenuInteractivo";
 import { CarritoDrawer } from "./CarritoDrawer";
 import { ModalPago } from "./ModalPago";
 import { useNomAI } from "./NomAIContext";
@@ -24,7 +25,7 @@ export function VistaClienteMesa({
   restaurante,
   numeroMesa,
 }: VistaClienteMesaProps) {
-  const { tema, menu, categorias, sommelier, hero } = restaurante;
+  const { tema, menu, categorias, hero } = restaurante;
 
   const [categoriaActiva, setCategoriaActiva] = useState(categorias[0]);
   const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
@@ -53,6 +54,16 @@ export function VistaClienteMesa({
   // Postre sugerido para el cierre de venta.
   const postreSugerido =
     menu.find((m) => m.id === "p-flan" && m.disponible) ?? null;
+  // Platillos destacados para el carrusel "Populares".
+  const populares = menu.filter((m) => m.isPopular);
+
+  // Navegación por pills: desplaza suavemente a la sección de la categoría.
+  const irACategoria = (categoria: string) => {
+    setCategoriaActiva(categoria);
+    document
+      .getElementById(anchorCategoria(categoria))
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // --- Ñom AI: nombre del restaurante y escena activa ---
   useEffect(() => {
@@ -100,11 +111,6 @@ export function VistaClienteMesa({
       precio: item.precio,
       emoji: item.emoji,
     });
-
-  const agregarSugerenciaAI = () => {
-    const sugerido = menu.find((m) => m.id === sommelier.item_id);
-    if (sugerido) agregarMenuItem(sugerido);
-  };
 
   const onPagoExitoso = () => {
     setLealtad((l) => ({
@@ -185,7 +191,14 @@ export function VistaClienteMesa({
       </header>
 
       {/* CONTENIDO */}
-      <main className="relative z-10 -mt-4 flex-1 space-y-5 rounded-t-3xl bg-gray-50 px-5 pb-32 pt-5">
+      <main className="relative z-10 -mt-4 flex-1 space-y-5 rounded-t-3xl bg-gray-50 px-5 pb-32 pt-2">
+        {/* 1) Navegación por categorías (pills, scroll horizontal, sticky) */}
+        <CategoriaPills
+          categorias={categorias}
+          activa={categoriaActiva}
+          onSelect={irACategoria}
+        />
+
         {/* Selección del Chef — fija arriba para dirigir la atención */}
         {heroItem && (
           <PlatilloHeroCard
@@ -197,13 +210,13 @@ export function VistaClienteMesa({
 
         <TarjetaSellos lealtad={lealtad} />
 
-        <SommelierBanner sugerencia={sommelier} onAgregar={agregarSugerenciaAI} />
+        {/* 2) Carrusel horizontal "Populares" */}
+        <SeccionPopulares items={populares} onVerDetalle={setDetalleItem} />
 
+        {/* 4) Feed principal agrupado por categoría (scroll vertical) */}
         <MenuInteractivo
           categorias={categorias}
           menu={menu}
-          categoriaActiva={categoriaActiva}
-          onCategoriaChange={setCategoriaActiva}
           onVerDetalle={setDetalleItem}
         />
       </main>

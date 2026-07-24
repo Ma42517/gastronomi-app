@@ -67,6 +67,8 @@ export interface MenuItemMock {
   disponible: boolean;
   /** Foto real del platillo (con placeholder de respaldo si falla). */
   imagen_url?: string;
+  /** Si es true, aparece en el carrusel "Populares" del home. */
+  isPopular?: boolean;
   /** Complementos configurables del platillo (salsas, preparación, extras…). */
   modifiers?: GrupoModificador[];
 }
@@ -135,6 +137,18 @@ const MODIFICADORES_TACO: GrupoModificador[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Fotos (URLs directas de Unsplash; respaldo de emoji si alguna falla).
+// ---------------------------------------------------------------------------
+const IMG_TACOS =
+  "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&w=800&q=80";
+const IMG_MEX =
+  "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80";
+const IMG_FRIES =
+  "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=800&q=80";
+const IMG_POTATO =
+  "https://images.unsplash.com/photo-1593922146430-8199eb3c1a82?auto=format&fit=crop&w=800&q=80";
+
+// ---------------------------------------------------------------------------
 // MOCK: "Taquería El Primo"
 // ---------------------------------------------------------------------------
 export const TAQUERIA_EL_PRIMO: RestauranteMock = {
@@ -153,7 +167,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
     sellos_para_recompensa: 5,
     descripcion_recompensa: "Orden de Pastor gratis",
   },
-  categorias: ["Tacos", "Bebidas", "Extras", "Postres"],
+  categorias: ["Tacos", "Tortas", "Quesadillas", "Volcanes", "Papas Rellenas"],
   menu: [
     // --- Platillo Héroe (configurable, no se lista en las categorías) ---
     {
@@ -168,120 +182,137 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       imagen_url:
         "https://images.unsplash.com/photo-1558030006-450675393462?q=80&w=800",
     },
+
     // --- Tacos ---
     {
       id: "t-pastor",
       nombre: "Taco al Pastor",
       descripcion:
-        "Cerdo marinado en achiote y especias, cortado del trompo, con piña asada, cebolla y cilantro sobre tortilla de maíz.",
+        "Cerdo marinado en achiote cortado del trompo, con piña asada, cebolla y cilantro sobre tortilla de maíz.",
       precio: 22,
       categoria: "Tacos",
       emoji: "🌮",
       disponible: true,
-      imagen_url:
-        "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?q=80&w=800",
+      isPopular: true,
+      imagen_url: IMG_TACOS,
       modifiers: MODIFICADORES_TACO,
     },
     {
-      id: "t-suadero",
-      nombre: "Taco de Suadero",
+      id: "t-bistec",
+      nombre: "Taco de Bistec",
       descripcion:
-        "Res suave cocida lentamente y dorada en su jugo, con cebolla, cilantro y un toque de limón.",
+        "Bistec de res a la plancha finamente picado, con cebolla, cilantro y salsa al gusto.",
       precio: 24,
       categoria: "Tacos",
       emoji: "🌮",
       disponible: true,
-      imagen_url:
-        "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?q=80&w=800",
+      imagen_url: IMG_TACOS,
+      modifiers: MODIFICADORES_TACO,
+    },
+
+    // --- Tortas ---
+    {
+      id: "to-suadero",
+      nombre: "Torta de Suadero",
+      descripcion:
+        "Telera crujiente rellena de suadero dorado, con frijoles, aguacate, jitomate y chipotle.",
+      precio: 58,
+      categoria: "Tortas",
+      emoji: "🥪",
+      disponible: true,
+      imagen_url: IMG_MEX,
+    },
+    {
+      id: "to-especial",
+      nombre: "Torta Especial",
+      descripcion:
+        "La grande: milanesa, jamón, queso, aguacate, frijoles y chorizo. Para un hambre de campeones.",
+      precio: 79,
+      categoria: "Tortas",
+      emoji: "🥪",
+      disponible: true,
+      isPopular: true,
+      imagen_url: IMG_MEX,
+    },
+
+    // --- Quesadillas ---
+    {
+      id: "q-asada",
+      nombre: "Quesadilla de Asada",
+      descripcion:
+        "Tortilla de maíz hecha a mano con queso Oaxaca fundido y arrachera asada jugosa.",
+      precio: 48,
+      categoria: "Quesadillas",
+      emoji: "🫓",
+      disponible: true,
+      imagen_url: IMG_TACOS,
       modifiers: MODIFICADORES_TACO,
     },
     {
-      id: "t-campechano",
-      nombre: "Taco Campechano",
+      id: "q-sencilla",
+      nombre: "Quesadilla Sencilla",
       descripcion:
-        "La mezcla perfecta de pastor y longaniza crujiente, con cebolla y cilantro. Para los que quieren todo.",
-      precio: 26,
-      categoria: "Tacos",
-      emoji: "🌮",
+        "Clásica de queso Oaxaca derretido en tortilla recién hecha. Simple y deliciosa.",
+      precio: 32,
+      categoria: "Quesadillas",
+      emoji: "🫓",
       disponible: true,
-      imagen_url:
-        "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?q=80&w=800",
+      imagen_url: IMG_MEX,
+    },
+
+    // --- Volcanes ---
+    {
+      id: "v-pastor",
+      nombre: "Volcán de Pastor",
+      descripcion:
+        "Tostada de maíz cubierta con queso gratinado y pastor del trompo, con piña y cebolla.",
+      precio: 34,
+      categoria: "Volcanes",
+      emoji: "🌋",
+      disponible: true,
+      isPopular: true,
+      imagen_url: IMG_FRIES,
       modifiers: MODIFICADORES_TACO,
     },
-    // --- Bebidas ---
     {
-      id: "b-horchata",
-      nombre: "Agua de Horchata",
+      id: "v-campechano",
+      nombre: "Volcán Campechano",
       descripcion:
-        "Bebida cremosa de arroz con canela y vainilla, servida bien fría en vaso de 500 ml.",
-      precio: 35,
-      categoria: "Bebidas",
-      emoji: "🥤",
+        "Base crujiente con queso fundido, pastor y longaniza. La combinación más pedida.",
+      precio: 38,
+      categoria: "Volcanes",
+      emoji: "🌋",
       disponible: true,
+      imagen_url: IMG_FRIES,
+      modifiers: MODIFICADORES_TACO,
     },
+
+    // --- Papas Rellenas ---
     {
-      id: "b-jamaica",
-      nombre: "Agua de Jamaica",
+      id: "pa-mantequilla",
+      nombre: "Papa al Horno con Mantequilla",
       descripcion:
-        "Flor de jamaica natural, refrescante y ligeramente ácida, sin azúcar añadida.",
-      precio: 35,
-      categoria: "Bebidas",
-      emoji: "🧉",
-      disponible: true,
-    },
-    {
-      id: "b-cerveza",
-      nombre: "Cerveza Artesanal",
-      descripcion:
-        "IPA local de barril, aromática y bien fría, 355 ml. El maridaje ideal para tus tacos.",
-      precio: 55,
-      categoria: "Bebidas",
-      emoji: "🍺",
-      disponible: true,
-    },
-    {
-      id: "b-refresco",
-      nombre: "Refresco de Cristal",
-      descripcion: "Coca-Cola / Sidral / Manzanita en botella de vidrio.",
-      precio: 30,
-      categoria: "Bebidas",
-      emoji: "🥤",
-      disponible: false,
-    },
-    // --- Extras ---
-    {
-      id: "e-guacamole",
-      nombre: "Guacamole",
-      descripcion:
-        "Aguacate machacado al momento con jitomate, cebolla, chile y cilantro, acompañado de totopos crujientes.",
-      precio: 45,
-      categoria: "Extras",
-      emoji: "🥑",
-      disponible: true,
-    },
-    {
-      id: "e-quesofundido",
-      nombre: "Queso Fundido",
-      descripcion:
-        "Queso Oaxaca derretido y burbujeante, servido en cazuela con tortillas recién hechas para compartir.",
+        "Papa horneada esponjosa abierta con mantequilla derretida, crema, queso y cebollín.",
       precio: 65,
-      categoria: "Extras",
-      emoji: "🧀",
+      categoria: "Papas Rellenas",
+      emoji: "🥔",
       disponible: true,
-      modifiers: [
-        {
-          id: "extras-queso",
-          titulo: "Extras",
-          tipo: "multi",
-          opciones: [
-            { id: "chorizo", nombre: "Chorizo", precio_extra: 15 },
-            { id: "champinones", nombre: "Champiñones", precio_extra: 12 },
-            { id: "doble", nombre: "Doble porción", precio_extra: 30 },
-          ],
-        },
-      ],
+      imagen_url: IMG_POTATO,
     },
-    // --- Postres ---
+    {
+      id: "pa-arrachera",
+      nombre: "Papa Especial con Arrachera",
+      descripcion:
+        "Papa gigante rellena de arrachera, queso gratinado, tocino y aderezo de la casa.",
+      precio: 95,
+      categoria: "Papas Rellenas",
+      emoji: "🥔",
+      disponible: true,
+      isPopular: true,
+      imagen_url: IMG_POTATO,
+    },
+
+    // --- Postre (no se lista en categorías: solo cross-sell / drawer) ---
     {
       id: "p-flan",
       nombre: "Flan Napolitano",
@@ -295,8 +326,8 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
   ],
   sommelier: {
     titulo: "Maridaje ideal",
-    descripcion: "Cerveza Artesanal con tus Tacos al Pastor",
-    item_id: "b-cerveza",
+    descripcion: "Un Volcán de Pastor para acompañar tus tacos",
+    item_id: "v-pastor",
   },
   hero: {
     item_id: "h-ribeye",
