@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Check, Flame, Plus, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock, OpcionGuarnicion } from "@/lib/mock-data";
-import { SommelierAssistant } from "./SommelierAssistant";
 
 interface ConfiguradorPlatilloProps {
   abierto: boolean;
@@ -74,12 +73,6 @@ export function ConfiguradorPlatillo({
   const termino = TERMINOS.find((t) => t.id === terminoId) ?? TERMINOS[1];
   const guarnicion = guarniciones.find((g) => g.id === guarnicionId) ?? null;
   const total = item.precio + (guarnicion?.precio_extra ?? 0);
-
-  // Diálogo contextual del Sommelier Ñom.
-  const papasRusticas = guarniciones.find((g) => g.id === "g-papas") ?? null;
-  const mensajeSommelier = guarnicion
-    ? `¡Buena elección! Tu Ribeye con ${guarnicion.nombre} va a quedar espectacular. 🍷`
-    : "¡Excelente elección! Un Ribeye añejado combina a la perfección con nuestras Papas Rústicas. ¿Las agregamos?";
 
   const seleccionarTermino = (id: string) => {
     setTerminoId(id);
@@ -307,17 +300,6 @@ export function ConfiguradorPlatillo({
           </button>
         </div>
       </div>
-
-      {/* --- ASISTENTE VIRTUAL "SOMMELIER ÑOM" --- */}
-      <SommelierAssistant
-        mensaje={mensajeSommelier}
-        accionLabel={guarnicion ? undefined : "Sí, agregar"}
-        onAccion={
-          guarnicion || !papasRusticas
-            ? undefined
-            : () => seleccionarGuarnicion(papasRusticas)
-        }
-      />
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { ConfiguradorPlatillo } from "./ConfiguradorPlatillo";
 import { MenuInteractivo } from "./MenuInteractivo";
 import { CarritoFlotante } from "./CarritoFlotante";
 import { ModalPago } from "./ModalPago";
+import { SommelierAssistant } from "./SommelierAssistant";
 
 interface VistaClienteMesaProps {
   restaurante: RestauranteMock;
@@ -200,6 +201,9 @@ export function VistaClienteMesa({
           onConfirmar={() => agregar(heroItem)}
         />
       )}
+
+      {/* ASISTENTE VIRTUAL — disponible en toda la vista del cliente */}
+      <SommelierAssistant />
     </div>
   );
 }
