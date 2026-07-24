@@ -79,7 +79,8 @@ export function ConfiguradorPlatillo({
 }: ConfiguradorPlatilloProps) {
   const { setBarMensaje, setBarRecomendacion } = useNomAI();
 
-  const [terminoId, setTerminoId] = useState("medium");
+  // Ninguna opción llega preseleccionada: el término empieza sin elegir.
+  const [terminoId, setTerminoId] = useState<string | null>(null);
   const [guarnicionId, setGuarnicionId] = useState<string | null>(null);
   // Guarda la última guarnición mostrada para que la PIP no se vacíe al hacer fade-out.
   const [pipData, setPipData] = useState<OpcionGuarnicion | null>(null);
@@ -99,9 +100,11 @@ export function ConfiguradorPlatillo({
 
   if (!abierto) return null;
 
-  const termino = TERMINOS.find((t) => t.id === terminoId) ?? TERMINOS[1];
+  const termino = TERMINOS.find((t) => t.id === terminoId) ?? null;
   const guarnicion = guarniciones.find((g) => g.id === guarnicionId) ?? null;
   const total = item.precio + (guarnicion?.precio_extra ?? 0);
+  // El término de cocción es OBLIGATORIO: sin él no se puede agregar.
+  const puedeConfirmar = terminoId !== null;
 
   // Estado C: describe el término SOLO tras un clic real del cliente.
   const seleccionarTermino = (id: string) => {
@@ -159,28 +162,31 @@ export function ConfiguradorPlatillo({
               className="animate-ken-burns absolute inset-0 h-full w-full object-cover"
             />
 
-            {/* Capa de término — focalizada al centro con máscara CSS (solo sobre la carne) */}
-            <div
-              className={`pointer-events-none absolute inset-0 transition-colors duration-700 ${
-                TERMINO_OVERLAY[terminoId] ?? TERMINO_OVERLAY.medium
-              }`}
-              style={{
-                WebkitMaskImage: MASCARA_TERMINO,
-                maskImage: MASCARA_TERMINO,
-              }}
-            />
+            {/* Capa de término — focalizada al centro con máscara CSS (solo sobre
+                la carne). Solo se aplica cuando el cliente ya eligió un término. */}
+            {terminoId && (
+              <div
+                className={`pointer-events-none absolute inset-0 transition-colors duration-700 ${
+                  TERMINO_OVERLAY[terminoId] ?? TERMINO_OVERLAY.medium
+                }`}
+                style={{
+                  WebkitMaskImage: MASCARA_TERMINO,
+                  maskImage: MASCARA_TERMINO,
+                }}
+              />
+            )}
 
-            {/* Etiqueta del término actual */}
+            {/* Etiqueta del término actual (o invitación a elegir) */}
             <div className="absolute bottom-3 left-3">
               <span
                 className="rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-md transition-all duration-500"
                 style={{
-                  borderColor: `${termino.glow}80`,
-                  background: `${termino.glow}33`,
+                  borderColor: `${termino?.glow ?? "#ffffff"}80`,
+                  background: `${termino?.glow ?? "#ffffff"}33`,
                   color: "#fff",
                 }}
               >
-                {termino.nombre} · {termino.sub}
+                {termino ? `${termino.nombre} · ${termino.sub}` : "Elige tu término 👇"}
               </span>
             </div>
           </div>
@@ -248,9 +254,20 @@ export function ConfiguradorPlatillo({
 
           {/* Selector de término */}
           <div>
-            <p className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-white/80">
-              <Flame className="h-4 w-4" style={{ color: "var(--brand)" }} />
-              Término de la carne
+            <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-white/80">
+              <span className="flex items-center gap-1.5">
+                <Flame className="h-4 w-4" style={{ color: "var(--brand)" }} />
+                Término de la carne
+              </span>
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                style={{
+                  background: "color-mix(in srgb, var(--brand) 22%, transparent)",
+                  color: "color-mix(in srgb, var(--brand) 70%, white)",
+                }}
+              >
+                Obligatorio
+              </span>
             </p>
             <div className="grid grid-cols-4 gap-2">
               {TERMINOS.map((t) => {
@@ -285,8 +302,9 @@ export function ConfiguradorPlatillo({
 
           {/* Guarnición */}
           <div>
-            <p className="mb-3 text-sm font-semibold text-white/80">
+            <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-white/80">
               Elige tu guarnición
+              <span className="text-xs font-normal text-white/40">(opcional)</span>
             </p>
             <div className="flex flex-wrap gap-2">
               {guarniciones.map((g) => {
@@ -319,20 +337,23 @@ export function ConfiguradorPlatillo({
           </div>
         </div>
 
-        {/* --- BARRA INFERIOR: precio en vivo + agregar --- */}
+        {/* --- BARRA INFERIOR: precio en vivo + agregar ---
+            pb amplio para que el botón no quede cubierto por la barra global. */}
         <div className="shrink-0 border-t border-white/10 bg-neutral-900/60 p-4 pb-6 backdrop-blur-md">
           <button
             type="button"
             onClick={confirmar}
-            className="flex w-full items-center justify-between rounded-3xl px-6 py-4 text-white shadow-lg transition-all duration-300 active:scale-[0.98]"
+            disabled={!puedeConfirmar}
+            className="flex w-full items-center justify-between rounded-3xl px-6 py-4 text-white shadow-lg transition-all duration-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             style={{
-              background:
-                "linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 60%, #f59e0b))",
+              background: puedeConfirmar
+                ? "linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 60%, #f59e0b))"
+                : "#3f3f46",
             }}
           >
             <span className="flex items-center gap-2 text-base font-bold">
               <Plus className="h-5 w-5" strokeWidth={2.5} />
-              Agregar al carrito
+              {puedeConfirmar ? "Agregar al carrito" : "Elige tu término"}
             </span>
             <span className="text-lg font-extrabold">
               <PrecioAnimado value={total} />

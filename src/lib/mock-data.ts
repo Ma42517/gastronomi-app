@@ -48,6 +48,12 @@ export interface GrupoModificador {
   id: string;
   titulo: string;
   tipo: "single" | "multi";
+  /**
+   * Si es true, el cliente DEBE elegir al menos una opción para poder agregar
+   * el platillo al carrito (se muestra la etiqueta "Obligatorio"). Ningún grupo
+   * llega preseleccionado: el cliente elige manualmente.
+   */
+  requerido?: boolean;
   opciones: ModificadorOpcion[];
 }
 
@@ -110,6 +116,7 @@ const MODIFICADORES_TACO: GrupoModificador[] = [
     id: "salsa",
     titulo: "Elige tu salsa",
     tipo: "single",
+    requerido: true,
     opciones: [
       { id: "roja", nombre: "Roja" },
       { id: "verde", nombre: "Verde" },

@@ -67,10 +67,11 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   // Al abrir/cambiar de platillo: prepara opciones y empuja el ESTADO B a la barra.
   useEffect(() => {
     if (!abierto || !item) return;
+    // Ninguna opción llega preseleccionada: el cliente elige manualmente cada
+    // grupo (incluidos los single como "salsa"). Se inicializa todo vacío.
     const init: Record<string, string[]> = {};
     item.modifiers?.forEach((g) => {
-      init[g.id] =
-        g.tipo === "single" && g.opciones[0] ? [g.opciones[0].id] : [];
+      init[g.id] = [];
     });
     setSelecciones(init);
     setAgregado(false);
@@ -96,6 +97,13 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
 
   const brand = "var(--brand, #DC2626)";
   const sugerido = sugerirCrossSell(item);
+
+  // El botón de agregar se habilita solo cuando TODOS los grupos marcados como
+  // obligatorios tienen al menos una selección real del cliente.
+  const gruposObligatorios = (item.modifiers ?? []).filter((g) => g.requerido);
+  const faltanObligatorios = gruposObligatorios.some(
+    (g) => (selecciones[g.id]?.length ?? 0) === 0,
+  );
 
   // ESTADO C: solo con un clic REAL del usuario se describe la opción.
   const toggle = (grupo: GrupoModificador, opcionId: string) => {
@@ -199,10 +207,20 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
           {/* Modificadores dinámicos */}
           {item.modifiers?.map((grupo) => (
             <div key={grupo.id}>
-              <p className="mb-2 text-sm font-semibold text-white/80">
+              <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-white/80">
                 {grupo.titulo}
-                {grupo.tipo === "multi" && (
-                  <span className="ml-1 text-xs font-normal text-white/40">
+                {grupo.requerido ? (
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                    style={{
+                      background: `color-mix(in srgb, ${brand} 22%, transparent)`,
+                      color: `color-mix(in srgb, ${brand} 70%, white)`,
+                    }}
+                  >
+                    Obligatorio
+                  </span>
+                ) : (
+                  <span className="text-xs font-normal text-white/40">
                     (opcional)
                   </span>
                 )}
@@ -242,8 +260,8 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
           <button
             type="button"
             onClick={agregar}
-            disabled={agregado || !item.disponible}
-            className="flex w-full items-center justify-center gap-2 rounded-3xl px-6 py-4 text-base font-bold text-white shadow-lg transition active:scale-[0.98] disabled:opacity-70"
+            disabled={agregado || !item.disponible || faltanObligatorios}
+            className="flex w-full items-center justify-center gap-2 rounded-3xl px-6 py-4 text-base font-bold text-white shadow-lg transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             style={{ background: agregado ? "#16a34a" : brand }}
           >
             {!item.disponible ? (
@@ -253,6 +271,8 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
                 <Check className="h-5 w-5" strokeWidth={3} />
                 Añadido a la cuenta ✓
               </>
+            ) : faltanObligatorios ? (
+              "Elige las opciones obligatorias"
             ) : (
               <>
                 <Plus className="h-5 w-5" strokeWidth={2.5} />

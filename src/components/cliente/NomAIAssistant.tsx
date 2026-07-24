@@ -22,6 +22,12 @@ const SALUDO =
 
 const MENSAJE_BIENVENIDA = "¡Hola! Soy Ñom AI, pregúntame sobre el menú 👋";
 
+/** Tooltip corto que aparece tras el saludo inicial (Estado bienvenida). */
+const TOOLTIP_BIENVENIDA = "Puedes preguntarme lo que sea 👋";
+
+/** Fases del flujo de bienvenida automático (sin interacción del cliente). */
+type FaseBienvenida = "welcome" | "tooltip" | "done";
+
 /** Resuelve el item sugerido por la IA a un producto real del menú. */
 function resolverItem(nombre: string, precio?: number) {
   const enMenu = TAQUERIA_EL_PRIMO.menu.find(
@@ -53,6 +59,7 @@ export function NomAIAssistant() {
   const {
     platilloActual,
     categoriaActual,
+    restauranteNombre,
     barMensaje,
     barRecomendacion,
     setBarRecomendacion,
@@ -64,11 +71,15 @@ export function NomAIAssistant() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [agregados, setAgregados] = useState<string[]>([]);
   const [userLocation] = useState("Zamora, Michoacán");
+  const [faseBienvenida, setFaseBienvenida] = useState<FaseBienvenida>("welcome");
 
   const addToCart = useCartStore((s) => s.addToCart);
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, error } =
     useChat({
+      // id estable ⇒ la conversación se guarda en el store global del AI SDK y
+      // sobrevive al cerrar/reabrir el chat (persiste a nivel de toda la app).
+      id: "nom-ai-conversacion",
       api: "/api/chat",
       body: {
         currentDish: platilloActual,
@@ -77,6 +88,16 @@ export function NomAIAssistant() {
       },
       initialMessages: [{ id: "saludo", role: "assistant", content: SALUDO }],
     });
+
+  // Flujo de bienvenida automático: saludo → tooltip corto → estado discreto.
+  useEffect(() => {
+    const aTooltip = window.setTimeout(() => setFaseBienvenida("tooltip"), 3200);
+    const aDone = window.setTimeout(() => setFaseBienvenida("done"), 6800);
+    return () => {
+      window.clearTimeout(aTooltip);
+      window.clearTimeout(aDone);
+    };
+  }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -88,7 +109,18 @@ export function NomAIAssistant() {
   }, [messages, isLoading, chatAbierto]);
 
   const brand = "var(--brand, #DC2626)";
-  const mensajeBar = barMensaje ?? MENSAJE_BIENVENIDA;
+
+  // Mensaje de la barra. El mensaje contextual (barMensaje: platillo abierto,
+  // opción elegida, etc.) SIEMPRE tiene prioridad sobre el flujo de bienvenida.
+  const bienvenidaInicial = `¡Bienvenido a ${
+    restauranteNombre || TAQUERIA_EL_PRIMO.tema.nombre_restaurante
+  }!`;
+  const mensajeBar =
+    barMensaje ??
+    (faseBienvenida === "welcome" ? bienvenidaInicial : MENSAJE_BIENVENIDA);
+
+  // El tooltip flotante solo aparece en su fase y cuando no hay mensaje contextual.
+  const mostrarTooltip = faseBienvenida === "tooltip" && !barMensaje;
 
   // Recomendación complementaria: añade al carrito real con un solo tap.
   const anadirRecomendacion = () => {
@@ -211,7 +243,7 @@ export function NomAIAssistant() {
                               <UtensilsCrossed className="h-5 w-5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-bold text-white">
+                              <p className="break-words text-sm font-bold text-white">
                                 {nombre}
                               </p>
                               {precio !== undefined && (
@@ -303,9 +335,19 @@ export function NomAIAssistant() {
         </div>
       )}
 
-      {/* ============ BARRA GLOBAL (reposo) ============ */}
+      {/* ============ BARRA GLOBAL (reposo) ============
+          Centrada y con ancho máximo (max-w-md) para no invadir el layout en
+          pantallas grandes; en móvil ocupa el ancho disponible con margen. */}
       {!chatAbierto && (
-        <div className="fixed inset-x-0 bottom-0 z-[55] mx-auto max-w-md p-3">
+        <div className="fixed inset-x-0 bottom-0 z-[55] mx-auto max-w-md p-2.5 sm:p-3">
+          {/* Tooltip de bienvenida: visible solo unos segundos, sin interacción. */}
+          {mostrarTooltip && (
+            <div className="animate-fade-in-up pointer-events-none absolute -top-1 left-4 -translate-y-full">
+              <span className="inline-block rounded-2xl rounded-bl-sm bg-white px-3 py-1.5 text-xs font-semibold text-neutral-900 shadow-xl">
+                {TOOLTIP_BIENVENIDA}
+              </span>
+            </div>
+          )}
           <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-neutral-900/90 p-2.5 shadow-2xl backdrop-blur-xl">
             {/* Ícono + mensaje contextual (tocar abre el chat) */}
             <button
@@ -325,9 +367,12 @@ export function NomAIAssistant() {
                   style={{ color: brand }}
                 />
               </span>
+              {/* Mensaje de altura automática: crece con el texto y, si es muy
+                  largo, hace scroll interno — nunca se corta con "…". */}
               <span
                 key={mensajeBar}
-                className="animate-text-in line-clamp-2 min-w-0 flex-1 text-sm leading-snug text-white/85"
+                className="animate-text-in min-w-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-snug text-white/85"
+                style={{ maxHeight: "6rem" }}
               >
                 {mensajeBar}
               </span>

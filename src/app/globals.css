@@ -462,3 +462,51 @@ textarea {
     animation: none;
   }
 }
+
+
+
+/* ============================================================
+   Boleta / ticket de Ñom AI — "impresión" y "mordida" de marca
+   ============================================================ */
+
+/* La boleta sale (se imprime) desde el ícono de Ñom AI hacia abajo */
+@keyframes ticketPrint {
+  0% {
+    opacity: 0;
+    transform: translateY(-18px) scaleY(0.12);
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+/* El ícono "se come" la boleta: se contrae hacia arriba y desaparece */
+@keyframes ticketEaten {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-18px) scaleY(0.08);
+  }
+}
+
+.animate-ticket-print {
+  animation: ticketPrint 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-ticket-eaten {
+  animation: ticketEaten 0.55s cubic-bezier(0.55, 0, 0.55, 0.2) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ticket-print,
+  .animate-ticket-eaten {
+    animation: none;
+  }
+}

@@ -47,7 +47,7 @@ export function CarritoFlotante({ onPagar, onExpandidoChange }: CarritoFlotanteP
             onClick={() => setExpandido(false)}
             className="fixed inset-0 z-30 bg-black/40"
           />
-          <div className="fixed inset-x-0 bottom-[72px] z-40 mx-auto max-w-md rounded-t-3xl bg-white p-5 pb-28 shadow-xl">
+          <div className="fixed inset-x-0 bottom-[84px] z-40 mx-auto max-w-md rounded-t-3xl bg-white p-5 pb-28 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Tu orden</h3>
               <button
@@ -116,7 +116,7 @@ export function CarritoFlotante({ onPagar, onExpandidoChange }: CarritoFlotanteP
       )}
 
       {/* Barra flotante inferior — elevada para no chocar con la barra global de Ñom AI. */}
-      <div className="fixed inset-x-0 bottom-[72px] z-40 mx-auto max-w-md p-4">
+      <div className="fixed inset-x-0 bottom-[84px] z-40 mx-auto max-w-md p-4">
         <div className="flex items-center gap-3 rounded-2xl p-2 shadow-lg" style={{ background: "var(--brand)" }}>
           <button
             type="button"

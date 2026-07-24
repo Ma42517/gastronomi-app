@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, CreditCard, Minus, Plus, Users, X } from "lucide-react";
+import {
+  CheckCircle2,
+  CreditCard,
+  Minus,
+  Plus,
+  Receipt,
+  Sparkles,
+  Users,
+  X,
+} from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface ModalPagoProps {
@@ -24,6 +33,8 @@ export function ModalPago({
   const [modo, setModo] = useState<Modo>("completo");
   const [personas, setPersonas] = useState(2);
   const [fase, setFase] = useState<Fase>("seleccion");
+  // Animación de marca: el ícono de Ñom AI se "come" la boleta al cerrar.
+  const [comiendo, setComiendo] = useState(false);
 
   if (!abierto) return null;
 
@@ -34,11 +45,13 @@ export function ModalPago({
     // Simulación de la pasarela de pago (Mercado Pago / Stripe).
     setTimeout(() => {
       setFase("exito");
-      // Tras confirmar, notificamos para sumar el sello de lealtad.
+      // La boleta sale del ícono; tras unos segundos el ícono "se la come".
+      setTimeout(() => setComiendo(true), 2400);
+      // Tras confirmar, notificamos para sumar el sello de lealtad y cerramos.
       setTimeout(() => {
         onPagoExitoso();
         cerrarYReset();
-      }, 1600);
+      }, 3000);
     }, 1400);
   };
 
@@ -49,6 +62,7 @@ export function ModalPago({
       setFase("seleccion");
       setModo("completo");
       setPersonas(2);
+      setComiendo(false);
     }, 200);
   };
 
@@ -65,17 +79,43 @@ export function ModalPago({
       {/* Sheet */}
       <div className="relative w-full max-w-md rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-3xl">
         {fase === "exito" ? (
-          <div className="flex flex-col items-center py-6 text-center">
-            <CheckCircle2
-              className="h-16 w-16"
-              style={{ color: "var(--brand)" }}
-            />
-            <h3 className="mt-4 text-xl font-bold text-gray-900">
-              ¡Pago exitoso!
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Sumaste 1 sello a tu tarjeta de lealtad. 🎉
-            </p>
+          <div className="flex flex-col items-center overflow-hidden py-4 text-center">
+            {/* Ñom AI "imprime" la boleta: sale desde el ícono y, al cerrar,
+                el mismo ícono se la "come" de vuelta (personalidad de marca). */}
+            <div
+              className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 55%, #a855f7))",
+              }}
+            >
+              <Sparkles className={comiendo ? "h-8 w-8 animate-pulse" : "h-8 w-8"} />
+            </div>
+
+            <div
+              className={`${
+                comiendo ? "animate-ticket-eaten" : "animate-ticket-print"
+              } -mt-3 w-60 origin-top rounded-2xl border border-dashed border-gray-200 bg-white px-5 pb-5 pt-7 text-left shadow-xl`}
+            >
+              <div className="flex items-center gap-2">
+                <Receipt className="h-4 w-4" style={{ color: "var(--brand)" }} />
+                <p className="text-sm font-bold text-gray-900">¡Pago exitoso!</p>
+              </div>
+              <div className="my-3 border-t border-dashed border-gray-200" />
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Total pagado</span>
+                <span className="font-semibold text-gray-900">
+                  {formatCurrency(montoAPagar)}
+                </span>
+              </div>
+              <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                <CheckCircle2
+                  className="h-4 w-4"
+                  style={{ color: "var(--brand)" }}
+                />
+                Sumaste 1 sello a tu lealtad 🎉
+              </p>
+            </div>
           </div>
         ) : fase === "procesando" ? (
           <div className="flex flex-col items-center py-10 text-center">
