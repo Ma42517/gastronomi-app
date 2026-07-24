@@ -73,9 +73,9 @@ export default function Home() {
 
       {/* --- Título "Ñom Ñom" (caligrafía dibujada a mano) --- */}
       <div
-        className={`absolute left-0 right-0 z-20 flex justify-center transition-all duration-[900ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`absolute left-0 right-0 z-20 flex origin-top justify-center transition-all duration-[900ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
           mostrarMenu
-            ? "top-6 scale-[0.42] sm:top-8 sm:scale-50"
+            ? "top-5 scale-[0.52] sm:top-7 sm:scale-[0.62]"
             : "top-1/2 -translate-y-1/2 scale-100"
         }`}
       >
@@ -110,12 +110,12 @@ export default function Home() {
 
       {/* --- Eslogan pequeño y elegante, justo debajo del logo (con shimmer) --- */}
       <p
-        className={`absolute left-0 right-0 top-[86px] z-20 px-6 text-center sm:top-[104px] ${
+        className={`absolute left-0 right-0 top-[116px] z-10 px-6 text-center sm:top-[144px] ${
           mostrarMenu ? "animate-fade-in-up opacity-0" : "opacity-0"
         }`}
         style={{ animationDelay: "150ms" }}
       >
-        <span className="eslogan-shimmer font-sans text-[11px] font-medium tracking-[0.35em] sm:text-xs">
+        <span className="eslogan-shimmer pl-[0.28em] font-sans text-[9px] font-medium tracking-[0.28em] sm:text-[10px]">
           ESCANEA · ORDENA · PAGA
         </span>
       </p>
