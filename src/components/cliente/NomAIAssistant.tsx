@@ -22,9 +22,6 @@ const SALUDO =
 
 const MENSAJE_BIENVENIDA = "¡Hola! Soy Ñom AI, pregúntame sobre el menú 👋";
 
-/** Tooltip corto que aparece tras el saludo inicial (Estado bienvenida). */
-const TOOLTIP_BIENVENIDA = "Puedes preguntarme lo que sea 👋";
-
 /** Fases del flujo de bienvenida automático (sin interacción del cliente). */
 type FaseBienvenida = "welcome" | "tooltip" | "done";
 
@@ -63,6 +60,7 @@ export function NomAIAssistant() {
     barMensaje,
     barRecomendacion,
     setBarRecomendacion,
+    barAccion,
     chatAbierto,
     abrirChat,
     cerrarChat,
@@ -118,9 +116,6 @@ export function NomAIAssistant() {
   const mensajeBar =
     barMensaje ??
     (faseBienvenida === "welcome" ? bienvenidaInicial : MENSAJE_BIENVENIDA);
-
-  // El tooltip flotante solo aparece en su fase y cuando no hay mensaje contextual.
-  const mostrarTooltip = faseBienvenida === "tooltip" && !barMensaje;
 
   // Recomendación complementaria: añade al carrito real con un solo tap.
   const anadirRecomendacion = () => {
@@ -340,14 +335,6 @@ export function NomAIAssistant() {
           pantallas grandes; en móvil ocupa el ancho disponible con margen. */}
       {!chatAbierto && (
         <div className="fixed inset-x-0 bottom-0 z-[55] mx-auto max-w-md p-2.5 sm:p-3">
-          {/* Tooltip de bienvenida: visible solo unos segundos, sin interacción. */}
-          {mostrarTooltip && (
-            <div className="animate-fade-in-up pointer-events-none absolute -top-1 left-4 -translate-y-full">
-              <span className="inline-block rounded-2xl rounded-bl-sm bg-white px-3 py-1.5 text-xs font-semibold text-neutral-900 shadow-xl">
-                {TOOLTIP_BIENVENIDA}
-              </span>
-            </div>
-          )}
           <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-neutral-900/90 p-2.5 shadow-2xl backdrop-blur-xl">
             {/* Ícono + mensaje contextual (tocar abre el chat) */}
             <button
@@ -378,8 +365,22 @@ export function NomAIAssistant() {
               </span>
             </button>
 
+            {/* Acción principal: cuando el cliente ya eligió todo lo obligatorio,
+                la barra ofrece "Agregar al carrito" (siempre accesible, sin taparse). */}
+            {barAccion && (
+              <button
+                type="button"
+                onClick={barAccion.onAgregar}
+                className="flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95"
+                style={{ background: brand }}
+              >
+                <Plus className="h-4 w-4" strokeWidth={3} />
+                {barAccion.etiqueta}
+              </button>
+            )}
+
             {/* Recomendación complementaria (State D): añadir con 1 tap */}
-            {barRecomendacion && (
+            {!barAccion && barRecomendacion && (
               <button
                 type="button"
                 onClick={anadirRecomendacion}

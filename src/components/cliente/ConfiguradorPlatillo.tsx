@@ -77,13 +77,25 @@ export function ConfiguradorPlatillo({
   onCerrar,
   onConfirmar,
 }: ConfiguradorPlatilloProps) {
-  const { setBarMensaje, setBarRecomendacion } = useNomAI();
+  const { setBarMensaje, setBarRecomendacion, setBarAccion } = useNomAI();
 
   // Ninguna opción llega preseleccionada: el término empieza sin elegir.
   const [terminoId, setTerminoId] = useState<string | null>(null);
   const [guarnicionId, setGuarnicionId] = useState<string | null>(null);
   // Guarda la última guarnición mostrada para que la PIP no se vacíe al hacer fade-out.
   const [pipData, setPipData] = useState<OpcionGuarnicion | null>(null);
+
+  const termino = TERMINOS.find((t) => t.id === terminoId) ?? null;
+  const guarnicion = guarniciones.find((g) => g.id === guarnicionId) ?? null;
+  const total = item.precio + (guarnicion?.precio_extra ?? 0);
+  // El término de cocción es OBLIGATORIO: sin él no se puede agregar.
+  const puedeConfirmar = terminoId !== null;
+
+  const confirmar = () => {
+    vibrar(22);
+    onConfirmar();
+    onCerrar();
+  };
 
   // Estado B: al abrir el configurador, la barra global invita a elegir el
   // término (sin describir la opción preseleccionada por default). Al cerrar,
@@ -92,19 +104,26 @@ export function ConfiguradorPlatillo({
     if (!abierto) return;
     setBarMensaje(INVITE_TERMINO);
     setBarRecomendacion(null);
+    setBarAccion(null);
     return () => {
       setBarMensaje(null);
       setBarRecomendacion(null);
+      setBarAccion(null);
     };
   }, [abierto]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!abierto) return null;
+  // Publica/limpia "Agregar al carrito" en la barra global: aparece en cuanto el
+  // cliente elige el término (obligatorio) y desaparece al cerrar el configurador.
+  useEffect(() => {
+    if (!abierto) return;
+    setBarAccion(
+      puedeConfirmar
+        ? { etiqueta: `Agregar · ${formatCurrency(total)}`, onAgregar: confirmar }
+        : null,
+    );
+  }, [abierto, puedeConfirmar, total]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const termino = TERMINOS.find((t) => t.id === terminoId) ?? null;
-  const guarnicion = guarniciones.find((g) => g.id === guarnicionId) ?? null;
-  const total = item.precio + (guarnicion?.precio_extra ?? 0);
-  // El término de cocción es OBLIGATORIO: sin él no se puede agregar.
-  const puedeConfirmar = terminoId !== null;
+  if (!abierto) return null;
 
   // Estado C: describe el término SOLO tras un clic real del cliente.
   const seleccionarTermino = (id: string) => {
@@ -126,12 +145,6 @@ export function ConfiguradorPlatillo({
     });
     setPipData(g); // se conserva para el fade-out
     vibrar(8);
-  };
-
-  const confirmar = () => {
-    vibrar(22);
-    onConfirmar();
-    onCerrar();
   };
 
   return (
@@ -338,8 +351,9 @@ export function ConfiguradorPlatillo({
         </div>
 
         {/* --- BARRA INFERIOR: precio en vivo + agregar ---
-            pb amplio para que el botón no quede cubierto por la barra global. */}
-        <div className="shrink-0 border-t border-white/10 bg-neutral-900/60 p-4 pb-6 backdrop-blur-md">
+            pb amplio para que el botón quede POR ENCIMA de la barra global de
+            Ñom AI (que va fija abajo) y siempre sea utilizable en desktop. */}
+        <div className="shrink-0 border-t border-white/10 bg-neutral-900/60 p-4 pb-24 backdrop-blur-md">
           <button
             type="button"
             onClick={confirmar}

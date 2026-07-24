@@ -53,7 +53,7 @@ function sugerirCrossSell(item: MenuItemMock): MenuItemMock | null {
  */
 export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProps) {
   const addToCart = useCartStore((s) => s.addToCart);
-  const { setBarMensaje, setBarRecomendacion } = useNomAI();
+  const { setBarMensaje, setBarRecomendacion, setBarAccion } = useNomAI();
 
   const [agregado, setAgregado] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -63,6 +63,39 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   const mensajeCrossSell = esBebida
     ? "¡Buena elección! ¿Le sumamos unos Tacos al Pastor para acompañar? 🌮"
     : "¡Excelente elección! ¿Gustas añadir un refresco bien frío para acompañar? 🥤";
+
+  const sugerido = item ? sugerirCrossSell(item) : null;
+
+  // "Agregar al carrito" se habilita solo cuando TODOS los grupos marcados como
+  // obligatorios tienen al menos una selección real del cliente.
+  const gruposObligatorios = (item?.modifiers ?? []).filter((g) => g.requerido);
+  const faltanObligatorios = gruposObligatorios.some(
+    (g) => (selecciones[g.id]?.length ?? 0) === 0,
+  );
+
+  // ESTADO D: al agregar, recomendación complementaria en la barra.
+  const agregar = () => {
+    if (!item) return;
+    addToCart({
+      id: item.id,
+      nombre: item.nombre,
+      precio: item.precio,
+      emoji: item.emoji,
+    });
+    setAgregado(true);
+    setBarAccion(null);
+    setBarMensaje(mensajeCrossSell);
+    setBarRecomendacion(
+      sugerido
+        ? {
+            id: sugerido.id,
+            nombre: sugerido.nombre,
+            precio: sugerido.precio,
+            emoji: sugerido.emoji,
+          }
+        : null,
+    );
+  };
 
   // Al abrir/cambiar de platillo: prepara opciones y empuja el ESTADO B a la barra.
   useEffect(() => {
@@ -90,20 +123,27 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     return () => {
       setBarMensaje(null);
       setBarRecomendacion(null);
+      setBarAccion(null);
     };
   }, [abierto, item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Publica/limpia la acción "Agregar al carrito" en la barra global: aparece en
+  // cuanto el cliente eligió todo lo obligatorio y desaparece tras agregar.
+  useEffect(() => {
+    if (!abierto || !item) return;
+    if (agregado || faltanObligatorios) {
+      setBarAccion(null);
+      return;
+    }
+    setBarAccion({
+      etiqueta: `Agregar · ${formatCurrency(item.precio)}`,
+      onAgregar: agregar,
+    });
+  }, [abierto, item?.id, faltanObligatorios, agregado]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!abierto || !item) return null;
 
   const brand = "var(--brand, #DC2626)";
-  const sugerido = sugerirCrossSell(item);
-
-  // El botón de agregar se habilita solo cuando TODOS los grupos marcados como
-  // obligatorios tienen al menos una selección real del cliente.
-  const gruposObligatorios = (item.modifiers ?? []).filter((g) => g.requerido);
-  const faltanObligatorios = gruposObligatorios.some(
-    (g) => (selecciones[g.id]?.length ?? 0) === 0,
-  );
 
   // ESTADO C: solo con un clic REAL del usuario se describe la opción.
   const toggle = (grupo: GrupoModificador, opcionId: string) => {
@@ -118,28 +158,6 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
       };
     });
     setBarMensaje(REACCIONES[opcionId] ?? "¡Buena elección!");
-  };
-
-  // ESTADO D: al agregar, recomendación complementaria en la barra.
-  const agregar = () => {
-    addToCart({
-      id: item.id,
-      nombre: item.nombre,
-      precio: item.precio,
-      emoji: item.emoji,
-    });
-    setAgregado(true);
-    setBarMensaje(mensajeCrossSell);
-    setBarRecomendacion(
-      sugerido
-        ? {
-            id: sugerido.id,
-            nombre: sugerido.nombre,
-            precio: sugerido.precio,
-            emoji: sugerido.emoji,
-          }
-        : null,
-    );
   };
 
   return (

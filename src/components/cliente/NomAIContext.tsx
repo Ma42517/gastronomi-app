@@ -19,6 +19,16 @@ export interface RecomendacionBar {
   emoji?: string;
 }
 
+/**
+ * Acción principal de "Agregar al carrito" expuesta en la barra global. La
+ * ficha del platillo la publica cuando el cliente ya eligió todo lo obligatorio,
+ * de modo que el botón esté siempre accesible (nunca tapado por otros elementos).
+ */
+export interface AccionBar {
+  etiqueta: string;
+  onAgregar: () => void;
+}
+
 interface NomAIContextValue {
   escena: EscenaNomAI;
   setEscena: (e: EscenaNomAI) => void;
@@ -34,6 +44,9 @@ interface NomAIContextValue {
   /** Recomendación con botón de acción directa en la barra (State D). */
   barRecomendacion: RecomendacionBar | null;
   setBarRecomendacion: (r: RecomendacionBar | null) => void;
+  /** Acción "Agregar al carrito" en la barra (se muestra al completar la elección). */
+  barAccion: AccionBar | null;
+  setBarAccion: (a: AccionBar | null) => void;
   /** Control del chat (compartido: la barra global lo abre/cierra). */
   chatAbierto: boolean;
   abrirChat: () => void;
@@ -55,6 +68,7 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
   const [barMensaje, setBarMensaje] = useState<string | null>(null);
   const [barRecomendacion, setBarRecomendacion] =
     useState<RecomendacionBar | null>(null);
+  const [barAccion, setBarAccion] = useState<AccionBar | null>(null);
 
   const abrirChat = () => setChatAbierto(true);
   const cerrarChat = () => setChatAbierto(false);
@@ -73,6 +87,8 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
       setBarMensaje,
       barRecomendacion,
       setBarRecomendacion,
+      barAccion,
+      setBarAccion,
       chatAbierto,
       abrirChat,
       cerrarChat,
@@ -84,6 +100,7 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
       categoriaActual,
       barMensaje,
       barRecomendacion,
+      barAccion,
       chatAbierto,
     ],
   );
@@ -108,6 +125,8 @@ export function useNomAI(): NomAIContextValue {
       setBarMensaje: () => {},
       barRecomendacion: null,
       setBarRecomendacion: () => {},
+      barAccion: null,
+      setBarAccion: () => {},
       chatAbierto: false,
       abrirChat: () => {},
       cerrarChat: () => {},
