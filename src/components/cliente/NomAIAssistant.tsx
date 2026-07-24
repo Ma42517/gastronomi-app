@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
-import { Mic, Plus, Send, Sparkles, X } from "lucide-react";
+import { Check, Mic, Plus, Send, Sparkles, UtensilsCrossed, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useNomAI } from "./NomAIContext";
 
@@ -24,6 +24,8 @@ export function NomAIAssistant() {
   const [chatAbierto, setChatAbierto] = useState(false);
   const [sugerenciaVisible, setSugerenciaVisible] = useState(true);
   const [aviso, setAviso] = useState<string | null>(null);
+  // Ids de tool-calls ya agregados al carrito (para el estado "¡Agregado! ✓").
+  const [agregados, setAgregados] = useState<string[]>([]);
   // TODO: atar a la API de geolocalización del navegador. Por ahora fijo.
   const [userLocation] = useState("Zamora, Michoacán");
 
@@ -87,9 +89,11 @@ export function NomAIAssistant() {
     setSugerenciaVisible((v) => !v);
   };
 
-  // Acción del botón de "Agregar" que sugiere la IA (por ahora, toast + log).
-  const agregarSugerido = (nombre: string) => {
+  // Acción de la tarjeta que sugiere la IA (por ahora, toast + log + estado UI).
+  const agregarSugerido = (toolCallId: string, nombre: string) => {
+    if (agregados.includes(toolCallId)) return;
     console.log("[Carrito] Agregado desde Ñom AI:", nombre);
+    setAgregados((prev) => [...prev, toolCallId]);
     setAviso(`✓ ${nombre} agregado al carrito`);
     window.setTimeout(() => setAviso(null), 2200);
   };
@@ -161,7 +165,7 @@ export function NomAIAssistant() {
                     </div>
                   )}
 
-                  {/* Botones interactivos generados por el tool suggestItem */}
+                  {/* Tarjeta premium generada por el tool suggestItem */}
                   {sugerencias.map((inv) => {
                     const args = inv.args as {
                       itemName?: string;
@@ -170,20 +174,56 @@ export function NomAIAssistant() {
                     const nombre = args?.itemName ?? "este platillo";
                     const precio =
                       typeof args?.price === "number" ? args.price : undefined;
+                    const yaAgregado = agregados.includes(inv.toolCallId);
                     return (
-                      <button
+                      <div
                         key={inv.toolCallId}
-                        type="button"
-                        onClick={() => agregarSugerido(nombre)}
-                        className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold text-white shadow-md transition active:scale-95"
-                        style={{ background: brand }}
+                        className="w-[85%] rounded-2xl border border-white/10 bg-zinc-800 p-3 shadow-lg"
                       >
-                        <Plus className="h-3.5 w-3.5" strokeWidth={3} />
-                        Agregar {nombre}
-                        {precio !== undefined
-                          ? ` · ${formatCurrency(precio)}`
-                          : ""}
-                      </button>
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white"
+                            style={{
+                              background:
+                                "color-mix(in srgb, var(--brand, #DC2626) 30%, #27272a)",
+                            }}
+                          >
+                            <UtensilsCrossed className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-bold text-white">
+                              {nombre}
+                            </p>
+                            {precio !== undefined && (
+                              <p className="text-xs text-white/60">
+                                {formatCurrency(precio)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            agregarSugerido(inv.toolCallId, nombre)
+                          }
+                          disabled={yaAgregado}
+                          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold text-white shadow-sm transition active:scale-[0.98]"
+                          style={{ background: yaAgregado ? "#16a34a" : brand }}
+                        >
+                          {yaAgregado ? (
+                            <>
+                              <Check className="h-4 w-4" strokeWidth={3} />
+                              ¡Agregado! ✓
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-4 w-4" strokeWidth={3} />
+                              Agregar al Carrito
+                            </>
+                          )}
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
