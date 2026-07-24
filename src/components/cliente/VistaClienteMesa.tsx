@@ -41,7 +41,8 @@ export function VistaClienteMesa({
   const totalItems = items.reduce((a, i) => a + i.cantidad, 0);
 
   // Contexto de Ñom AI.
-  const { setEscena, setRestauranteNombre, setPlatilloActual } = useNomAI();
+  const { setEscena, setRestauranteNombre, setPlatilloActual, dispararCrossSell } =
+    useNomAI();
 
   // Platillo héroe configurable (Ribeye).
   const heroItem = menu.find((m) => m.id === hero.item_id);
@@ -68,7 +69,7 @@ export function VistaClienteMesa({
     setEscena,
   ]);
 
-  // Informa a Ñom AI qué platillo está viendo el cliente (para el dato curioso).
+  // Informa a Ñom AI qué platillo está viendo el cliente (contexto de venta).
   useEffect(() => {
     const nombre = configuradorAbierto && heroItem
       ? heroItem.nombre
@@ -208,7 +209,12 @@ export function VistaClienteMesa({
           item={heroItem}
           guarniciones={hero.guarniciones}
           onCerrar={() => setConfiguradorAbierto(false)}
-          onConfirmar={() => agregarMenuItem(heroItem)}
+          onConfirmar={() => {
+            agregarMenuItem(heroItem);
+            dispararCrossSell(
+              "¡Un corte espectacular! ¿Le sumamos una Cerveza Artesanal bien fría para acompañar? 🍺",
+            );
+          }}
         />
       )}
 

@@ -59,7 +59,8 @@ CÓMO RECOMENDAR:
 
 CONTEXTO:
 - Ubicación del cliente: ${ubicacion}. Úsala de forma muy sutil solo si suma (clima, vibra local).
-- El cliente está viendo: ${platillo}. Si dice "esto", "esta carne" o "este platillo", se refiere a ese. Dale un dato breve y curioso si viene al caso.
+- El cliente está viendo: ${platillo}. Si dice "esto", "este platillo" o "esta carne", se refiere a ese.
+- NO cuentes trivia ni datos históricos. Enfócate 100% en descripciones apetitosas (ingredientes, textura, aromas) y en venta cruzada (sugerir el complemento o bebida perfecta).
 
 MENÚ DISPONIBLE:
 ${construirMenuTexto()}`;

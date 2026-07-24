@@ -19,6 +19,9 @@ interface NomAIContextValue {
   /** Nombre del platillo que el cliente está viendo (para contexto de la IA). */
   platilloActual: string;
   setPlatilloActual: (n: string) => void;
+  /** Mensaje de venta cruzada disparado al agregar un platillo. */
+  crossSell: { mensaje: string; nonce: number } | null;
+  dispararCrossSell: (mensaje: string) => void;
 }
 
 const NomAIContext = createContext<NomAIContextValue | null>(null);
@@ -32,6 +35,13 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
   const [escena, setEscena] = useState<EscenaNomAI>("categorias");
   const [restauranteNombre, setRestauranteNombre] = useState("");
   const [platilloActual, setPlatilloActual] = useState("");
+  const [crossSell, setCrossSell] = useState<{
+    mensaje: string;
+    nonce: number;
+  } | null>(null);
+
+  const dispararCrossSell = (mensaje: string) =>
+    setCrossSell((prev) => ({ mensaje, nonce: (prev?.nonce ?? 0) + 1 }));
 
   const value = useMemo(
     () => ({
@@ -41,8 +51,10 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
       setRestauranteNombre,
       platilloActual,
       setPlatilloActual,
+      crossSell,
+      dispararCrossSell,
     }),
-    [escena, restauranteNombre, platilloActual],
+    [escena, restauranteNombre, platilloActual, crossSell],
   );
 
   return <NomAIContext.Provider value={value}>{children}</NomAIContext.Provider>;
@@ -59,6 +71,8 @@ export function useNomAI(): NomAIContextValue {
       setRestauranteNombre: () => {},
       platilloActual: "",
       setPlatilloActual: () => {},
+      crossSell: null,
+      dispararCrossSell: () => {},
     };
   }
   return ctx;

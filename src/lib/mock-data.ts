@@ -36,14 +36,33 @@ export interface ProgramaLealtad {
   descripcion_recompensa: string;
 }
 
+/** Opción dentro de un grupo de modificadores (ej. "Roja", "Con todo"). */
+export interface ModificadorOpcion {
+  id: string;
+  nombre: string;
+  precio_extra?: number;
+}
+
+/** Grupo de modificadores de un platillo (ej. "Elige tu salsa"). */
+export interface GrupoModificador {
+  id: string;
+  titulo: string;
+  tipo: "single" | "multi";
+  opciones: ModificadorOpcion[];
+}
+
 export interface MenuItemMock {
   id: string;
   nombre: string;
   descripcion: string;
   precio: number;
   categoria: string;
-  emoji: string; // placeholder visual mientras no hay fotos reales
+  emoji: string; // respaldo visual si la foto no carga
   disponible: boolean;
+  /** Foto real del platillo (con placeholder de respaldo si falla). */
+  imagen_url?: string;
+  /** Complementos configurables del platillo (salsas, preparación, extras…). */
+  modifiers?: GrupoModificador[];
 }
 
 /** Opción de guarnición para un platillo configurable (con costo extra). */
@@ -84,6 +103,35 @@ export interface CarritoLinea {
 }
 
 // ---------------------------------------------------------------------------
+// Modificadores reutilizables
+// ---------------------------------------------------------------------------
+const MODIFICADORES_TACO: GrupoModificador[] = [
+  {
+    id: "salsa",
+    titulo: "Elige tu salsa",
+    tipo: "single",
+    opciones: [
+      { id: "roja", nombre: "Roja" },
+      { id: "verde", nombre: "Verde" },
+      { id: "habanero", nombre: "Habanero" },
+    ],
+  },
+  {
+    id: "prep",
+    titulo: "Preparación",
+    tipo: "single",
+    opciones: [
+      { id: "con-todo", nombre: "Con todo" },
+      { id: "sin-cebolla", nombre: "Sin cebolla" },
+    ],
+  },
+];
+
+/** Foto por palabras clave (LoremFlickr; source.unsplash.com fue descontinuado). */
+const foto = (keywords: string, lock: number) =>
+  `https://loremflickr.com/600/400/${keywords}?lock=${lock}`;
+
+// ---------------------------------------------------------------------------
 // MOCK: "Taquería El Primo"
 // ---------------------------------------------------------------------------
 export const TAQUERIA_EL_PRIMO: RestauranteMock = {
@@ -109,95 +157,128 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       id: "h-ribeye",
       nombre: "Ribeye Añejado",
       descripcion:
-        "Corte de 400g madurado 30 días, sellado a la parrilla. Personaliza tu término y guarnición.",
+        "Corte de 400g madurado 30 días, sellado a la parrilla con mantequilla de ajo y romero. Personaliza tu término y guarnición.",
       precio: 320,
       categoria: "Especiales",
       emoji: "🥩",
       disponible: true,
+      imagen_url: foto("ribeye,steak", 21),
     },
     // --- Tacos ---
     {
       id: "t-pastor",
       nombre: "Taco al Pastor",
-      descripcion: "Cerdo marinado, piña, cebolla y cilantro.",
+      descripcion:
+        "Cerdo marinado en achiote y especias, cortado del trompo, con piña asada, cebolla y cilantro sobre tortilla de maíz.",
       precio: 22,
       categoria: "Tacos",
       emoji: "🌮",
       disponible: true,
+      imagen_url: foto("tacos,pastor", 22),
+      modifiers: MODIFICADORES_TACO,
     },
     {
       id: "t-suadero",
       nombre: "Taco de Suadero",
-      descripcion: "Res suave dorada en su jugo.",
+      descripcion:
+        "Res suave cocida lentamente y dorada en su jugo, con cebolla, cilantro y un toque de limón.",
       precio: 24,
       categoria: "Tacos",
       emoji: "🌮",
       disponible: true,
+      imagen_url: foto("tacos,beef", 23),
+      modifiers: MODIFICADORES_TACO,
     },
     {
       id: "t-campechano",
       nombre: "Taco Campechano",
-      descripcion: "Mezcla de pastor y longaniza.",
+      descripcion:
+        "La mezcla perfecta de pastor y longaniza crujiente, con cebolla y cilantro. Para los que quieren todo.",
       precio: 26,
       categoria: "Tacos",
       emoji: "🌮",
       disponible: true,
+      imagen_url: foto("tacos,mexican", 24),
+      modifiers: MODIFICADORES_TACO,
     },
     // --- Bebidas ---
     {
       id: "b-horchata",
       nombre: "Agua de Horchata",
-      descripcion: "Vaso de 500 ml, bien fría.",
+      descripcion:
+        "Bebida cremosa de arroz con canela y vainilla, servida bien fría en vaso de 500 ml.",
       precio: 35,
       categoria: "Bebidas",
       emoji: "🥤",
       disponible: true,
+      imagen_url: foto("horchata,drink", 25),
     },
     {
       id: "b-jamaica",
       nombre: "Agua de Jamaica",
-      descripcion: "Natural, sin azúcar añadida.",
+      descripcion:
+        "Flor de jamaica natural, refrescante y ligeramente ácida, sin azúcar añadida.",
       precio: 35,
       categoria: "Bebidas",
       emoji: "🧉",
       disponible: true,
+      imagen_url: foto("hibiscus,drink", 26),
     },
     {
       id: "b-cerveza",
       nombre: "Cerveza Artesanal",
-      descripcion: "IPA local de barril, 355 ml.",
+      descripcion:
+        "IPA local de barril, aromática y bien fría, 355 ml. El maridaje ideal para tus tacos.",
       precio: 55,
       categoria: "Bebidas",
       emoji: "🍺",
       disponible: true,
+      imagen_url: foto("craft,beer", 27),
     },
     {
       id: "b-refresco",
       nombre: "Refresco de Cristal",
-      descripcion: "Coca-Cola / Sidral / Manzanita.",
+      descripcion: "Coca-Cola / Sidral / Manzanita en botella de vidrio.",
       precio: 30,
       categoria: "Bebidas",
       emoji: "🥤",
       disponible: false,
+      imagen_url: foto("soda,bottle", 28),
     },
     // --- Extras ---
     {
       id: "e-guacamole",
       nombre: "Guacamole",
-      descripcion: "Recién hecho con totopos.",
+      descripcion:
+        "Aguacate machacado al momento con jitomate, cebolla, chile y cilantro, acompañado de totopos crujientes.",
       precio: 45,
       categoria: "Extras",
       emoji: "🥑",
       disponible: true,
+      imagen_url: foto("guacamole", 29),
     },
     {
       id: "e-quesofundido",
       nombre: "Queso Fundido",
-      descripcion: "Con chorizo, para compartir.",
+      descripcion:
+        "Queso Oaxaca derretido y burbujeante, servido en cazuela con tortillas recién hechas para compartir.",
       precio: 65,
       categoria: "Extras",
       emoji: "🧀",
       disponible: true,
+      imagen_url: foto("cheese,melted", 30),
+      modifiers: [
+        {
+          id: "extras-queso",
+          titulo: "Extras",
+          tipo: "multi",
+          opciones: [
+            { id: "chorizo", nombre: "Chorizo", precio_extra: 15 },
+            { id: "champinones", nombre: "Champiñones", precio_extra: 12 },
+            { id: "doble", nombre: "Doble porción", precio_extra: 30 },
+          ],
+        },
+      ],
     },
   ],
   sommelier: {

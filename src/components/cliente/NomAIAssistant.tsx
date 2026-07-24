@@ -12,9 +12,6 @@ import { useNomAI } from "./NomAIContext";
 const SALUDO =
   "¡Hola! Soy Ñom AI. ¿Tienes antojo de algo en especial o alguna alergia que deba conocer?";
 
-/** Marcador de mensajes automáticos (no se muestran como burbuja del usuario). */
-const AUTO_PREFIX = "⟪auto⟫";
-
 /** Resuelve el item sugerido por la IA a un producto real del menú. */
 function resolverItem(nombre: string, precio?: number) {
   const enMenu = TAQUERIA_EL_PRIMO.menu.find(
@@ -44,36 +41,30 @@ function resolverItem(nombre: string, precio?: number) {
  * White-label vía --brand.
  */
 export function NomAIAssistant() {
-  const { escena, restauranteNombre, platilloActual } = useNomAI();
+  const { escena, restauranteNombre, platilloActual, crossSell } = useNomAI();
   const pathname = usePathname();
 
   const [chatAbierto, setChatAbierto] = useState(false);
   const [sugerenciaVisible, setSugerenciaVisible] = useState(true);
   const [aviso, setAviso] = useState<string | null>(null);
-  // Ids de tool-calls ya agregados al carrito (para el estado "¡Agregado! ✓").
+  // Ids de tool-calls ya agregados al carrito (para el estado "Añadido ✓").
   const [agregados, setAgregados] = useState<string[]>([]);
+  // Mensaje de venta cruzada que sobreescribe la sugerencia contextual.
+  const [mensajeOverride, setMensajeOverride] = useState<string | null>(null);
   // TODO: atar a la API de geolocalización del navegador. Por ahora fijo.
   const [userLocation] = useState("Zamora, Michoacán");
 
   const addToCart = useCartStore((s) => s.addToCart);
 
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    append,
-    isLoading,
-    error,
-  } = useChat({
-    api: "/api/chat",
-    // Contexto dinámico enviado al backend en cada mensaje.
-    body: { currentDish: platilloActual, location: userLocation },
-    initialMessages: [{ id: "saludo", role: "assistant", content: SALUDO }],
-  });
+  const { messages, input, handleInputChange, handleSubmit, isLoading, error } =
+    useChat({
+      api: "/api/chat",
+      // Contexto dinámico enviado al backend en cada mensaje.
+      body: { currentDish: platilloActual, location: userLocation },
+      initialMessages: [{ id: "saludo", role: "assistant", content: SALUDO }],
+    });
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const datoDadoRef = useRef<string | null>(null);
 
   // Mensaje contextual (Context Awareness) según la escena activa.
   const sugerencia = useMemo(() => {
@@ -97,24 +88,20 @@ export function NomAIAssistant() {
     });
   }, [messages, isLoading, chatAbierto]);
 
-  // Al cambiar de escena o de ruta, vuelve a mostrar la sugerencia contextual.
+  // Al cambiar de escena o de ruta, muestra la sugerencia contextual y limpia
+  // cualquier venta cruzada previa.
   useEffect(() => {
     setSugerenciaVisible(true);
+    setMensajeOverride(null);
   }, [escena, pathname]);
 
-  // IA PROACTIVA: al abrir/ver un platillo, Ñom AI suelta solo un dato curioso.
+  // VENTA CRUZADA: al agregar un platillo, la burbuja actualiza su texto.
+  // (Solo muestra la burbuja; NUNCA abre el chat automáticamente.)
   useEffect(() => {
-    const dish = platilloActual?.trim();
-    if (!dish) return;
-    if (datoDadoRef.current === dish) return; // evita duplicados por platillo
-    datoDadoRef.current = dish;
-    setChatAbierto(true);
-    setSugerenciaVisible(false);
-    append({
-      role: "user",
-      content: `${AUTO_PREFIX} El cliente acaba de abrir "${dish}". Suéltale un dato curioso, muy breve y cálido, sobre ese platillo. No vendas todavía ni uses herramientas.`,
-    });
-  }, [platilloActual, append]);
+    if (!crossSell) return;
+    setMensajeOverride(crossSell.mensaje);
+    setSugerenciaVisible(true);
+  }, [crossSell]);
 
   const brand = "var(--brand, #DC2626)";
 
@@ -188,8 +175,6 @@ export function NomAIAssistant() {
           <div ref={scrollRef} className="flex-1 space-y-2.5 overflow-y-auto p-3">
             {messages.map((m) => {
               const esUser = m.role === "user";
-              // Oculta los disparadores automáticos de datos curiosos.
-              if (esUser && m.content.startsWith(AUTO_PREFIX)) return null;
               const sugerencias = !esUser
                 ? (m.toolInvocations ?? []).filter(
                     (inv) =>
@@ -340,7 +325,10 @@ export function NomAIAssistant() {
         <div className="animate-fade-in-up relative w-64 max-w-[80vw] rounded-2xl bg-white p-3.5 pr-8 text-gray-800 shadow-2xl ring-1 ring-black/5">
           <button
             type="button"
-            onClick={() => setSugerenciaVisible(false)}
+            onClick={() => {
+              setSugerenciaVisible(false);
+              setMensajeOverride(null);
+            }}
             className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
             aria-label="Cerrar sugerencia"
           >
@@ -355,9 +343,12 @@ export function NomAIAssistant() {
             Ñom AI
           </p>
 
-          {/* key={escena} => transición suave al cambiar de pantalla */}
-          <p key={escena} className="animate-text-in text-sm leading-snug text-gray-700">
-            {sugerencia}
+          {/* key => transición suave al cambiar el texto */}
+          <p
+            key={mensajeOverride ?? escena}
+            className="animate-text-in text-sm leading-snug text-gray-700"
+          >
+            {mensajeOverride ?? sugerencia}
           </p>
 
           <button
@@ -365,6 +356,7 @@ export function NomAIAssistant() {
             onClick={() => {
               setChatAbierto(true);
               setSugerenciaVisible(false);
+              setMensajeOverride(null);
             }}
             className="mt-2.5 w-full rounded-full px-3 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95"
             style={{ background: brand }}
