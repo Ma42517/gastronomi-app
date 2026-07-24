@@ -391,3 +391,27 @@ textarea {
     animation: none;
   }
 }
+
+
+/* ============================================================
+   Sommelier Ñom — avatar flotante (levitación / respiración)
+   ============================================================ */
+@keyframes floatAvatar {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float-avatar {
+  animation: floatAvatar 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-avatar {
+    animation: none;
+  }
+}
