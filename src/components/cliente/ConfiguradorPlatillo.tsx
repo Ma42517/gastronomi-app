@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Check, Flame, Plus, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock, OpcionGuarnicion } from "@/lib/mock-data";
@@ -13,56 +13,32 @@ interface ConfiguradorPlatilloProps {
   onConfirmar: () => void;
 }
 
-/** Foto realista del corte (base sobre la que actúan los filtros CSS). */
+/** Foto realista del corte (SIN filtro: el término se aplica en un overlay). */
 const IMG_RIBEYE =
   "https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=800&q=80";
 
-/**
- * Términos de cocción. El efecto de cocción se confina al CENTRO del corte
- * mediante una máscara radial, para no teñir toda la fotografía.
- */
+/** Términos de cocción (metadatos para el selector). */
 const TERMINOS = [
-  {
-    id: "rare",
-    nombre: "Rojo",
-    sub: "Rare",
-    glow: "#ef4444",
-    punto: "#b81f1f",
-    tint: "rgba(165,12,18,0.55)",
-    glowOpacity: 0.85,
-  },
-  {
-    id: "medium",
-    nombre: "Medio",
-    sub: "Medium",
-    glow: "#f87171",
-    punto: "#d24b3d",
-    tint: "rgba(135,22,18,0.42)",
-    glowOpacity: 0.5,
-  },
-  {
-    id: "medium-well",
-    nombre: "3/4",
-    sub: "Medium Well",
-    glow: "#fca5a5",
-    punto: "#dda183",
-    tint: "rgba(118,72,30,0.55)",
-    glowOpacity: 0.2,
-  },
-  {
-    id: "well",
-    nombre: "Bien Cocido",
-    sub: "Well Done",
-    glow: "#b45309",
-    punto: "#8a5a3b",
-    tint: "rgba(52,28,14,0.78)",
-    glowOpacity: 0,
-  },
+  { id: "rare", nombre: "Rojo", sub: "Rare", glow: "#ef4444", punto: "#b81f1f" },
+  { id: "medium", nombre: "Medio", sub: "Medium", glow: "#f87171", punto: "#d24b3d" },
+  { id: "medium-well", nombre: "3/4", sub: "Medium Well", glow: "#fca5a5", punto: "#dda183" },
+  { id: "well", nombre: "Bien Cocido", sub: "Well Done", glow: "#b45309", punto: "#8a5a3b" },
 ];
 
-/** Máscara radial: confina el efecto de cocción a la zona central (el corte). */
-const MASCARA_CENTRO =
-  "radial-gradient(ellipse 58% 52% at 50% 47%, #000 32%, transparent 74%)";
+/**
+ * Clases del overlay de término (bg con opacidad + blend mode).
+ * Se aplican sobre un div con máscara radial para focalizar SOLO el centro.
+ */
+const TERMINO_OVERLAY: Record<string, string> = {
+  rare: "bg-red-600/50 mix-blend-color-burn",
+  medium: "bg-red-400/30 mix-blend-multiply",
+  "medium-well": "bg-orange-900/40 mix-blend-multiply",
+  well: "bg-stone-800/60 mix-blend-multiply",
+};
+
+/** Máscara radial: el efecto de término se ve solo en el centro de los cortes. */
+const MASCARA_TERMINO =
+  "radial-gradient(ellipse at 50% 55%, black 15%, transparent 60%)";
 
 /** Respuesta háptica sutil (solo dispositivos compatibles). */
 function vibrar(ms = 8) {
@@ -89,30 +65,24 @@ export function ConfiguradorPlatillo({
 }: ConfiguradorPlatilloProps) {
   const [terminoId, setTerminoId] = useState("medium");
   const [guarnicionId, setGuarnicionId] = useState<string | null>(null);
-  const [imgGuarnicionError, setImgGuarnicionError] = useState(false);
-  const lightRef = useRef<HTMLDivElement>(null);
+  // Guarda la última guarnición mostrada para que la PIP no se vacíe al hacer fade-out.
+  const [pipData, setPipData] = useState<OpcionGuarnicion | null>(null);
 
   if (!abierto) return null;
 
   const termino = TERMINOS.find((t) => t.id === terminoId) ?? TERMINOS[1];
   const guarnicion = guarniciones.find((g) => g.id === guarnicionId) ?? null;
+  const pipVisible = guarnicion !== null;
   const total = item.precio + (guarnicion?.precio_extra ?? 0);
 
   const seleccionarTermino = (id: string) => {
     setTerminoId(id);
     vibrar(10);
-    // Destello de luz que cruza la imagen (reflow para re-disparar).
-    const el = lightRef.current;
-    if (el) {
-      el.classList.remove("animate-light-sweep");
-      void el.offsetWidth;
-      el.classList.add("animate-light-sweep");
-    }
   };
 
-  const seleccionarGuarnicion = (id: string) => {
-    setGuarnicionId((actual) => (actual === id ? null : id));
-    setImgGuarnicionError(false);
+  const seleccionarGuarnicion = (g: OpcionGuarnicion) => {
+    setGuarnicionId((actual) => (actual === g.id ? null : g.id));
+    setPipData(g); // se conserva para el fade-out
     vibrar(8);
   };
 
@@ -134,136 +104,80 @@ export function ConfiguradorPlatillo({
 
       {/* Bottom sheet — glassmorphism oscuro */}
       <div className="animate-sheet-up relative mt-auto flex max-h-[95vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border-t border-white/10 bg-neutral-900/85 text-white shadow-2xl backdrop-blur-2xl">
-        {/* Handle + cerrar */}
-        <div className="relative flex shrink-0 items-center justify-center pt-3">
-          <span className="h-1.5 w-12 rounded-full bg-white/25" />
+        {/* --- VISUALIZADOR: contenedor único a todo lo ancho --- */}
+        <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-t-3xl bg-black">
+          {/* Foto base del Ribeye — VIVA con Ken Burns, SIN filtro */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={IMG_RIBEYE}
+            alt="Ribeye a la parrilla"
+            className="animate-ken-burns absolute inset-0 h-full w-full object-cover"
+          />
+
+          {/* Capa de término — focalizada al centro con máscara CSS */}
+          <div
+            className={`pointer-events-none absolute inset-0 transition-colors duration-700 ${
+              TERMINO_OVERLAY[terminoId] ?? TERMINO_OVERLAY.medium
+            }`}
+            style={{
+              WebkitMaskImage: MASCARA_TERMINO,
+              maskImage: MASCARA_TERMINO,
+            }}
+          />
+
+          {/* Scrim superior para legibilidad de controles */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/55 to-transparent" />
+
+          {/* Handle */}
+          <div className="absolute left-1/2 top-2.5 -translate-x-1/2">
+            <span className="block h-1.5 w-12 rounded-full bg-white/50" />
+          </div>
+
+          {/* Cerrar */}
           <button
             type="button"
             onClick={onCerrar}
-            className="absolute right-4 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80 transition hover:bg-white/20"
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white/90 backdrop-blur-md transition hover:bg-black/60"
             aria-label="Cerrar"
           >
             <X className="h-5 w-5" />
           </button>
-        </div>
 
-        {/* --- VISUALIZADOR: layout dinámico side-by-side --- */}
-        <div className="relative mx-4 mt-3 flex h-52 shrink-0 overflow-hidden">
-          {/* PANEL CARNE — 100% sin guarnición, ~63% con guarnición */}
-          <div
-            className={`h-full transition-all duration-700 ease-in-out ${
-              guarnicion ? "w-[63%] pr-1.5" : "w-full"
-            }`}
-          >
-            <div className="relative h-full w-full overflow-hidden rounded-3xl border border-white/10 bg-black">
-              {/* Fotografía base — "viva" con Ken Burns */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={IMG_RIBEYE}
-                alt="Ribeye a la parrilla"
-                className="animate-ken-burns absolute inset-0 h-full w-full object-cover"
-                style={{ filter: "saturate(1.15) contrast(1.06) brightness(1.02)" }}
-              />
-
-              {/* Tinte de cocción — confinado al centro del corte */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundColor: termino.tint,
-                  mixBlendMode: "multiply",
-                  maskImage: MASCARA_CENTRO,
-                  WebkitMaskImage: MASCARA_CENTRO,
-                  transition: "background-color 0.7s ease-in-out",
-                }}
-              />
-
-              {/* Brillo rojizo jugoso, solo en el centro */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    "radial-gradient(ellipse 52% 46% at 50% 46%, rgba(225,45,38,0.95), rgba(180,20,20,0.18) 55%, transparent 72%)",
-                  mixBlendMode: "screen",
-                  opacity: termino.glowOpacity,
-                  transition: "opacity 0.7s ease-in-out",
-                }}
-              />
-
-              {/* Destello de luz al cambiar de término */}
-              <div
-                ref={lightRef}
-                className="pointer-events-none absolute inset-y-0 left-0 w-1/2"
-                style={{
-                  background:
-                    "linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
-                  mixBlendMode: "screen",
-                  opacity: 0,
-                }}
-              />
-
-              {/* Degradado para legibilidad de la etiqueta */}
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/25" />
-
-              {/* Vapor */}
-              <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center gap-7">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="steam-line h-12 w-1 rounded-full bg-white/25 blur-[2px]"
-                    style={{ animationDelay: `${i * 0.6}s` }}
-                  />
-                ))}
-              </div>
-
-              {/* Etiqueta del término actual */}
-              <div className="absolute left-3 top-3">
-                <span
-                  className="rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-md transition-all duration-500"
-                  style={{
-                    borderColor: `${termino.glow}80`,
-                    background: `${termino.glow}33`,
-                    color: "#fff",
-                  }}
-                >
-                  {termino.nombre} · {termino.sub}
-                </span>
-              </div>
-            </div>
+          {/* Etiqueta del término actual */}
+          <div className="absolute bottom-3 left-3">
+            <span
+              className="rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-md transition-all duration-500"
+              style={{
+                borderColor: `${termino.glow}80`,
+                background: `${termino.glow}33`,
+                color: "#fff",
+              }}
+            >
+              {termino.nombre} · {termino.sub}
+            </span>
           </div>
 
-          {/* PANEL GUARNICIÓN — entra deslizándose desde la derecha */}
-          {guarnicion && (
-            <div
-              key={guarnicion.id}
-              className="animate-garnish-slide h-full w-[37%] pl-1.5"
-            >
-              <div className="relative h-full w-full overflow-hidden rounded-3xl border border-white/10">
-                {guarnicion.imagen_url && !imgGuarnicionError ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={guarnicion.imagen_url}
-                    alt={guarnicion.nombre}
-                    onError={() => setImgGuarnicionError(true)}
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-neutral-700 to-neutral-800 text-5xl">
-                    {guarnicion.emoji}
-                  </div>
-                )}
-
-                {/* Nombre de la guarnición */}
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-2.5 pt-6">
-                  <p className="text-[11px] font-bold leading-tight text-white">
-                    {guarnicion.nombre}
-                  </p>
-                  <p className="text-[10px] text-white/60">
-                    +{formatCurrency(guarnicion.precio_extra)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* GUARNICIÓN — PIP flotante en la esquina inferior derecha */}
+          <div
+            className={`absolute bottom-4 right-4 h-24 w-24 overflow-hidden rounded-full border-2 border-white/20 shadow-xl transition-all duration-500 ${
+              pipVisible
+                ? "scale-100 opacity-100"
+                : "pointer-events-none scale-90 opacity-0"
+            }`}
+          >
+            <div className="absolute inset-0 bg-neutral-800" />
+            {pipData?.imagen_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={pipData.imagen_url}
+                alt={pipData.nombre}
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+                className="relative h-full w-full object-cover"
+              />
+            )}
+          </div>
         </div>
 
         {/* --- CONTENIDO CONFIGURABLE (scroll) --- */}
@@ -324,7 +238,7 @@ export function ConfiguradorPlatillo({
                   <button
                     key={g.id}
                     type="button"
-                    onClick={() => seleccionarGuarnicion(g.id)}
+                    onClick={() => seleccionarGuarnicion(g)}
                     className="flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium transition-all duration-300"
                     style={{
                       borderColor: activa
