@@ -556,16 +556,17 @@ textarea {
    ============================================================ */
 @keyframes livePhoto {
   from {
-    transform: scale(1) translate(0, 0);
+    transform: scale(1);
   }
   to {
-    transform: scale(1.09) translate(1.5%, -1.5%);
+    transform: scale(1.06);
   }
 }
 
 .animate-live-photo {
-  /* 32s de ida + 32s de vuelta = ciclo de ~64s, muy prolongado y fluido */
-  animation: livePhoto 32s ease-in-out infinite alternate;
+  /* Zoom PURO (sin paneo, para que no maree). Ping-pong suave: se acerca y
+     regresa sin salto de bucle. ~14s de ida + 14s de vuelta. */
+  animation: livePhoto 14s ease-in-out infinite alternate;
   will-change: transform;
 }
 

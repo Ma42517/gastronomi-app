@@ -145,7 +145,7 @@ export function ConfiguradorPlatillo({
             <img
               src={IMG_RIBEYE}
               alt="Ribeye a la parrilla"
-              className="animate-ken-burns absolute inset-0 h-full w-full object-cover"
+              className="animate-live-photo absolute inset-0 h-full w-full object-cover"
             />
 
             {/* Capa de término — focalizada al centro con máscara CSS (solo sobre

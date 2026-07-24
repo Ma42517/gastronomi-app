@@ -151,7 +151,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
               src={item.imagen_url}
               alt={item.nombre}
               onError={() => setImgError(true)}
-              className="absolute inset-0 h-full w-full object-cover"
+              className="animate-live-photo absolute inset-0 h-full w-full object-cover"
             />
           ) : (
             <>
