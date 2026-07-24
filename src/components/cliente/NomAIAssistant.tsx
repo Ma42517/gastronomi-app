@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { useChat } from "ai/react";
+import { useChat } from "@ai-sdk/react";
 import { Mic, Send, Sparkles, X } from "lucide-react";
 import { useNomAI } from "./NomAIContext";
 

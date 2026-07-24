@@ -64,19 +64,23 @@ export async function POST(req: Request) {
     const { messages }: { messages: Message[] } = await req.json();
 
     const result = await streamText({
-      // gemini-1.5-flash fue retirado por Google; usamos el modelo actual.
+      // Modelo Gemini vigente (1.0/1.5/2.0 fueron descontinuados por Google).
       model: google("gemini-2.5-flash"),
       system: SYSTEM_PROMPT,
       messages: convertToCoreMessages(messages),
     });
 
-    // Reenvía el mensaje de error REAL al frontend (en lugar de ocultarlo).
+    // Loguea y reenvía el mensaje de error REAL (en lugar de ocultarlo).
     return result.toDataStreamResponse({
-      getErrorMessage: (error) =>
-        error instanceof Error ? error.message : String(error),
+      getErrorMessage: (error) => {
+        const mensaje = error instanceof Error ? error.message : String(error);
+        console.error("[Ñom AI] Error durante el streaming:", mensaje);
+        return mensaje;
+      },
     });
   } catch (error) {
     const mensaje = error instanceof Error ? error.message : "Error desconocido";
+    console.error("[Ñom AI] Error en POST /api/chat:", error);
     return new Response(JSON.stringify({ error: mensaje }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
