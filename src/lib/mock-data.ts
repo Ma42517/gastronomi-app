@@ -146,7 +146,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
     sellos_para_recompensa: 5,
     descripcion_recompensa: "Orden de Pastor gratis",
   },
-  categorias: ["Tacos", "Bebidas", "Extras"],
+  categorias: ["Tacos", "Bebidas", "Extras", "Postres"],
   menu: [
     // --- Platillo Héroe (configurable, no se lista en las categorías) ---
     {
@@ -273,6 +273,17 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
           ],
         },
       ],
+    },
+    // --- Postres ---
+    {
+      id: "p-flan",
+      nombre: "Flan Napolitano",
+      descripcion:
+        "Flan casero cremoso bañado en caramelo, el cierre perfecto para tu comida.",
+      precio: 55,
+      categoria: "Postres",
+      emoji: "🍮",
+      disponible: true,
     },
   ],
   sommelier: {

@@ -113,15 +113,17 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     setAgregadoSugerido(true);
   };
 
-  // Texto del banner inline de Ñom AI (reacciona a salsa y a la sugerencia).
+  // Texto del banner inline de Ñom AI:
+  //  - ANTES de agregar: solo contexto (reacción a la salsa) — sin sugerir extras.
+  //  - DESPUÉS de agregar: reacciona con la venta cruzada.
   const salsaSel = selecciones["salsa"]?.[0];
   const mensajeInline = agregadoSugerido
     ? `¡Listo! ${sugerido?.nombre ?? "Tu extra"} añadido a la cuenta. 🎉`
-    : salsaSel && REACCIONES_SALSA[salsaSel]
-      ? REACCIONES_SALSA[salsaSel]
-      : sugerido
-        ? `El acompañante ideal para esto es ${sugerido.nombre}. ¿Lo sumamos?`
-        : "¿Te ayudo a elegir algo más para tu mesa?";
+    : agregado
+      ? mensajeCrossSell
+      : salsaSel && REACCIONES_SALSA[salsaSel]
+        ? REACCIONES_SALSA[salsaSel]
+        : "Cuéntame si tienes dudas del platillo o alguna alergia. ¡Estoy para ayudarte!";
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center">
@@ -267,8 +269,8 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
             </p>
 
             <div className="mt-3 space-y-2">
-              {/* Acción directa: añade el ítem sugerido a la cuenta real */}
-              {sugerido && (
+              {/* La sugerencia (botón rojo) SOLO aparece tras agregar el platillo */}
+              {agregado && sugerido && (
                 <button
                   type="button"
                   onClick={agregarSugerido}
