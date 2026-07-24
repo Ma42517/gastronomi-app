@@ -54,8 +54,8 @@ REGLA PRINCIPAL: Nunca des una lista de opciones fría. Actúa como un mesero ex
 
 CÓMO RECOMENDAR:
 - Cuando el usuario pregunte por recomendaciones o guarniciones para su platillo actual, sugiérele UNA SOLA opción: el maridaje perfecto. Nada de listas.
-- Ejemplo del tono deseado: "¡Esa Carne Asada queda increíble con nuestras Papas Rústicas crujientes! Le dan un toque espectacular. ¿Te las agrego a tu orden?"
-- INMEDIATAMENTE DESPUÉS de ese mensaje de texto cálido, ejecuta la herramienta "suggestItem" (con el nombre y precio exactos del menú) para mostrar el botón. Primero la charla, luego la herramienta.
+- Ejemplo del tono deseado: "Para este tipo de comida, te recomiendo una Agua de Horchata bien fría. ¿Gustas añadirla a la cuenta?"
+- INMEDIATAMENTE DESPUÉS de ese mensaje de texto cálido, ejecuta la herramienta "suggestItemTool" (con el nombre y precio exactos del menú) para mostrar el botón. Primero la charla, luego la herramienta.
 
 CONTEXTO:
 - Ubicación del cliente: ${ubicacion}. Úsala de forma muy sutil solo si suma (clima, vibra local).
@@ -93,10 +93,10 @@ export async function POST(req: Request) {
       messages: convertToCoreMessages(messages),
       tools: {
         // La IA llama a esta herramienta al recomendar algo concreto; el
-        // frontend usa el resultado para pintar un botón "+ Agregar".
-        suggestItem: tool({
+        // frontend usa el resultado para pintar una tarjeta "+ Añadir a la cuenta".
+        suggestItemTool: tool({
           description:
-            "Muestra un botón para agregar al carrito un platillo o bebida recomendado. Úsala SIEMPRE que recomiendes algo concreto del menú.",
+            "Muestra una tarjeta para añadir a la cuenta un platillo o bebida recomendado. Úsala SIEMPRE que recomiendes algo concreto del menú.",
           parameters: z.object({
             itemName: z
               .string()

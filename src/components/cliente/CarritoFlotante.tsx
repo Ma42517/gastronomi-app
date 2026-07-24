@@ -1,36 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, Minus, Plus, ShoppingBag } from "lucide-react";
+import { ChevronDown, Minus, Plus, ShoppingBag, UtensilsCrossed } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import type { CarritoLinea } from "@/lib/mock-data";
+import { useCartStore } from "@/lib/cart-store";
 
 interface CarritoFlotanteProps {
-  lineas: CarritoLinea[];
-  total: number;
-  totalItems: number;
-  onAgregar: (linea: CarritoLinea) => void;
-  onQuitar: (itemId: string) => void;
   onPagar: () => void;
   /** Notifica al padre cuando el detalle del carrito se abre/cierra. */
   onExpandidoChange?: (expandido: boolean) => void;
 }
 
-export function CarritoFlotante({
-  lineas,
-  total,
-  totalItems,
-  onAgregar,
-  onQuitar,
-  onPagar,
-  onExpandidoChange,
-}: CarritoFlotanteProps) {
+/**
+ * Carrito flotante conectado al CartStore global.
+ * Muestra en tiempo real la cantidad de artículos y el total.
+ */
+export function CarritoFlotante({ onPagar, onExpandidoChange }: CarritoFlotanteProps) {
+  const items = useCartStore((s) => s.items);
+  const addToCart = useCartStore((s) => s.addToCart);
+  const removeFromCart = useCartStore((s) => s.removeFromCart);
+
   const [expandido, setExpandido] = useState(false);
 
-  // Informa al padre (para el contexto de Ñom AI). Antes del early return.
+  const totalItems = items.reduce((a, i) => a + i.cantidad, 0);
+  const total = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
+
   useEffect(() => {
     onExpandidoChange?.(expandido);
   }, [expandido, onExpandidoChange]);
+
+  // Si el carrito queda vacío, colapsa el detalle.
+  useEffect(() => {
+    if (totalItems === 0 && expandido) setExpandido(false);
+  }, [totalItems, expandido]);
 
   if (totalItems === 0) return null;
 
@@ -59,21 +61,27 @@ export function CarritoFlotante({
             </div>
 
             <ul className="max-h-[45vh] space-y-3 overflow-y-auto">
-              {lineas.map((linea) => (
-                <li key={linea.item.id} className="flex items-center gap-3">
-                  <span className="text-2xl">{linea.item.emoji}</span>
+              {items.map((ci) => (
+                <li key={ci.id} className="flex items-center gap-3">
+                  {ci.emoji ? (
+                    <span className="text-2xl">{ci.emoji}</span>
+                  ) : (
+                    <span className="grid h-8 w-8 place-items-center rounded-lg bg-gray-100 text-gray-400">
+                      <UtensilsCrossed className="h-4 w-4" />
+                    </span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-gray-900">
-                      {linea.item.nombre}
+                      {ci.nombre}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {formatCurrency(linea.item.precio)} c/u
+                      {formatCurrency(ci.precio)} c/u
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => onQuitar(linea.item.id)}
+                      onClick={() => removeFromCart(ci.id)}
                       className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition active:scale-95"
                       style={{ borderColor: "var(--brand)", color: "var(--brand)" }}
                       aria-label="Quitar uno"
@@ -81,11 +89,18 @@ export function CarritoFlotante({
                       <Minus className="h-3.5 w-3.5" strokeWidth={3} />
                     </button>
                     <span className="w-4 text-center text-sm font-bold text-gray-900">
-                      {linea.cantidad}
+                      {ci.cantidad}
                     </span>
                     <button
                       type="button"
-                      onClick={() => onAgregar(linea)}
+                      onClick={() =>
+                        addToCart({
+                          id: ci.id,
+                          nombre: ci.nombre,
+                          precio: ci.precio,
+                          emoji: ci.emoji,
+                        })
+                      }
                       className="flex h-7 w-7 items-center justify-center rounded-full text-white transition active:scale-95"
                       style={{ background: "var(--brand)" }}
                       aria-label="Agregar uno"

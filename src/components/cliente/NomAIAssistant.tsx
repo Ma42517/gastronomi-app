@@ -5,10 +5,36 @@ import { usePathname } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { Check, Mic, Plus, Send, Sparkles, UtensilsCrossed, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { useCartStore } from "@/lib/cart-store";
+import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
 import { useNomAI } from "./NomAIContext";
 
 const SALUDO =
   "¡Hola! Soy Ñom AI. ¿Tienes antojo de algo en especial o alguna alergia que deba conocer?";
+
+/** Marcador de mensajes automáticos (no se muestran como burbuja del usuario). */
+const AUTO_PREFIX = "⟪auto⟫";
+
+/** Resuelve el item sugerido por la IA a un producto real del menú. */
+function resolverItem(nombre: string, precio?: number) {
+  const enMenu = TAQUERIA_EL_PRIMO.menu.find(
+    (m) => m.nombre.toLowerCase() === nombre.toLowerCase(),
+  );
+  if (enMenu) {
+    return {
+      id: enMenu.id,
+      nombre: enMenu.nombre,
+      precio: enMenu.precio,
+      emoji: enMenu.emoji,
+    };
+  }
+  return {
+    id: `ai-${nombre.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    nombre,
+    precio: precio ?? 0,
+    emoji: undefined as string | undefined,
+  };
+}
 
 /**
  * "Ñom AI": Capitán de Meseros virtual.
@@ -29,11 +55,14 @@ export function NomAIAssistant() {
   // TODO: atar a la API de geolocalización del navegador. Por ahora fijo.
   const [userLocation] = useState("Zamora, Michoacán");
 
+  const addToCart = useCartStore((s) => s.addToCart);
+
   const {
     messages,
     input,
     handleInputChange,
     handleSubmit,
+    append,
     isLoading,
     error,
   } = useChat({
@@ -44,6 +73,7 @@ export function NomAIAssistant() {
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const datoDadoRef = useRef<string | null>(null);
 
   // Mensaje contextual (Context Awareness) según la escena activa.
   const sugerencia = useMemo(() => {
@@ -72,6 +102,20 @@ export function NomAIAssistant() {
     setSugerenciaVisible(true);
   }, [escena, pathname]);
 
+  // IA PROACTIVA: al abrir/ver un platillo, Ñom AI suelta solo un dato curioso.
+  useEffect(() => {
+    const dish = platilloActual?.trim();
+    if (!dish) return;
+    if (datoDadoRef.current === dish) return; // evita duplicados por platillo
+    datoDadoRef.current = dish;
+    setChatAbierto(true);
+    setSugerenciaVisible(false);
+    append({
+      role: "user",
+      content: `${AUTO_PREFIX} El cliente acaba de abrir "${dish}". Suéltale un dato curioso, muy breve y cálido, sobre ese platillo. No vendas todavía ni uses herramientas.`,
+    });
+  }, [platilloActual, append]);
+
   const brand = "var(--brand, #DC2626)";
 
   const cerrarChat = () => {
@@ -89,12 +133,18 @@ export function NomAIAssistant() {
     setSugerenciaVisible((v) => !v);
   };
 
-  // Acción de la tarjeta que sugiere la IA (por ahora, toast + log + estado UI).
-  const agregarSugerido = (toolCallId: string, nombre: string) => {
+  // Acción de la tarjeta: AÑADE AL CARRITO GLOBAL (conexión crítica) + toast.
+  const agregarSugerido = (
+    toolCallId: string,
+    nombre: string,
+    precio?: number,
+  ) => {
     if (agregados.includes(toolCallId)) return;
-    console.log("[Carrito] Agregado desde Ñom AI:", nombre);
+    const item = resolverItem(nombre, precio);
+    addToCart(item);
+    console.log("[Carrito] Añadido desde Ñom AI:", item);
     setAgregados((prev) => [...prev, toolCallId]);
-    setAviso(`✓ ${nombre} agregado al carrito`);
+    setAviso(`✓ ${item.nombre} añadido a la cuenta`);
     window.setTimeout(() => setAviso(null), 2200);
   };
 
@@ -138,10 +188,12 @@ export function NomAIAssistant() {
           <div ref={scrollRef} className="flex-1 space-y-2.5 overflow-y-auto p-3">
             {messages.map((m) => {
               const esUser = m.role === "user";
+              // Oculta los disparadores automáticos de datos curiosos.
+              if (esUser && m.content.startsWith(AUTO_PREFIX)) return null;
               const sugerencias = !esUser
                 ? (m.toolInvocations ?? []).filter(
                     (inv) =>
-                      inv.toolName === "suggestItem" &&
+                      inv.toolName === "suggestItemTool" &&
                       inv.state === "result",
                   )
                 : [];
@@ -165,7 +217,7 @@ export function NomAIAssistant() {
                     </div>
                   )}
 
-                  {/* Tarjeta premium generada por el tool suggestItem */}
+                  {/* Tarjeta premium generada por el tool suggestItemTool */}
                   {sugerencias.map((inv) => {
                     const args = inv.args as {
                       itemName?: string;
@@ -205,7 +257,7 @@ export function NomAIAssistant() {
                         <button
                           type="button"
                           onClick={() =>
-                            agregarSugerido(inv.toolCallId, nombre)
+                            agregarSugerido(inv.toolCallId, nombre, precio)
                           }
                           disabled={yaAgregado}
                           className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold text-white shadow-sm transition active:scale-[0.98]"
@@ -214,12 +266,12 @@ export function NomAIAssistant() {
                           {yaAgregado ? (
                             <>
                               <Check className="h-4 w-4" strokeWidth={3} />
-                              ¡Agregado! ✓
+                              Añadido ✓
                             </>
                           ) : (
                             <>
                               <Plus className="h-4 w-4" strokeWidth={3} />
-                              Agregar al Carrito
+                              Añadir a la cuenta
                             </>
                           )}
                         </button>

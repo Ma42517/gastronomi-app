@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { MapPin } from "lucide-react";
-import type {
-  CarritoLinea,
-  MenuItemMock,
-  ProgramaLealtad,
-  RestauranteMock,
-} from "@/lib/mock-data";
+import type { MenuItemMock, ProgramaLealtad, RestauranteMock } from "@/lib/mock-data";
+import { useCartStore } from "@/lib/cart-store";
 import { TarjetaSellos } from "./TarjetaSellos";
 import { SommelierBanner } from "./SommelierBanner";
 import { PlatilloHeroCard } from "./PlatilloHeroCard";
 import { ConfiguradorPlatillo } from "./ConfiguradorPlatillo";
+import { DetallePlatillo } from "./DetallePlatillo";
 import { MenuInteractivo } from "./MenuInteractivo";
 import { CarritoFlotante } from "./CarritoFlotante";
 import { ModalPago } from "./ModalPago";
@@ -30,47 +27,33 @@ export function VistaClienteMesa({
   const { tema, menu, categorias, sommelier, hero } = restaurante;
 
   const [categoriaActiva, setCategoriaActiva] = useState(categorias[0]);
-  // Carrito: mapa itemId -> cantidad
-  const [carrito, setCarrito] = useState<Record<string, number>>({});
   const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
   const [configuradorAbierto, setConfiguradorAbierto] = useState(false);
   const [carritoExpandido, setCarritoExpandido] = useState(false);
+  const [detalleItem, setDetalleItem] = useState<MenuItemMock | null>(null);
+  const [lealtad, setLealtad] = useState<ProgramaLealtad>(restaurante.lealtad);
 
-  // Contexto de Ñom AI (mensajes según la escena activa).
+  // --- Carrito global (Zustand) ---
+  const items = useCartStore((s) => s.items);
+  const addToCart = useCartStore((s) => s.addToCart);
+  const clearCart = useCartStore((s) => s.clearCart);
+  const total = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
+  const totalItems = items.reduce((a, i) => a + i.cantidad, 0);
+
+  // Contexto de Ñom AI.
   const { setEscena, setRestauranteNombre, setPlatilloActual } = useNomAI();
 
   // Platillo héroe configurable (Ribeye).
   const heroItem = menu.find((m) => m.id === hero.item_id);
-  // La lealtad es estado local para poder animar el +1 tras pagar (mock).
-  const [lealtad, setLealtad] = useState<ProgramaLealtad>(restaurante.lealtad);
 
-  // --- Derivados del carrito ---
-  const lineas: CarritoLinea[] = useMemo(
-    () =>
-      menu
-        .filter((m) => (carrito[m.id] ?? 0) > 0)
-        .map((item) => ({ item, cantidad: carrito[item.id] })),
-    [carrito, menu],
-  );
-
-  const total = useMemo(
-    () => lineas.reduce((acc, l) => acc + l.item.precio * l.cantidad, 0),
-    [lineas],
-  );
-
-  const totalItems = useMemo(
-    () => lineas.reduce((acc, l) => acc + l.cantidad, 0),
-    [lineas],
-  );
-
-  // --- Ñom AI: informar nombre del restaurante y escena activa ---
+  // --- Ñom AI: nombre del restaurante y escena activa ---
   useEffect(() => {
     setRestauranteNombre(tema.nombre_restaurante);
   }, [tema.nombre_restaurante, setRestauranteNombre]);
 
   useEffect(() => {
     setEscena(
-      configuradorAbierto
+      configuradorAbierto || detalleItem
         ? "platillo"
         : modalPagoAbierto || (carritoExpandido && totalItems > 0)
           ? "carrito"
@@ -78,49 +61,43 @@ export function VistaClienteMesa({
     );
   }, [
     configuradorAbierto,
+    detalleItem,
     modalPagoAbierto,
     carritoExpandido,
     totalItems,
     setEscena,
   ]);
 
-  // Informa a Ñom AI qué platillo está viendo el cliente.
+  // Informa a Ñom AI qué platillo está viendo el cliente (para el dato curioso).
   useEffect(() => {
-    setPlatilloActual(configuradorAbierto && heroItem ? heroItem.nombre : "");
-  }, [configuradorAbierto, heroItem, setPlatilloActual]);
+    const nombre = configuradorAbierto && heroItem
+      ? heroItem.nombre
+      : detalleItem
+        ? detalleItem.nombre
+        : "";
+    setPlatilloActual(nombre);
+  }, [configuradorAbierto, heroItem, detalleItem, setPlatilloActual]);
 
   // --- Handlers ---
-  const agregar = (item: MenuItemMock) =>
-    setCarrito((c) => ({ ...c, [item.id]: (c[item.id] ?? 0) + 1 }));
-
-  const quitar = (itemId: string) =>
-    setCarrito((c) => {
-      const actual = c[itemId] ?? 0;
-      if (actual <= 1) {
-        const copia = { ...c };
-        delete copia[itemId];
-        return copia;
-      }
-      return { ...c, [itemId]: actual - 1 };
+  const agregarMenuItem = (item: MenuItemMock) =>
+    addToCart({
+      id: item.id,
+      nombre: item.nombre,
+      precio: item.precio,
+      emoji: item.emoji,
     });
-
-  const cantidadEnCarrito = (itemId: string) => carrito[itemId] ?? 0;
 
   const agregarSugerenciaAI = () => {
     const sugerido = menu.find((m) => m.id === sommelier.item_id);
-    if (sugerido) agregar(sugerido);
+    if (sugerido) agregarMenuItem(sugerido);
   };
 
   const onPagoExitoso = () => {
-    // Suma un sello (tope en la meta) y vacía el carrito.
     setLealtad((l) => ({
       ...l,
-      sellos_actuales: Math.min(
-        l.sellos_actuales + 1,
-        l.sellos_para_recompensa,
-      ),
+      sellos_actuales: Math.min(l.sellos_actuales + 1, l.sellos_para_recompensa),
     }));
-    setCarrito({});
+    clearCart();
   };
 
   // Inyección del tema: la CSS var --brand alimenta todos los componentes hijos.
@@ -133,7 +110,6 @@ export function VistaClienteMesa({
     >
       {/* HEADER PREMIUM — imagen de portada + overlay */}
       <header className="relative h-52 w-full shrink-0 overflow-hidden">
-        {/* Gradiente de respaldo (si la imagen no carga) */}
         <div
           className="absolute inset-0"
           style={{
@@ -141,14 +117,12 @@ export function VistaClienteMesa({
               "linear-gradient(135deg, color-mix(in srgb, var(--brand) 75%, black), var(--brand))",
           }}
         />
-        {/* Imagen de portada */}
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${tema.portada_url})` }}
           role="img"
           aria-label={`Portada de ${tema.nombre_restaurante}`}
         />
-        {/* Overlay para legibilidad */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/30" />
 
         {/* Badge de mesa (glassmorphism) */}
@@ -159,11 +133,23 @@ export function VistaClienteMesa({
           </span>
         </div>
 
-        {/* Nombre del restaurante */}
+        {/* Navbar: LOGO del restaurante (o iniciales como placeholder) + nombre */}
         <div className="absolute inset-x-0 bottom-0 flex items-end gap-3 px-5 pb-7 pt-5">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/90 text-sm font-extrabold shadow-md backdrop-blur" style={{ color: "var(--brand)" }}>
-            {tema.iniciales}
-          </div>
+          {tema.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={tema.logo_url}
+              alt={`Logo de ${tema.nombre_restaurante}`}
+              className="h-12 w-12 shrink-0 rounded-2xl bg-white/90 object-cover shadow-md"
+            />
+          ) : (
+            <div
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/90 text-sm font-extrabold shadow-md backdrop-blur"
+              style={{ color: "var(--brand)" }}
+            >
+              {tema.iniciales}
+            </div>
+          )}
           <div className="min-w-0 flex-1 pb-0.5">
             <h1 className="truncate text-xl font-extrabold leading-tight text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.5)]">
               {tema.nombre_restaurante}
@@ -177,9 +163,9 @@ export function VistaClienteMesa({
         </div>
       </header>
 
-      {/* CONTENIDO — hoja redondeada que sube sobre la portada */}
+      {/* CONTENIDO */}
       <main className="relative z-10 -mt-4 flex-1 space-y-5 rounded-t-3xl bg-gray-50 px-5 pb-32 pt-5">
-        {/* PLATILLO HÉROE — experiencia interactiva (lo primero que se ve) */}
+        {/* Selección del Chef — fija arriba para dirigir la atención */}
         {heroItem && (
           <PlatilloHeroCard
             item={heroItem}
@@ -197,19 +183,12 @@ export function VistaClienteMesa({
           menu={menu}
           categoriaActiva={categoriaActiva}
           onCategoriaChange={setCategoriaActiva}
-          cantidadEnCarrito={cantidadEnCarrito}
-          onAgregar={agregar}
-          onQuitar={quitar}
+          onVerDetalle={setDetalleItem}
         />
       </main>
 
-      {/* CARRITO FLOTANTE */}
+      {/* CARRITO FLOTANTE (global, tiempo real) */}
       <CarritoFlotante
-        lineas={lineas}
-        total={total}
-        totalItems={totalItems}
-        onAgregar={(l) => agregar(l.item)}
-        onQuitar={quitar}
         onPagar={() => setModalPagoAbierto(true)}
         onExpandidoChange={setCarritoExpandido}
       />
@@ -222,16 +201,23 @@ export function VistaClienteMesa({
         onPagoExitoso={onPagoExitoso}
       />
 
-      {/* CONFIGURADOR INMERSIVO DEL PLATILLO HÉROE */}
+      {/* CONFIGURADOR INMERSIVO DEL PLATILLO HÉROE (Ribeye) */}
       {heroItem && (
         <ConfiguradorPlatillo
           abierto={configuradorAbierto}
           item={heroItem}
           guarniciones={hero.guarniciones}
           onCerrar={() => setConfiguradorAbierto(false)}
-          onConfirmar={() => agregar(heroItem)}
+          onConfirmar={() => agregarMenuItem(heroItem)}
         />
       )}
+
+      {/* DETALLE PREMIUM UNIVERSAL (cualquier platillo del menú) */}
+      <DetallePlatillo
+        abierto={detalleItem !== null}
+        item={detalleItem}
+        onCerrar={() => setDetalleItem(null)}
+      />
     </div>
   );
 }
