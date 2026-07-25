@@ -261,6 +261,12 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
     descripcion_recompensa: "Orden de Pastor gratis",
   },
   categorias: [
+    // "Especiales" va primero: el corte del chef abre el menú, pero como una
+    // tarjeta normal del grid (con su foto real), no como un bloque oscuro
+    // aparte con etiqueta flotante.
+    // El nombre NO se puede cambiar: `maridajes.ts` lo usa como clave para
+    // calcular las sugerencias de bebida del Ribeye.
+    "Especiales",
     "Tacos",
     "Tortas",
     "Quesadillas",
@@ -269,7 +275,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
     "Bebidas",
   ],
   menu: [
-    // --- Platillo Héroe (configurable, no se lista en las categorías) ---
+    // --- Corte del chef: se lista en "Especiales" como cualquier otro ---
     {
       id: "h-ribeye",
       nombre: "Ribeye Añejado",

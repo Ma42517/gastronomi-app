@@ -17,7 +17,6 @@ import { useCartStore } from "@/lib/cart-store";
 import { TarjetaSellos } from "./TarjetaSellos";
 import { CategoriaPills } from "./CategoriaPills";
 import { SeccionPopulares } from "./SeccionPopulares";
-import { PlatilloHeroCard } from "./PlatilloHeroCard";
 import { DetallePlatillo } from "./DetallePlatillo";
 import { MenuInteractivo, anchorCategoria } from "./MenuInteractivo";
 import { obtenerMaridaje } from "@/lib/maridajes";
@@ -43,7 +42,7 @@ export function VistaClienteMesa({
   restaurante,
   numeroMesa,
 }: VistaClienteMesaProps) {
-  const { tema, menu, categorias, hero } = restaurante;
+  const { tema, menu, categorias } = restaurante;
 
   const [categoriaActiva, setCategoriaActiva] = useState(categorias[0]);
   const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
@@ -93,8 +92,6 @@ export function VistaClienteMesa({
     cerrarBurbuja,
   } = useNomAI();
 
-  // Platillo héroe configurable (Ribeye).
-  const heroItem = menu.find((m) => m.id === hero.item_id);
   // Postre sugerido para el cierre de venta.
   const postreSugerido =
     menu.find((m) => m.id === "p-flan" && m.disponible) ?? null;
@@ -592,17 +589,11 @@ export function VistaClienteMesa({
         ) : (
           <>
             {/* Selección del Chef — fija arriba para dirigir la atención */}
-            {/* El Ribeye ahora abre el MISMO modal que los tacos (con sus
-                modificadores de término y guarnición), así el botón de
-                confirmación es el componente estandarizado y no un
-                configurador aparte con su propia UI. */}
-            {heroItem && (
-              <PlatilloHeroCard
-                item={heroItem}
-                etiqueta={hero.etiqueta}
-                onPersonalizar={() => setDetalleItem(heroItem)}
-              />
-            )}
+            {/* El corte del chef ya NO tiene tarjeta propia: se lista en el
+                grid dentro de "Especiales" (primera categoría) como cualquier
+                otro platillo, con su foto real. Antes vivía en una tarjeta
+                oscura con etiqueta flotante que rompía el tema claro y nunca
+                llegaba a renderizar su imagen. */}
 
             {/* 2) Carrusel horizontal "Populares" */}
             <SeccionPopulares items={populares} onVerDetalle={setDetalleItem} />

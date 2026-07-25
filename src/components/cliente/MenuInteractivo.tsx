@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { motion } from "framer-motion";
 import { UtensilsCrossed } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock } from "@/lib/mock-data";
@@ -102,10 +103,15 @@ function ProductCard({
   const conFoto = item.imagen_url && !conError;
 
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onAbrir}
-      className={`group flex w-full flex-col bg-transparent text-left transition active:scale-[0.97] ${
+      // Respuesta física al tacto: la tarjeta se hunde. Se hace con Framer
+      // Motion en vez de `active:scale-*` porque interpola de verdad (y se
+      // recupera con suavidad al soltar) en lugar de saltar entre dos estados.
+      whileTap={{ scale: 0.95 }}
+      transition={{ duration: 0.1 }}
+      className={`group flex w-full flex-col bg-transparent text-left ${
         item.disponible ? "" : "opacity-60"
       }`}
     >
@@ -150,6 +156,6 @@ function ProductCard({
           </span>
         </div>
       </div>
-    </button>
+    </motion.button>
   );
 }
