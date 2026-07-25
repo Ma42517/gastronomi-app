@@ -290,51 +290,29 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
                   </span>
                 )}
               </p>
-              {/* Checkboxes si el grupo admite varias opciones; radios si es
-                  de una sola elección. */}
-              <div className="space-y-2">
+              {/* Pills compactas (ocupan menos alto que una lista vertical y
+                  evitan scroll innecesario en el modal). */}
+              <div className="flex flex-wrap gap-2">
                 {grupo.opciones.map((op) => {
                   const activa = (selecciones[grupo.id] ?? []).includes(op.id);
-                  const esMulti = grupo.tipo === "multi";
                   return (
                     <button
                       key={op.id}
                       type="button"
                       onClick={() => toggle(grupo, op.id)}
-                      role={esMulti ? "checkbox" : "radio"}
+                      role={grupo.tipo === "multi" ? "checkbox" : "radio"}
                       aria-checked={activa}
-                      className="flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left text-sm font-medium transition-all duration-200"
+                      className="flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200"
                       style={{
                         borderColor: activa ? brand : "rgba(255,255,255,0.12)",
                         background: activa
-                          ? `color-mix(in srgb, ${brand} 18%, transparent)`
+                          ? `color-mix(in srgb, ${brand} 22%, transparent)`
                           : "rgba(255,255,255,0.04)",
                         color: activa ? "#fff" : "rgba(255,255,255,0.7)",
                       }}
                     >
-                      {/* Indicador: cuadrado (checkbox) o círculo (radio) */}
-                      <span
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center border-2 transition-all ${
-                          esMulti ? "rounded-md" : "rounded-full"
-                        }`}
-                        style={{
-                          borderColor: activa ? brand : "rgba(255,255,255,0.3)",
-                          background: activa ? brand : "transparent",
-                        }}
-                      >
-                        {activa &&
-                          (esMulti ? (
-                            <Check
-                              className="h-3.5 w-3.5 text-white"
-                              strokeWidth={3.5}
-                            />
-                          ) : (
-                            <span className="h-2 w-2 rounded-full bg-white" />
-                          ))}
-                      </span>
-
-                      <span className="flex-1">{op.nombre}</span>
-
+                      {activa && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                      {op.nombre}
                       {op.precio_extra ? (
                         <span className="text-xs text-white/50">
                           +{formatCurrency(op.precio_extra)}
