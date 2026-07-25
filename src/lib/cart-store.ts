@@ -21,6 +21,17 @@ interface CartState {
   getCartTotal: () => number;
   /** Número total de artículos. */
   getCartCount: () => number;
+
+  // --- Favoritos (retención) ---
+  /** IDs de los platillos marcados como favoritos. */
+  favoriteItems: string[];
+  /**
+   * Alterna un favorito. Devuelve true si quedó marcado como favorito
+   * (útil para mostrar el toast "Añadido a tus favoritos").
+   */
+  toggleFavorite: (id: string) => boolean;
+  /** Indica si un platillo está en favoritos. */
+  isFavorite: (id: string) => boolean;
 }
 
 /**
@@ -63,4 +74,19 @@ export const useCartStore = create<CartState>((set, get) => ({
     get().items.reduce((acc, i) => acc + i.precio * i.cantidad, 0),
 
   getCartCount: () => get().items.reduce((acc, i) => acc + i.cantidad, 0),
+
+  // --- Favoritos ---
+  favoriteItems: [],
+
+  toggleFavorite: (id) => {
+    const yaEsFavorito = get().favoriteItems.includes(id);
+    set((state) => ({
+      favoriteItems: yaEsFavorito
+        ? state.favoriteItems.filter((f) => f !== id)
+        : [...state.favoriteItems, id],
+    }));
+    return !yaEsFavorito;
+  },
+
+  isFavorite: (id) => get().favoriteItems.includes(id),
 }));

@@ -7,6 +7,7 @@ import { useCartStore } from "@/lib/cart-store";
 import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
 import type { GrupoModificador, MenuItemMock } from "@/lib/mock-data";
 import { useNomAI } from "./NomAIContext";
+import { BotonFavorito } from "./BotonFavorito";
 
 interface DetallePlatilloProps {
   abierto: boolean;
@@ -54,6 +55,15 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   // solo tras agregar, la sugerencia de complemento.
   const [reaccion, setReaccion] = useState<string | null>(null);
   const [sugeridoAgregado, setSugeridoAgregado] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Toast discreto (favoritos).
+  const mostrarToast = (mensaje: string) => setToast(mensaje);
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 2000);
+    return () => window.clearTimeout(t);
+  }, [toast]);
 
   const mensajeCrossSell =
     "¡Excelente elección! ¿Le sumas un postre para cerrar con broche de oro? 🍮";
@@ -171,14 +181,22 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
           <div className="absolute left-1/2 top-2.5 -translate-x-1/2">
             <span className="block h-1.5 w-12 rounded-full bg-white/60" />
           </div>
-          <button
-            type="button"
-            onClick={onCerrar}
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white/90 backdrop-blur-md transition hover:bg-black/60"
-            aria-label="Cerrar"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          {/* Favorito + Cerrar, flotando sobre la imagen */}
+          <div className="absolute right-3 top-3 flex items-center gap-2">
+            <BotonFavorito
+              itemId={item.id}
+              nombre={item.nombre}
+              onToast={mostrarToast}
+            />
+            <button
+              type="button"
+              onClick={onCerrar}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white/90 backdrop-blur-md transition hover:bg-black/60"
+              aria-label="Cerrar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         {/* Contenido (scroll). pb amplio para no quedar tras la barra global. */}
@@ -319,6 +337,13 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
           </div>
         </div>
       </div>
+
+      {/* Toast discreto de favoritos */}
+      {toast && (
+        <div className="animate-fade-in-up absolute bottom-8 left-1/2 z-[70] -translate-x-1/2 whitespace-nowrap rounded-full bg-white px-4 py-2 text-sm font-semibold text-neutral-900 shadow-2xl">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
 import type { MenuItemMock } from "@/lib/mock-data";
+import { BarraProgresoUpsell } from "./BarraProgresoUpsell";
 
 interface CarritoDrawerProps {
   abierto: boolean;
@@ -83,6 +84,13 @@ export function CarritoDrawer({
             <ChevronDown className="h-5 w-5" />
           </button>
         </div>
+
+        {/* 1.5) GATILLO DE UPSELLING: progreso hacia la recompensa gratis */}
+        {items.length > 0 && (
+          <div className="px-5 pb-3">
+            <BarraProgresoUpsell total={total} />
+          </div>
+        )}
 
         {/* 2) LISTA DE PRODUCTOS + 3) BANNER (scroll) */}
         <div className="flex-1 overflow-y-auto px-5 pb-4">

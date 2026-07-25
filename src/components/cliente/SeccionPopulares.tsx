@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Flame } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock } from "@/lib/mock-data";
+import { BotonFavorito } from "./BotonFavorito";
 
 interface SeccionPopularesProps {
   items: MenuItemMock[];
@@ -19,6 +20,14 @@ interface SeccionPopularesProps {
  */
 export function SeccionPopulares({ items, onVerDetalle }: SeccionPopularesProps) {
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Oculta el toast de favoritos tras unos segundos.
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 2000);
+    return () => window.clearTimeout(t);
+  }, [toast]);
 
   if (items.length === 0) return null;
 
@@ -73,6 +82,15 @@ export function SeccionPopulares({ items, onVerDetalle }: SeccionPopularesProps)
                 Popular
               </span>
 
+              {/* Favorito (esquina superior derecha) */}
+              <span className="absolute right-2 top-2">
+                <BotonFavorito
+                  itemId={item.id}
+                  nombre={item.nombre}
+                  onToast={setToast}
+                />
+              </span>
+
               {/* Nombre + precio SOBRE la imagen (alineados a la izquierda) */}
               <div className="absolute inset-x-0 bottom-0 p-3 text-left">
                 <p className="line-clamp-2 text-sm font-extrabold leading-tight text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.7)]">
@@ -92,6 +110,13 @@ export function SeccionPopulares({ items, onVerDetalle }: SeccionPopularesProps)
           );
         })}
       </div>
+
+      {/* Toast discreto de favoritos */}
+      {toast && (
+        <div className="animate-fade-in-up fixed bottom-28 left-1/2 z-[70] -translate-x-1/2 whitespace-nowrap rounded-full bg-neutral-900/90 px-4 py-2 text-sm font-semibold text-white shadow-2xl backdrop-blur">
+          {toast}
+        </div>
+      )}
     </section>
   );
 }
