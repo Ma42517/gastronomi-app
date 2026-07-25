@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { Gift, HeartCrack, MapPin, User, X } from "lucide-react";
+import {
+  Gift,
+  HeartCrack,
+  MapPin,
+  Sparkles,
+  User,
+  UserCircle2,
+  X,
+} from "lucide-react";
 import type { MenuItemMock, ProgramaLealtad, RestauranteMock } from "@/lib/mock-data";
 import { useCartStore } from "@/lib/cart-store";
 import { TarjetaSellos } from "./TarjetaSellos";
@@ -44,6 +52,8 @@ export function VistaClienteMesa({
   const [premioReclamado, setPremioReclamado] = useState(false);
   const [premioCanjeado, setPremioCanjeado] = useState(false);
   const [avisoExito, setAvisoExito] = useState<string | null>(null);
+  // Registro proactivo desde el header (no espera la 5ª visita).
+  const [modalProactivoAbierto, setModalProactivoAbierto] = useState(false);
 
   // --- Carrito global (Zustand) ---
   const items = useCartStore((s) => s.items);
@@ -71,6 +81,9 @@ export function VistaClienteMesa({
     menu.find((m) => m.id === "p-flan" && m.disponible) ?? null;
   // Platillos destacados para el carrusel "Populares".
   const populares = menu.filter((m) => m.isPopular);
+
+  // ¿El cliente ya está registrado? (deja de ser invitado en toda la UI)
+  const estaRegistrado = clienteNombre.trim().length > 0;
 
   // Categoría virtual de favoritos, primera en las pills.
   const categoriasConFavoritos = [CATEGORIA_FAVORITOS, ...categorias];
@@ -180,6 +193,22 @@ export function VistaClienteMesa({
     }
   };
 
+  /** Registro voluntario desde el header (no reclama premio, solo crea cuenta). */
+  const handleRegistroProactivo = ({
+    nombre,
+    whatsapp,
+  }: {
+    nombre: string;
+    whatsapp: string;
+  }) => {
+    console.info("[Beneficios Ñom] Registro proactivo:", { nombre, whatsapp });
+    setClienteNombre(nombre.split(" ")[0]);
+    setModalProactivoAbierto(false);
+    setAvisoExito(
+      `¡Bienvenido, ${nombre.split(" ")[0]}! Ya acumulas puntos VIP en cada compra.`,
+    );
+  };
+
   /** Canje del premio: se agrega a la orden con precio $0.00. */
   const canjearPremio = () => {
     addToCart({
@@ -245,16 +274,38 @@ export function VistaClienteMesa({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/30" />
 
-        {/* Saludo personalizado + badge de mesa (glassmorphism) */}
-        <div className="absolute inset-x-4 top-4 flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
-            <User className="h-3.5 w-3.5" />
-            {clienteNombre ? `Hola, ${clienteNombre}` : "Invitado"}
-          </span>
+        {/* Badge de mesa + perfil (invitado con CTA de registro / saludo) */}
+        <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
             <MapPin className="h-3.5 w-3.5" />
             Mesa {numeroMesa}
           </span>
+
+          {/* Contenedor flex alineado a la derecha (perfil del usuario) */}
+          <div className="flex items-center gap-2">
+            {estaRegistrado ? (
+              /* Registrado: saludo personalizado (sin CTA de registro) */
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
+                <User className="h-3.5 w-3.5" />
+                Hola, {clienteNombre}
+              </span>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/25 px-2.5 py-1.5 text-xs font-medium text-zinc-300 backdrop-blur-md">
+                  <UserCircle2 className="h-4 w-4" />
+                  Invitado
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setModalProactivoAbierto(true)}
+                  className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-red-600 to-orange-500 px-4 py-1.5 text-sm font-bold text-white shadow-lg shadow-red-500/30 transition-transform hover:scale-105 active:scale-95"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Regístrate
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Navbar: LOGO del restaurante (o iniciales como placeholder) + nombre */}
@@ -389,6 +440,15 @@ export function VistaClienteMesa({
         abierto={modalRegistroAbierto}
         premio={lealtad.descripcion_recompensa}
         onRegistrar={handleRegistroPremio}
+      />
+
+      {/* REGISTRO PROACTIVO: mismo modal, disparado desde el header */}
+      <ModalRegistroPremio
+        abierto={modalProactivoAbierto}
+        modo="proactivo"
+        premio={lealtad.descripcion_recompensa}
+        onCerrar={() => setModalProactivoAbierto(false)}
+        onRegistrar={handleRegistroProactivo}
       />
 
       {/* Confirmación de recompensa guardada */}

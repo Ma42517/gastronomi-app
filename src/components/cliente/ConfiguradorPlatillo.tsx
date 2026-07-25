@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, Flame, Plus, Sparkles, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock, OpcionGuarnicion } from "@/lib/mock-data";
@@ -83,6 +83,8 @@ export function ConfiguradorPlatillo({
   const [pipData, setPipData] = useState<OpcionGuarnicion | null>(null);
   // Reacción de Ñom AI mostrada en la TARJETA INLINE (ya NO en la barra fija).
   const [reaccion, setReaccion] = useState<string>(INVITE_TERMINO);
+  // Ancla del bloque de guarniciones para guiar al cliente al siguiente paso.
+  const guarnicionRef = useRef<HTMLDivElement>(null);
 
   const termino = TERMINOS.find((t) => t.id === terminoId) ?? null;
   const guarnicion = guarniciones.find((g) => g.id === guarnicionId) ?? null;
@@ -98,11 +100,24 @@ export function ConfiguradorPlatillo({
 
   if (!abierto) return null;
 
-  // Describe el término SOLO tras un clic real del cliente (nunca por default).
+  // Describe el término SOLO tras un clic real del cliente (nunca por default)
+  // y GUÍA al siguiente paso: lleva la vista a "Elige tu guarnición" para que
+  // el cliente no tenga que descubrirla haciendo scroll por su cuenta.
   const seleccionarTermino = (id: string) => {
+    const esPrimeraVez = terminoId === null;
     setTerminoId(id);
-    setReaccion(REACCIONES_TERMINO[id] ?? "¡Buena elección!");
+    setReaccion(
+      `${REACCIONES_TERMINO[id] ?? "¡Buena elección!"} Ahora elige tu guarnición 👇`,
+    );
     vibrar(10);
+    if (esPrimeraVez) {
+      window.setTimeout(() => {
+        guarnicionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 420); // deja ver la reacción del término antes de avanzar
+    }
   };
 
   // Describe la guarnición elegida; al quitarla, vuelve a invitar.
@@ -286,8 +301,8 @@ export function ConfiguradorPlatillo({
             </div>
           </div>
 
-          {/* Guarnición */}
-          <div>
+          {/* Guarnición — la vista salta aquí al elegir el término */}
+          <div ref={guarnicionRef} className="scroll-mt-4">
             <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-white/80">
               Elige tu guarnición
               <span className="text-xs font-normal text-white/40">(opcional)</span>

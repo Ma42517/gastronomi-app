@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, MessageCircle, Plus, Sparkles, UtensilsCrossed, X } from "lucide-react";
+import {
+  Check,
+  CreditCard,
+  MessageCircle,
+  Plus,
+  Sparkles,
+  UtensilsCrossed,
+  X,
+} from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
 import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
@@ -29,12 +37,42 @@ const REACCIONES: Record<string, string> = {
   doble: "¡Doble porción! Perfecto para compartir en grande.",
 };
 
-/** Venta cruzada de cierre: sugiere un postre (flan) para acompañar. */
+/**
+ * Venta cruzada INTELIGENTE: el complemento se elige según la categoría real
+ * del platillo (no al azar y sin inventar productos):
+ *  - Antojitos salados (tacos, tortas, quesadillas, volcanes, papas) → BEBIDA.
+ *  - Bebidas → un antojito para acompañar.
+ *  - Postres → una bebida caliente/fría (no otro postre).
+ */
 function sugerirCrossSell(item: MenuItemMock): MenuItemMock | null {
-  if (item.categoria === "Postres") return null;
-  return (
-    TAQUERIA_EL_PRIMO.menu.find((m) => m.id === "p-flan" && m.disponible) ?? null
-  );
+  const menu = TAQUERIA_EL_PRIMO.menu;
+  const buscar = (id: string) =>
+    menu.find((m) => m.id === id && m.disponible && m.id !== item.id) ?? null;
+
+  // Con una bebida en mano, lo que falta es la comida.
+  if (item.categoria === "Bebidas") {
+    return buscar("t-pastor") ?? buscar("q-asada");
+  }
+
+  // Con un postre, una bebida para acompañar.
+  if (item.categoria === "Postres") {
+    return buscar("b-coca") ?? buscar("b-horchata");
+  }
+
+  // Antojitos salados → refresco bien frío (o horchata como respaldo).
+  return buscar("b-coca") ?? buscar("b-horchata") ?? buscar("p-flan");
+}
+
+/** Mensaje del complemento según lo que se está pidiendo. */
+function mensajeComplemento(item: MenuItemMock, sugerido: MenuItemMock | null) {
+  if (!sugerido) return "¡Excelente elección! Ya está en tu orden. 🎉";
+  if (item.categoria === "Bebidas") {
+    return `¡Buena elección! ¿Le sumamos unos ${sugerido.nombre} para acompañar? 🌮`;
+  }
+  if (item.categoria === "Postres") {
+    return `¡Excelente! ¿Un ${sugerido.nombre} bien frío para acompañar tu postre? 🥤`;
+  }
+  return `¡Excelente elección! ¿Le sumas un ${sugerido.nombre} bien frío para acompañar? 🥤`;
 }
 
 /**
@@ -46,7 +84,13 @@ function sugerirCrossSell(item: MenuItemMock): MenuItemMock | null {
  */
 export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProps) {
   const addToCart = useCartStore((s) => s.addToCart);
-  const { abrirChat } = useNomAI();
+  const { abrirChat, abrirCarrito } = useNomAI();
+
+  /** Ir a pagar sin volver al menú: cierra el detalle y abre el carrito. */
+  const irAPagar = () => {
+    onCerrar();
+    abrirCarrito();
+  };
 
   const [agregado, setAgregado] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -65,10 +109,8 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  const mensajeCrossSell =
-    "¡Excelente elección! ¿Le sumas un postre para cerrar con broche de oro? 🍮";
-
   const sugerido = item ? sugerirCrossSell(item) : null;
+  const mensajeCrossSell = item ? mensajeComplemento(item, sugerido) : "";
 
   // "Agregar al carrito" se habilita solo cuando TODOS los grupos marcados como
   // obligatorios tienen al menos una selección real del cliente.
@@ -323,6 +365,18 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
                     Añadir {sugerido.nombre} · {formatCurrency(sugerido.precio)}
                   </>
                 )}
+              </button>
+            ) : null}
+
+            {/* Tras agregar: pagar aquí mismo, sin volver al menú principal. */}
+            {agregado ? (
+              <button
+                type="button"
+                onClick={irAPagar}
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-neutral-900 shadow-sm transition hover:bg-white/90 active:scale-[0.98]"
+              >
+                <CreditCard className="h-4 w-4" />
+                Ver orden y pagar
               </button>
             ) : (
               <button

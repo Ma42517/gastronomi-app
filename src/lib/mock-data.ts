@@ -147,6 +147,8 @@ const IMG_FRIES =
   "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=800&q=80";
 const IMG_POTATO =
   "https://images.unsplash.com/photo-1593922146430-8199eb3c1a82?auto=format&fit=crop&w=800&q=80";
+const IMG_BEBIDA =
+  "https://images.unsplash.com/photo-1554866585-cd94860890b7?auto=format&fit=crop&w=800&q=80";
 
 // ---------------------------------------------------------------------------
 // MOCK: "Taquería El Primo"
@@ -167,7 +169,14 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
     sellos_para_recompensa: 5,
     descripcion_recompensa: "Orden de Pastor gratis",
   },
-  categorias: ["Tacos", "Tortas", "Quesadillas", "Volcanes", "Papas Rellenas"],
+  categorias: [
+    "Tacos",
+    "Tortas",
+    "Quesadillas",
+    "Volcanes",
+    "Papas Rellenas",
+    "Bebidas",
+  ],
   menu: [
     // --- Platillo Héroe (configurable, no se lista en las categorías) ---
     {
@@ -310,6 +319,30 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       disponible: true,
       isPopular: true,
       imagen_url: IMG_POTATO,
+    },
+
+    // --- Bebidas (complemento ideal para tacos/tortas/antojitos) ---
+    {
+      id: "b-coca",
+      nombre: "Coca-Cola",
+      descripcion:
+        "Refresco de cristal bien frío, 355 ml. El clásico que nunca falla con unos tacos.",
+      precio: 30,
+      categoria: "Bebidas",
+      emoji: "🥤",
+      disponible: true,
+      imagen_url: IMG_BEBIDA,
+    },
+    {
+      id: "b-horchata",
+      nombre: "Agua de Horchata",
+      descripcion:
+        "Bebida cremosa de arroz con canela y vainilla, servida bien fría en vaso de 500 ml.",
+      precio: 35,
+      categoria: "Bebidas",
+      emoji: "🧉",
+      disponible: true,
+      imagen_url: IMG_BEBIDA,
     },
 
     // --- Postre (no se lista en categorías: solo cross-sell / drawer) ---

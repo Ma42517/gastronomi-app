@@ -1,12 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Gift, PartyPopper, Phone, User } from "lucide-react";
+import { Gift, PartyPopper, Phone, Sparkles, User, X } from "lucide-react";
 
 interface ModalRegistroPremioProps {
   abierto: boolean;
   /** Premio desbloqueado (ej. "Orden de Pastor gratis"). */
   premio: string;
+  /**
+   * "premio" = clímax de la 5ª visita (celebración).
+   * "proactivo" = registro voluntario desde el header (mensaje invitador).
+   */
+  modo?: "premio" | "proactivo";
+  /** Permite cerrar el modal (solo en modo proactivo). */
+  onCerrar?: () => void;
   /** Se dispara al registrar correctamente: devuelve nombre y WhatsApp. */
   onRegistrar: (datos: { nombre: string; whatsapp: string }) => void;
 }
@@ -20,8 +27,11 @@ interface ModalRegistroPremioProps {
 export function ModalRegistroPremio({
   abierto,
   premio,
+  modo = "premio",
+  onCerrar,
   onRegistrar,
 }: ModalRegistroPremioProps) {
+  const esProactivo = modo === "proactivo";
   const [nombre, setNombre] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [errores, setErrores] = useState<{ nombre?: string; whatsapp?: string }>(
@@ -48,7 +58,16 @@ export function ModalRegistroPremio({
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center">
-      <div className="animate-backdrop-in absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      {esProactivo && onCerrar ? (
+        <button
+          type="button"
+          aria-label="Cerrar"
+          onClick={onCerrar}
+          className="animate-backdrop-in absolute inset-0 bg-black/70 backdrop-blur-sm"
+        />
+      ) : (
+        <div className="animate-backdrop-in absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -65,20 +84,47 @@ export function ModalRegistroPremio({
           <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-white/20 blur-2xl" />
           <div className="relative">
             <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-              <PartyPopper className="h-7 w-7" />
+              {esProactivo ? (
+                <Sparkles className="h-7 w-7" />
+              ) : (
+                <PartyPopper className="h-7 w-7" />
+              )}
             </span>
             <h2 className="text-xl font-extrabold leading-tight">
-              ¡Felicidades! Completaste tus 5 visitas 🌮🎉
+              {esProactivo
+                ? "Únete a Beneficios Ñom ✨"
+                : "¡Felicidades! Completaste tus 5 visitas 🌮🎉"}
             </h2>
           </div>
+
+          {/* Cerrar (solo en registro voluntario) */}
+          {esProactivo && onCerrar && (
+            <button
+              type="button"
+              onClick={onCerrar}
+              className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/20 text-white/90 backdrop-blur-sm transition hover:bg-black/35"
+              aria-label="Cerrar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* Body */}
         <div className="space-y-4 p-5">
           <p className="text-sm leading-relaxed text-gray-600">
-            Regístrate rápido para guardar tu premio (
-            <span className="font-bold text-gray-900">{premio}</span>) en tu
-            cuenta y usarlo ahora o en tu próxima visita.
+            {esProactivo ? (
+              <>
+                Crea tu cuenta para guardar tus favoritos y acumular puntos VIP
+                en cada compra.
+              </>
+            ) : (
+              <>
+                Regístrate rápido para guardar tu premio (
+                <span className="font-bold text-gray-900">{premio}</span>) en tu
+                cuenta y usarlo ahora o en tu próxima visita.
+              </>
+            )}
           </p>
 
           {/* Nombre */}
@@ -156,8 +202,17 @@ export function ModalRegistroPremio({
             className="flex w-full items-center justify-center gap-2 rounded-3xl px-6 py-4 text-base font-bold text-white shadow-lg transition active:scale-[0.98]"
             style={{ background: "var(--brand)" }}
           >
-            <Gift className="h-5 w-5" />
-            Reclamar mi premio
+            {esProactivo ? (
+              <>
+                <Sparkles className="h-5 w-5" />
+                Crear mi cuenta
+              </>
+            ) : (
+              <>
+                <Gift className="h-5 w-5" />
+                Reclamar mi premio
+              </>
+            )}
           </button>
 
           <p className="text-center text-[11px] leading-relaxed text-gray-400">
