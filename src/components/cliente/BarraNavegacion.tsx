@@ -1,6 +1,6 @@
 "use client";
 
-import { Gift, Home, ShoppingBag, Sparkles, User } from "lucide-react";
+import { Gift, Home, Sparkles, User } from "lucide-react";
 import { NomAIBubble } from "./NomAIBubble";
 
 export type TabActivo = "home" | "vip" | "perfil";
@@ -10,25 +10,23 @@ interface BarraNavegacionProps {
   onTab: (t: TabActivo) => void;
   /** Abre el chat de Ñom AI (píldora central). */
   onAbrirChat: () => void;
-  /** Abre el drawer del carrito. */
-  onAbrirCarrito: () => void;
-  /** Artículos en el carrito (badge). */
-  totalItems: number;
+  /** Abre el drawer del carrito desde la viñeta (rol de cajero de Ñom AI). */
+  onPagarOrden: () => void;
   /** Dispara el destello del botón VIP (al agregar algo o sumar un sello). */
   brillarVIP: boolean;
 }
 
 /**
  * Barra de navegación flotante y modular (estilo Uber Eats):
- * círculos blancos flotantes para las secciones y una píldora central expandida
- * para Ñom AI. No ocupa el ancho completo ni empuja el contenido.
+ * 4 elementos balanceados — Home y VIP a la izquierda, píldora central de
+ * Ñom AI y Perfil a la derecha. NO hay botón de carrito: Ñom AI asume el rol
+ * de cajero a través de su viñeta proactiva.
  */
 export function BarraNavegacion({
   tab,
   onTab,
   onAbrirChat,
-  onAbrirCarrito,
-  totalItems,
+  onPagarOrden,
   brillarVIP,
 }: BarraNavegacionProps) {
   return (
@@ -55,7 +53,7 @@ export function BarraNavegacion({
       {/* 3) Ñom AI — píldora expandida central (ancla de la viñeta) */}
       <div className="relative flex flex-1 justify-center">
         {/* Viñeta proactiva: brota justo ARRIBA de esta píldora */}
-        <NomAIBubble />
+        <NomAIBubble onPagarOrden={onPagarOrden} enHome={tab === "home"} />
 
         <button
           type="button"
@@ -73,16 +71,7 @@ export function BarraNavegacion({
         </button>
       </div>
 
-      {/* 4) Carrito — con badge de notificaciones */}
-      <BotonCirculo
-        onClick={onAbrirCarrito}
-        aria-label="Ver tu orden"
-        badge={totalItems}
-      >
-        <ShoppingBag className="h-5 w-5" />
-      </BotonCirculo>
-
-      {/* 5) Perfil */}
+      {/* 4) Perfil — el carrito ya no vive aquí: Ñom AI hace de cajero */}
       <BotonCirculo
         activo={tab === "perfil"}
         onClick={() => onTab("perfil")}

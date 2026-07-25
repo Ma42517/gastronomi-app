@@ -179,17 +179,33 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
 
   // Solo con un clic REAL del usuario se describe la opción (nunca por default).
   const toggle = (grupo: GrupoModificador, opcionId: string) => {
-    setSelecciones((prev) => {
-      const actual = prev[grupo.id] ?? [];
-      if (grupo.tipo === "single") return { ...prev, [grupo.id]: [opcionId] };
-      return {
-        ...prev,
-        [grupo.id]: actual.includes(opcionId)
+    // Se calcula el estado resultante para saber si con ESTE toque el cliente
+    // completó el último modificador obligatorio pendiente ("One-Tap Add").
+    const actual = selecciones[grupo.id] ?? [];
+    const nuevasDelGrupo =
+      grupo.tipo === "single"
+        ? [opcionId]
+        : actual.includes(opcionId)
           ? actual.filter((x) => x !== opcionId)
-          : [...actual, opcionId],
-      };
-    });
+          : [...actual, opcionId];
+    const resultado = { ...selecciones, [grupo.id]: nuevasDelGrupo };
+
+    setSelecciones(resultado);
     setReaccion(REACCIONES[opcionId] ?? "¡Buena elección!");
+
+    const completoTodo = gruposObligatorios.every(
+      (g) => (resultado[g.id]?.length ?? 0) > 0,
+    );
+
+    // ONE-TAP ADD: al completar el último obligatorio, se agrega y se cierra
+    // solo. Un pequeño delay deja ver la selección para que se sienta
+    // intencional (no un salto brusco).
+    if (completoTodo && !agregado && item.disponible) {
+      window.setTimeout(() => {
+        agregar();
+        onCerrar();
+      }, 260);
+    }
   };
 
   // Texto de la tarjeta inline (timing estricto):

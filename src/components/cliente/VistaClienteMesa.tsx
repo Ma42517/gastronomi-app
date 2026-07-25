@@ -641,11 +641,10 @@ export function VistaClienteMesa({
           cerrarBurbuja();
           abrirChat();
         }}
-        onAbrirCarrito={() => {
+        onPagarOrden={() => {
           cerrarBurbuja();
           abrirCarrito();
         }}
-        totalItems={totalItems}
         brillarVIP={brillarVIP}
       />
 
