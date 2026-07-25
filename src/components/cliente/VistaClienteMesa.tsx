@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { MapPin } from "lucide-react";
+import { Gift, HeartCrack, MapPin, X } from "lucide-react";
 import type { MenuItemMock, ProgramaLealtad, RestauranteMock } from "@/lib/mock-data";
 import { useCartStore } from "@/lib/cart-store";
 import { TarjetaSellos } from "./TarjetaSellos";
@@ -14,7 +14,11 @@ import { DetallePlatillo } from "./DetallePlatillo";
 import { MenuInteractivo, anchorCategoria } from "./MenuInteractivo";
 import { CarritoDrawer } from "./CarritoDrawer";
 import { ModalPago } from "./ModalPago";
+import { ModalRegistroPremio } from "./ModalRegistroPremio";
 import { useNomAI } from "./NomAIContext";
+
+/** Categoría virtual (no existe en el menú) para filtrar los favoritos. */
+const CATEGORIA_FAVORITOS = "❤️ Favoritos";
 
 interface VistaClienteMesaProps {
   restaurante: RestauranteMock;
@@ -32,11 +36,16 @@ export function VistaClienteMesa({
   const [configuradorAbierto, setConfiguradorAbierto] = useState(false);
   const [detalleItem, setDetalleItem] = useState<MenuItemMock | null>(null);
   const [lealtad, setLealtad] = useState<ProgramaLealtad>(restaurante.lealtad);
+  // Lealtad / lead gen: intercepción del premio en la 5ª visita.
+  const [modalRegistroAbierto, setModalRegistroAbierto] = useState(false);
+  const [premioReclamado, setPremioReclamado] = useState(false);
+  const [avisoExito, setAvisoExito] = useState<string | null>(null);
 
   // --- Carrito global (Zustand) ---
   const items = useCartStore((s) => s.items);
   const addToCart = useCartStore((s) => s.addToCart);
   const clearCart = useCartStore((s) => s.clearCart);
+  const favoriteItems = useCartStore((s) => s.favoriteItems);
   const total = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
 
   // Contexto de Ñom AI.
@@ -57,12 +66,24 @@ export function VistaClienteMesa({
   // Platillos destacados para el carrusel "Populares".
   const populares = menu.filter((m) => m.isPopular);
 
+  // Categoría virtual de favoritos, primera en las pills.
+  const categoriasConFavoritos = [CATEGORIA_FAVORITOS, ...categorias];
+  const modoFavoritos = categoriaActiva === CATEGORIA_FAVORITOS;
+  const platillosFavoritos = menu.filter((m) => favoriteItems.includes(m.id));
+
   // Navegación por pills: desplaza suavemente a la sección de la categoría.
   const irACategoria = (categoria: string) => {
     setCategoriaActiva(categoria);
-    document
-      .getElementById(anchorCategoria(categoria))
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (categoria === CATEGORIA_FAVORITOS) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    // Espera un frame para que el feed complete se haya renderizado.
+    requestAnimationFrame(() =>
+      document
+        .getElementById(anchorCategoria(categoria))
+        ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
   };
 
   // --- Ñom AI: nombre del restaurante y escena activa ---
@@ -112,12 +133,40 @@ export function VistaClienteMesa({
       emoji: item.emoji,
     });
 
-  const onPagoExitoso = () => {
+  /**
+   * Post-pago: suma +1 visita y, si llega a la meta (5), INTERCEPTA el premio
+   * lanzando el modal de celebración + registro (captura de datos) en lugar de
+   * entregarlo de inmediato.
+   */
+  const handlePaymentSuccess = () => {
+    clearCart();
+    // Se calcula fuera del updater para no producir efectos secundarios dentro
+    // de él (React puede invocar el updater más de una vez).
+    const nuevasVisitas = lealtad.sellos_actuales + 1;
     setLealtad((l) => ({
       ...l,
-      sellos_actuales: Math.min(l.sellos_actuales + 1, l.sellos_para_recompensa),
+      sellos_actuales: Math.min(nuevasVisitas, l.sellos_para_recompensa),
     }));
-    clearCart();
+    if (nuevasVisitas >= lealtad.sellos_para_recompensa && !premioReclamado) {
+      setModalRegistroAbierto(true);
+    }
+  };
+
+  /** Registro completado: guarda el lead, cierra el modal y confirma en la UI. */
+  const handleRegistroPremio = ({
+    nombre,
+    whatsapp,
+  }: {
+    nombre: string;
+    whatsapp: string;
+  }) => {
+    // En producción: enviar {nombre, whatsapp} al CRM/backend del restaurante.
+    console.info("[Beneficios Ñom] Nuevo registro:", { nombre, whatsapp });
+    setPremioReclamado(true);
+    setModalRegistroAbierto(false);
+    setAvisoExito(
+      `¡Listo, ${nombre}! Tu recompensa está guardada en tu perfil.`,
+    );
   };
 
   // REGLA DE ORO: el pago del drawer va DIRECTO al checkout. La IA NO interrumpe
@@ -194,31 +243,55 @@ export function VistaClienteMesa({
       <main className="relative z-10 -mt-4 flex-1 space-y-5 rounded-t-3xl bg-gray-50 px-5 pb-32 pt-2">
         {/* 1) Navegación por categorías (pills, scroll horizontal, sticky) */}
         <CategoriaPills
-          categorias={categorias}
+          categorias={categoriasConFavoritos}
           activa={categoriaActiva}
           onSelect={irACategoria}
         />
 
-        {/* Selección del Chef — fija arriba para dirigir la atención */}
-        {heroItem && (
-          <PlatilloHeroCard
-            item={heroItem}
-            etiqueta={hero.etiqueta}
-            onPersonalizar={() => setConfiguradorAbierto(true)}
+        {modoFavoritos ? (
+          /* --- MODO FAVORITOS: solo los platillos con corazón activo --- */
+          <MenuInteractivo
+            categorias={[CATEGORIA_FAVORITOS]}
+            menu={platillosFavoritos.map((m) => ({
+              ...m,
+              categoria: CATEGORIA_FAVORITOS,
+            }))}
+            tituloUnico="Tus favoritos"
+            onVerDetalle={setDetalleItem}
+            vacio={
+              <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-white/60 px-6 py-14 text-center">
+                <HeartCrack className="h-12 w-12 text-gray-300" strokeWidth={1.5} />
+                <p className="mt-4 max-w-[16rem] text-sm font-medium leading-relaxed text-gray-500">
+                  Aún no tienes platillos favoritos. ¡Dale al corazón a los que
+                  más se te antojen!
+                </p>
+              </div>
+            }
           />
+        ) : (
+          <>
+            {/* Selección del Chef — fija arriba para dirigir la atención */}
+            {heroItem && (
+              <PlatilloHeroCard
+                item={heroItem}
+                etiqueta={hero.etiqueta}
+                onPersonalizar={() => setConfiguradorAbierto(true)}
+              />
+            )}
+
+            <TarjetaSellos lealtad={lealtad} />
+
+            {/* 2) Carrusel horizontal "Populares" */}
+            <SeccionPopulares items={populares} onVerDetalle={setDetalleItem} />
+
+            {/* 4) Feed principal agrupado por categoría (scroll vertical) */}
+            <MenuInteractivo
+              categorias={categorias}
+              menu={menu}
+              onVerDetalle={setDetalleItem}
+            />
+          </>
         )}
-
-        <TarjetaSellos lealtad={lealtad} />
-
-        {/* 2) Carrusel horizontal "Populares" */}
-        <SeccionPopulares items={populares} onVerDetalle={setDetalleItem} />
-
-        {/* 4) Feed principal agrupado por categoría (scroll vertical) */}
-        <MenuInteractivo
-          categorias={categorias}
-          menu={menu}
-          onVerDetalle={setDetalleItem}
-        />
       </main>
 
       {/* MODAL DE PAGO / SPLIT BILL */}
@@ -226,7 +299,7 @@ export function VistaClienteMesa({
         abierto={modalPagoAbierto}
         total={total}
         onCerrar={() => setModalPagoAbierto(false)}
-        onPagoExitoso={onPagoExitoso}
+        onPagoExitoso={handlePaymentSuccess}
       />
 
       {/* CONFIGURADOR INMERSIVO DEL PLATILLO HÉROE (Ribeye) */}
@@ -258,6 +331,35 @@ export function VistaClienteMesa({
           postreSugerido && agregarMenuItem(postreSugerido)
         }
       />
+
+      {/* CLÍMAX DE LEALTAD: celebración + captura de datos en la 5ª visita */}
+      <ModalRegistroPremio
+        abierto={modalRegistroAbierto}
+        premio={lealtad.descripcion_recompensa}
+        onRegistrar={handleRegistroPremio}
+      />
+
+      {/* Confirmación de recompensa guardada */}
+      {avisoExito && (
+        <div className="fixed inset-x-0 bottom-24 z-[75] mx-auto max-w-md px-4">
+          <div className="animate-fade-in-up flex items-start gap-3 rounded-2xl border border-green-200 bg-white p-4 shadow-2xl">
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">
+              <Gift className="h-4 w-4" />
+            </span>
+            <p className="flex-1 text-sm font-semibold leading-snug text-gray-900">
+              {avisoExito}
+            </p>
+            <button
+              type="button"
+              onClick={() => setAvisoExito(null)}
+              className="shrink-0 rounded-full p-1 text-gray-400 transition hover:bg-gray-100"
+              aria-label="Cerrar aviso"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

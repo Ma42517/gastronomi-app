@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronRight, UtensilsCrossed } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock } from "@/lib/mock-data";
@@ -14,6 +14,10 @@ interface MenuInteractivoProps {
   menu: MenuItemMock[];
   /** Abre el detalle premium del platillo. */
   onVerDetalle: (item: MenuItemMock) => void;
+  /** Título alternativo para la única sección (modo Favoritos). */
+  tituloUnico?: string;
+  /** Empty state a mostrar si no hay platillos que listar. */
+  vacio?: ReactNode;
 }
 
 /**
@@ -25,8 +29,13 @@ export function MenuInteractivo({
   categorias,
   menu,
   onVerDetalle,
+  tituloUnico,
+  vacio,
 }: MenuInteractivoProps) {
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
+
+  // Empty state (ej. Favoritos sin platillos guardados).
+  if (menu.length === 0 && vacio) return <>{vacio}</>;
 
   return (
     <div className="space-y-8">
@@ -41,7 +50,7 @@ export function MenuInteractivo({
             className="scroll-mt-20"
           >
             <h2 className="mb-3 text-lg font-extrabold text-gray-900">
-              {categoria}
+              {tituloUnico ?? categoria}
             </h2>
 
             <ul className="space-y-3">
