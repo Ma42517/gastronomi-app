@@ -245,8 +245,34 @@ create policy "lectura publica menu"
 -- 6. REALTIME
 -- ----------------------------------------------------------------------------
 -- Habilitar Realtime para el dashboard del restaurante (mapa de mesas en vivo).
-alter publication supabase_realtime add table public.sesiones_mesa;
-alter publication supabase_realtime add table public.orden_items;
+-- `alter publication ... add table` FALLA si la tabla ya está publicada
+-- ("table is already member of publication"), lo que rompería la segunda
+-- ejecución del script. Se comprueba antes de añadir.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+     where pubname = 'supabase_realtime'
+       and schemaname = 'public'
+       and tablename = 'sesiones_mesa'
+  ) then
+    alter publication supabase_realtime add table public.sesiones_mesa;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+     where pubname = 'supabase_realtime'
+       and schemaname = 'public'
+       and tablename = 'orden_items'
+  ) then
+    alter publication supabase_realtime add table public.orden_items;
+  end if;
+exception
+  -- Si la publicación no existiera (Postgres fuera de Supabase), Realtime
+  -- simplemente no se activa: no es motivo para abortar toda la instalación.
+  when undefined_object then
+    raise notice 'Publicacion supabase_realtime no encontrada; Realtime omitido.';
+end $$;
 
 -- ============================================================================
 -- FIN DEL ESQUEMA BASE
