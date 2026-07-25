@@ -757,3 +757,47 @@ textarea {
     animation: none;
   }
 }
+
+
+
+/* ============================================================
+   Viñeta (speech bubble) de Ñom AI sobre la barra flotante
+   Equivalente CSS de:
+   initial={{opacity:0, y:10, scale:.95}} -> animate={{opacity:1, y:0, scale:1}}
+   ============================================================ */
+@keyframes bubbleIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes bubbleOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+.animate-bubble-in {
+  animation: bubbleIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-bubble-out {
+  animation: bubbleOut 0.22s ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-bubble-in,
+  .animate-bubble-out {
+    animation: none;
+  }
+}

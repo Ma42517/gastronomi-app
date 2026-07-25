@@ -29,6 +29,16 @@ export interface AccionBar {
   onAgregar: () => void;
 }
 
+/**
+ * Contenido de la viñeta proactiva (speech bubble) que brota desde el botón
+ * central de Ñom AI cuando el cliente agrega algo al carrito.
+ */
+export interface BurbujaNomAI {
+  mensaje: string;
+  /** Complemento sugerido con acción de 1 toque (opcional). */
+  sugerido?: { id: string; nombre: string; precio: number; emoji?: string };
+}
+
 
 
 interface NomAIContextValue {
@@ -52,6 +62,10 @@ interface NomAIContextValue {
   /** Acción "Agregar al carrito" en la barra (se muestra al completar la elección). */
   barAccion: AccionBar | null;
   setBarAccion: (a: AccionBar | null) => void;
+  /** Viñeta proactiva sobre el botón central (null = oculta). */
+  burbuja: BurbujaNomAI | null;
+  mostrarBurbuja: (b: BurbujaNomAI) => void;
+  cerrarBurbuja: () => void;
   /** Drawer del carrito (bottom sheet), independiente del chat. */
   carritoAbierto: boolean;
   abrirCarrito: () => void;
@@ -80,6 +94,10 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
     useState<RecomendacionBar | null>(null);
   const [barAccion, setBarAccion] = useState<AccionBar | null>(null);
   const [carritoAbierto, setCarritoAbierto] = useState(false);
+  const [burbuja, setBurbuja] = useState<BurbujaNomAI | null>(null);
+
+  const mostrarBurbuja = (b: BurbujaNomAI) => setBurbuja(b);
+  const cerrarBurbuja = () => setBurbuja(null);
 
   const abrirChat = () => setChatAbierto(true);
   const cerrarChat = () => setChatAbierto(false);
@@ -104,6 +122,9 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
       setBarRecomendacion,
       barAccion,
       setBarAccion,
+      burbuja,
+      mostrarBurbuja,
+      cerrarBurbuja,
       carritoAbierto,
       abrirCarrito,
       cerrarCarrito,
@@ -120,6 +141,7 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
       barMensaje,
       barRecomendacion,
       barAccion,
+      burbuja,
       carritoAbierto,
       chatAbierto,
     ],
@@ -149,6 +171,9 @@ export function useNomAI(): NomAIContextValue {
       setBarRecomendacion: () => {},
       barAccion: null,
       setBarAccion: () => {},
+      burbuja: null,
+      mostrarBurbuja: () => {},
+      cerrarBurbuja: () => {},
       carritoAbierto: false,
       abrirCarrito: () => {},
       cerrarCarrito: () => {},

@@ -21,6 +21,7 @@ import { PlatilloHeroCard } from "./PlatilloHeroCard";
 import { ConfiguradorPlatillo } from "./ConfiguradorPlatillo";
 import { DetallePlatillo } from "./DetallePlatillo";
 import { MenuInteractivo, anchorCategoria } from "./MenuInteractivo";
+import { obtenerMaridaje } from "@/lib/maridajes";
 import { CarritoDrawer } from "./CarritoDrawer";
 import { BarraNavegacion, type TabActivo } from "./BarraNavegacion";
 import type { Modalidad } from "./SelectorModalidad";
@@ -90,6 +91,8 @@ export function VistaClienteMesa({
     abrirCarrito,
     cerrarCarrito,
     abrirChat,
+    mostrarBurbuja,
+    cerrarBurbuja,
   } = useNomAI();
 
   // Platillo héroe configurable (Ribeye).
@@ -128,18 +131,53 @@ export function VistaClienteMesa({
    */
   const totalItems = items.reduce((a, i) => a + i.cantidad, 0);
   const itemsPrevios = useRef(totalItems);
+  const idsPrevios = useRef<string[]>(items.map((i) => i.id));
   const sellosPrevios = useRef(lealtad.sellos_actuales);
 
   useEffect(() => {
     const crecioCarrito = totalItems > itemsPrevios.current;
     const sumoSello = lealtad.sellos_actuales > sellosPrevios.current;
+    const idsAntes = idsPrevios.current;
+
     itemsPrevios.current = totalItems;
     sellosPrevios.current = lealtad.sellos_actuales;
+    idsPrevios.current = items.map((i) => i.id);
 
     if (!crecioCarrito && !sumoSello) return;
+
+    // Destello del botón VIP.
     setBrillarVIP(true);
     const t = window.setTimeout(() => setBrillarVIP(false), 1500);
+
+    // VIÑETA PROACTIVA: al agregar un platillo, Ñom AI reacciona sobre el botón
+    // central sugiriendo el maridaje real (nunca si lo agregado ya es bebida).
+    if (crecioCarrito) {
+      const nuevoId =
+        items.find((i) => !idsAntes.includes(i.id))?.id ??
+        items[items.length - 1]?.id;
+      const platillo = menu.find((m) => m.id === nuevoId);
+
+      if (platillo && platillo.categoria !== "Bebidas") {
+        const { items: complementos } = obtenerMaridaje(platillo, menu);
+        const sugerido = complementos.find(
+          (c) => !items.some((i) => i.id === c.id),
+        );
+        if (sugerido) {
+          mostrarBurbuja({
+            mensaje: `¡Gran elección! ${platillo.emoji} ¿Ganas de acompañar tu ${platillo.nombre} con ${sugerido.nombre}?`,
+            sugerido: {
+              id: sugerido.id,
+              nombre: sugerido.nombre,
+              precio: sugerido.precio,
+              emoji: sugerido.emoji,
+            },
+          });
+        }
+      }
+    }
+
     return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalItems, lealtad.sellos_actuales]);
 
   // El aviso de éxito es temporal: se oculta solo tras unos segundos para no
@@ -594,9 +632,19 @@ export function VistaClienteMesa({
       {/* BARRA DE NAVEGACIÓN FLOTANTE (estilo Uber Eats) */}
       <BarraNavegacion
         tab={tab}
-        onTab={setTab}
-        onAbrirChat={abrirChat}
-        onAbrirCarrito={abrirCarrito}
+        onTab={(t) => {
+          cerrarBurbuja();
+          setTab(t);
+        }}
+        onAbrirChat={() => {
+          // Tocar la píldora con la viñeta abierta despliega el chat completo.
+          cerrarBurbuja();
+          abrirChat();
+        }}
+        onAbrirCarrito={() => {
+          cerrarBurbuja();
+          abrirCarrito();
+        }}
         totalItems={totalItems}
         brillarVIP={brillarVIP}
       />

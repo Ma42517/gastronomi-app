@@ -1,6 +1,7 @@
 "use client";
 
 import { Gift, Home, ShoppingBag, Sparkles, User } from "lucide-react";
+import { NomAIBubble } from "./NomAIBubble";
 
 export type TabActivo = "home" | "vip" | "perfil";
 
@@ -51,21 +52,26 @@ export function BarraNavegacion({
         <Gift className="h-5 w-5" />
       </BotonCirculo>
 
-      {/* 3) Ñom AI — píldora expandida central */}
-      <button
-        type="button"
-        onClick={onAbrirChat}
-        className="flex flex-1 items-center justify-center gap-2 rounded-full bg-white px-6 py-3 shadow-lg ring-1 ring-black/5 transition active:scale-95"
-        aria-label="Abrir chat de Ñom AI"
-      >
-        <Sparkles
-          className="h-5 w-5 shrink-0"
-          style={{ color: "var(--brand)" }}
-        />
-        <span className="whitespace-nowrap text-sm font-bold text-gray-900">
-          Ñom AI
-        </span>
-      </button>
+      {/* 3) Ñom AI — píldora expandida central (ancla de la viñeta) */}
+      <div className="relative flex flex-1 justify-center">
+        {/* Viñeta proactiva: brota justo ARRIBA de esta píldora */}
+        <NomAIBubble />
+
+        <button
+          type="button"
+          onClick={onAbrirChat}
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-3 shadow-lg ring-1 ring-black/5 transition active:scale-95"
+          aria-label="Abrir chat de Ñom AI"
+        >
+          <Sparkles
+            className="h-5 w-5 shrink-0"
+            style={{ color: "var(--brand)" }}
+          />
+          <span className="whitespace-nowrap text-sm font-bold text-gray-900">
+            Ñom AI
+          </span>
+        </button>
+      </div>
 
       {/* 4) Carrito — con badge de notificaciones */}
       <BotonCirculo
