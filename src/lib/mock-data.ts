@@ -128,10 +128,42 @@ const MODIFICADORES_TACO: GrupoModificador[] = [
   {
     id: "prep",
     titulo: "Preparación",
-    tipo: "single",
+    tipo: "multi",
+    requerido: true,
     opciones: [
       { id: "con-todo", nombre: "Con todo" },
       { id: "sin-cebolla", nombre: "Sin cebolla" },
+      { id: "sin-cilantro", nombre: "Sin cilantro" },
+      { id: "sencillo", nombre: "Sencillo" },
+    ],
+  },
+];
+
+/** Modificadores de las papas rellenas: el queso es obligatorio (sí/no). */
+const MODIFICADORES_PAPA: GrupoModificador[] = [
+  {
+    id: "queso",
+    titulo: "Queso",
+    tipo: "single",
+    requerido: true,
+    opciones: [
+      { id: "con-queso", nombre: "Con Queso" },
+      { id: "sin-queso", nombre: "Sin Queso" },
+    ],
+  },
+];
+
+/** Modificadores de quesadillas/volcanes: salsa obligatoria. */
+const MODIFICADORES_SALSA: GrupoModificador[] = [
+  {
+    id: "salsa",
+    titulo: "Elige tu salsa",
+    tipo: "single",
+    requerido: true,
+    opciones: [
+      { id: "roja", nombre: "Roja" },
+      { id: "verde", nombre: "Verde" },
+      { id: "habanero", nombre: "Habanero" },
     ],
   },
 ];
@@ -259,7 +291,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       emoji: "🫓",
       disponible: true,
       imagen_url: IMG_TACOS,
-      modifiers: MODIFICADORES_TACO,
+      modifiers: MODIFICADORES_SALSA,
     },
     {
       id: "q-sencilla",
@@ -285,7 +317,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       disponible: true,
       isPopular: true,
       imagen_url: IMG_FRIES,
-      modifiers: MODIFICADORES_TACO,
+      modifiers: MODIFICADORES_SALSA,
     },
     {
       id: "v-campechano",
@@ -297,7 +329,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       emoji: "🌋",
       disponible: true,
       imagen_url: IMG_FRIES,
-      modifiers: MODIFICADORES_TACO,
+      modifiers: MODIFICADORES_SALSA,
     },
 
     // --- Papas Rellenas ---
@@ -311,6 +343,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       emoji: "🥔",
       disponible: true,
       imagen_url: IMG_POTATO,
+      modifiers: MODIFICADORES_PAPA,
     },
     {
       id: "pa-arrachera",
@@ -323,6 +356,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       disponible: true,
       isPopular: true,
       imagen_url: IMG_POTATO,
+      modifiers: MODIFICADORES_PAPA,
     },
 
     // --- Bebidas (complemento ideal para tacos/tortas/antojitos) ---

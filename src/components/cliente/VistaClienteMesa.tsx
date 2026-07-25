@@ -6,6 +6,7 @@ import {
   Gift,
   HeartCrack,
   MapPin,
+  SearchX,
   Sparkles,
   User,
   UserCircle2,
@@ -54,6 +55,8 @@ export function VistaClienteMesa({
   const [avisoExito, setAvisoExito] = useState<string | null>(null);
   // Registro proactivo desde el header (no espera la 5ª visita).
   const [modalProactivoAbierto, setModalProactivoAbierto] = useState(false);
+  // Buscador global (la "lupita" del menú sticky).
+  const [busqueda, setBusqueda] = useState("");
 
   // --- Carrito global (Zustand) ---
   const items = useCartStore((s) => s.items);
@@ -84,6 +87,19 @@ export function VistaClienteMesa({
 
   // ¿El cliente ya está registrado? (deja de ser invitado en toda la UI)
   const estaRegistrado = clienteNombre.trim().length > 0;
+
+  // BÚSQUEDA GLOBAL: filtra por nombre o descripción e ignora la categorización
+  // normal mientras esté activa.
+  const buscando = busqueda.trim().length > 0;
+  const resultadosBusqueda = (() => {
+    if (!buscando) return [];
+    const q = busqueda.trim().toLowerCase();
+    return menu.filter(
+      (m) =>
+        m.nombre.toLowerCase().includes(q) ||
+        m.descripcion.toLowerCase().includes(q),
+    );
+  })();
 
   // Categoría virtual de favoritos, primera en las pills.
   const categoriasConFavoritos = [CATEGORIA_FAVORITOS, ...categorias];
@@ -345,9 +361,31 @@ export function VistaClienteMesa({
           categorias={categoriasConFavoritos}
           activa={categoriaActiva}
           onSelect={irACategoria}
+          busqueda={busqueda}
+          onBuscar={setBusqueda}
         />
 
-        {modoFavoritos ? (
+        {buscando ? (
+          /* --- BÚSQUEDA ACTIVA: resultados planos, sin categorización --- */
+          <MenuInteractivo
+            categorias={["Resultados"]}
+            menu={resultadosBusqueda.map((m) => ({
+              ...m,
+              categoria: "Resultados",
+            }))}
+            tituloUnico={`Resultados para "${busqueda.trim()}"`}
+            onVerDetalle={setDetalleItem}
+            vacio={
+              <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-white/60 px-6 py-14 text-center">
+                <SearchX className="h-12 w-12 text-gray-300" strokeWidth={1.5} />
+                <p className="mt-4 max-w-[16rem] text-sm font-medium leading-relaxed text-gray-500">
+                  No encontramos “{busqueda.trim()}” en el menú. Prueba con otra
+                  palabra.
+                </p>
+              </div>
+            }
+          />
+        ) : modoFavoritos ? (
           /* --- MODO FAVORITOS: solo los platillos con corazón activo --- */
           <MenuInteractivo
             categorias={[CATEGORIA_FAVORITOS]}

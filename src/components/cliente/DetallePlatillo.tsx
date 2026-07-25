@@ -307,25 +307,51 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
                   </span>
                 )}
               </p>
-              <div className="flex flex-wrap gap-2">
+              {/* Checkboxes si el grupo admite varias opciones; radios si es
+                  de una sola elección. */}
+              <div className="space-y-2">
                 {grupo.opciones.map((op) => {
                   const activa = (selecciones[grupo.id] ?? []).includes(op.id);
+                  const esMulti = grupo.tipo === "multi";
                   return (
                     <button
                       key={op.id}
                       type="button"
                       onClick={() => toggle(grupo, op.id)}
-                      className="flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200"
+                      role={esMulti ? "checkbox" : "radio"}
+                      aria-checked={activa}
+                      className="flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left text-sm font-medium transition-all duration-200"
                       style={{
                         borderColor: activa ? brand : "rgba(255,255,255,0.12)",
                         background: activa
-                          ? `color-mix(in srgb, ${brand} 22%, transparent)`
+                          ? `color-mix(in srgb, ${brand} 18%, transparent)`
                           : "rgba(255,255,255,0.04)",
                         color: activa ? "#fff" : "rgba(255,255,255,0.7)",
                       }}
                     >
-                      {activa && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
-                      {op.nombre}
+                      {/* Indicador: cuadrado (checkbox) o círculo (radio) */}
+                      <span
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center border-2 transition-all ${
+                          esMulti ? "rounded-md" : "rounded-full"
+                        }`}
+                        style={{
+                          borderColor: activa ? brand : "rgba(255,255,255,0.3)",
+                          background: activa ? brand : "transparent",
+                        }}
+                      >
+                        {activa &&
+                          (esMulti ? (
+                            <Check
+                              className="h-3.5 w-3.5 text-white"
+                              strokeWidth={3.5}
+                            />
+                          ) : (
+                            <span className="h-2 w-2 rounded-full bg-white" />
+                          ))}
+                      </span>
+
+                      <span className="flex-1">{op.nombre}</span>
+
                       {op.precio_extra ? (
                         <span className="text-xs text-white/50">
                           +{formatCurrency(op.precio_extra)}
@@ -377,14 +403,26 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
             </p>
             <p className="text-sm leading-snug text-white/85">{textoTarjeta}</p>
 
-            {/* Carrusel visual de complementos (One-Tap Combo). Se muestra en
-                cuanto el cliente puede ordenar, para no frenar la venta. */}
-            {!faltanObligatorios && item.disponible && (
-              <SugerenciasBebida
-                items={complementos}
-                motivo={motivoMaridaje}
-                onSeleccionar={handleAddRecommendation}
-              />
+            {/* RETRASO ESTRATÉGICO: el cross-selling permanece bloqueado hasta
+                que el cliente completa los modificadores obligatorios. */}
+            {item.disponible && complementos.length > 0 && (
+              <>
+                {faltanObligatorios ? (
+                  <div className="mt-3 rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-3 py-2.5 opacity-50">
+                    <p className="pointer-events-none text-[11px] font-semibold text-white/60">
+                      Completa tu platillo primero para ver mis sugerencias 🔒
+                    </p>
+                  </div>
+                ) : (
+                  <div className="animate-fade-in">
+                    <SugerenciasBebida
+                      items={complementos}
+                      motivo={motivoMaridaje}
+                      onSeleccionar={handleAddRecommendation}
+                    />
+                  </div>
+                )}
+              </>
             )}
 
             {agregado && sugerido && complementos.length === 0 ? (
