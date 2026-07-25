@@ -602,3 +602,95 @@ textarea {
     animation: none;
   }
 }
+
+
+
+/* ============================================================
+   Nombre del cliente "reluciente" (degradado + barrido de luz)
+   ============================================================ */
+@keyframes nameShine {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+.nombre-brillante {
+  background: linear-gradient(
+    90deg,
+    #fbbf24 0%,
+    #fff7ed 25%,
+    #ffffff 40%,
+    #fde68a 55%,
+    #fbbf24 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+  animation: nameShine 3.5s linear infinite;
+  /* Sutil resplandor detrás del texto */
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.45));
+}
+
+/* ============================================================
+   Avatar de Ñom AI — invitación a tocar (anillos + balanceo)
+   ============================================================ */
+
+/* Anillo que se expande y se desvanece (indica "tócame") */
+@keyframes tapRing {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.65;
+  }
+  70% {
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+.animate-tap-ring {
+  animation: tapRing 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+/* Balanceo breve y periódico del ícono para atraer la mirada */
+@keyframes tapWiggle {
+  0%,
+  86%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  89% {
+    transform: scale(1.12) rotate(-9deg);
+  }
+  92% {
+    transform: scale(1.12) rotate(9deg);
+  }
+  95% {
+    transform: scale(1.08) rotate(-5deg);
+  }
+}
+
+.animate-tap-wiggle {
+  animation: tapWiggle 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nombre-brillante {
+    animation: none;
+    background: none;
+    -webkit-background-clip: initial;
+    background-clip: initial;
+    color: #fbbf24;
+  }
+  .animate-tap-ring,
+  .animate-tap-wiggle {
+    animation: none;
+  }
+}

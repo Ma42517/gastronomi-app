@@ -287,7 +287,7 @@ export function VistaClienteMesa({
               /* Registrado: saludo personalizado (sin CTA de registro) */
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
                 <User className="h-3.5 w-3.5" />
-                Hola, {clienteNombre}
+                Hola, <span className="nombre-brillante">{clienteNombre}</span>
               </span>
             ) : (
               <>

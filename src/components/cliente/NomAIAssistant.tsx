@@ -25,6 +25,24 @@ const MENSAJE_BIENVENIDA = "¡Hola! Soy Ñom AI, pregúntame sobre el menú 👋
 /** Fases del flujo de bienvenida automático (sin interacción del cliente). */
 type FaseBienvenida = "welcome" | "tooltip" | "done";
 
+/**
+ * Resalta el nombre del cliente dentro del mensaje para que "reluzca"
+ * (degradado dorado con barrido de luz) sin tocar el resto del texto.
+ */
+function resaltarNombre(mensaje: string, nombre: string) {
+  if (!nombre) return mensaje;
+  const partes = mensaje.split(nombre);
+  if (partes.length === 1) return mensaje;
+  return partes.map((parte, i) => (
+    <span key={i}>
+      {parte}
+      {i < partes.length - 1 && (
+        <span className="nombre-brillante">{nombre}</span>
+      )}
+    </span>
+  ));
+}
+
 /** Resuelve el item sugerido por la IA a un producto real del menú. */
 function resolverItem(nombre: string, precio?: number) {
   const enMenu = TAQUERIA_EL_PRIMO.menu.find(
@@ -370,20 +388,43 @@ export function NomAIAssistant() {
       {barVisible && (
         <div className="fixed inset-x-0 bottom-0 z-[55] mx-auto max-w-md p-2.5 sm:p-3">
           <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-neutral-900/90 p-2.5 shadow-2xl backdrop-blur-xl">
-            {/* AVATAR → abre el CHAT conversacional (Acción B) */}
+            {/* AVATAR → abre el CHAT conversacional (Acción B).
+                Invita a tocarlo: anillos que se expanden + balanceo periódico. */}
             <button
               type="button"
               onClick={abrirChat}
-              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 text-white"
+              className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-transform active:scale-90"
               aria-label="Abrir chat de Ñom AI"
+              title="Toca para hablar con Ñom AI"
             >
+              {/* Anillos de "tócame" (escalonados) */}
               <span
-                className="absolute inset-0 animate-pulse rounded-full opacity-60 blur-md"
+                className="animate-tap-ring absolute inset-0 rounded-full border-2"
+                style={{ borderColor: brand }}
+              />
+              <span
+                className="animate-tap-ring absolute inset-0 rounded-full border-2"
+                style={{ borderColor: brand, animationDelay: "1.2s" }}
+              />
+              {/* Halo + disco de marca */}
+              <span
+                className="absolute inset-0 animate-pulse rounded-full opacity-70 blur-md"
                 style={{
                   background: `radial-gradient(circle, ${brand}, transparent 72%)`,
                 }}
               />
-              <Sparkles className="relative h-5 w-5" style={{ color: brand }} />
+              <span
+                className="absolute inset-0 rounded-full border border-white/20"
+                style={{
+                  background: `linear-gradient(135deg, color-mix(in srgb, ${brand} 35%, #18181b), #18181b)`,
+                }}
+              />
+              <Sparkles
+                className="animate-tap-wiggle relative h-5 w-5"
+                style={{ color: brand }}
+              />
+              {/* Punto indicador de "disponible / tócame" */}
+              <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-neutral-900 bg-green-400" />
             </button>
 
             {/* TEXTO → abre el DRAWER del carrito si hay items (Acción A);
@@ -398,7 +439,7 @@ export function NomAIAssistant() {
                 key={mensajeBar}
                 className="animate-text-in block whitespace-pre-wrap break-words text-sm font-medium leading-snug text-white/85"
               >
-                {mensajeBar}
+                {resaltarNombre(mensajeBar, clienteNombre)}
               </span>
             </button>
 
