@@ -8,6 +8,8 @@ import type { MenuItemMock } from "@/lib/mock-data";
 interface SugerenciasBebidaProps {
   /** Bebidas (o complementos) sugeridos por Ñom AI. */
   items: MenuItemMock[];
+  /** Motivo real del maridaje (micro-copy que justifica la sugerencia). */
+  motivo?: string;
   /** One-Tap Combo: agrega el platillo principal + este complemento y cierra. */
   onSeleccionar: (item: MenuItemMock) => void;
 }
@@ -20,6 +22,7 @@ interface SugerenciasBebidaProps {
  */
 export function SugerenciasBebida({
   items,
+  motivo,
   onSeleccionar,
 }: SugerenciasBebidaProps) {
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
@@ -28,8 +31,11 @@ export function SugerenciasBebida({
 
   return (
     <div className="mt-3">
-      <p className="mb-2 text-[11px] font-semibold text-white/55">
+      <p className="mb-2 text-[11px] font-semibold leading-snug text-white/55">
         Ñom AI recomienda para acompañar:
+        {motivo ? (
+          <span className="font-normal italic text-white/40"> {motivo}.</span>
+        ) : null}
       </p>
 
       <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

@@ -13,6 +13,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
 import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
+import { obtenerMaridaje } from "@/lib/maridajes";
 import type { GrupoModificador, MenuItemMock } from "@/lib/mock-data";
 import { useNomAI } from "./NomAIContext";
 import { BotonFavorito } from "./BotonFavorito";
@@ -39,59 +40,16 @@ const REACCIONES: Record<string, string> = {
 };
 
 /**
- * Venta cruzada INTELIGENTE: el complemento se elige según la categoría real
- * del platillo (no al azar y sin inventar productos):
- *  - Antojitos salados (tacos, tortas, quesadillas, volcanes, papas) → BEBIDA.
- *  - Bebidas → un antojito para acompañar.
- *  - Postres → una bebida caliente/fría (no otro postre).
+ * Mensaje de la tarjeta tras agregar. Solo menciona un complemento cuando
+ * existe un maridaje real (si nada combina, se limita a confirmar la orden).
  */
-function sugerirCrossSell(item: MenuItemMock): MenuItemMock | null {
-  const menu = TAQUERIA_EL_PRIMO.menu;
-  const buscar = (id: string) =>
-    menu.find((m) => m.id === id && m.disponible && m.id !== item.id) ?? null;
-
-  // Con una bebida en mano, lo que falta es la comida.
-  if (item.categoria === "Bebidas") {
-    return buscar("t-pastor") ?? buscar("q-asada");
-  }
-
-  // Con un postre, una bebida para acompañar.
-  if (item.categoria === "Postres") {
-    return buscar("b-coca") ?? buscar("b-horchata");
-  }
-
-  // Antojitos salados → refresco bien frío (o horchata como respaldo).
-  return buscar("b-coca") ?? buscar("b-horchata") ?? buscar("p-flan");
-}
-
-/**
- * Complementos para el carrusel visual de Ñom AI (máx. 3).
- * Antojitos y postres → BEBIDAS reales del menú; bebidas → antojitos.
- */
-function complementosSugeridos(item: MenuItemMock): MenuItemMock[] {
-  const menu = TAQUERIA_EL_PRIMO.menu;
-  const disponibles = (categoria: string) =>
-    menu.filter(
-      (m) => m.categoria === categoria && m.disponible && m.id !== item.id,
-    );
-
-  if (item.categoria === "Bebidas") {
-    return [...disponibles("Tacos"), ...disponibles("Quesadillas")].slice(0, 3);
-  }
-  // Antojitos salados y postres: bebidas bien frías para acompañar.
-  return disponibles("Bebidas").slice(0, 3);
-}
-
-/** Mensaje del complemento según lo que se está pidiendo. */
-function mensajeComplemento(item: MenuItemMock, sugerido: MenuItemMock | null) {
+function mensajeComplemento(
+  sugerido: MenuItemMock | null,
+  motivo: string,
+) {
   if (!sugerido) return "¡Excelente elección! Ya está en tu orden. 🎉";
-  if (item.categoria === "Bebidas") {
-    return `¡Buena elección! ¿Le sumamos unos ${sugerido.nombre} para acompañar? 🌮`;
-  }
-  if (item.categoria === "Postres") {
-    return `¡Excelente! ¿Un ${sugerido.nombre} bien frío para acompañar tu postre? 🥤`;
-  }
-  return `¡Excelente elección! ¿Le sumas un ${sugerido.nombre} bien frío para acompañar? 🥤`;
+  const razon = motivo ? ` — ${motivo}` : "";
+  return `¡Excelente elección! ¿Le sumas ${sugerido.nombre}?${razon} 🥤`;
 }
 
 /**
@@ -128,9 +86,14 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  const sugerido = item ? sugerirCrossSell(item) : null;
-  const mensajeCrossSell = item ? mensajeComplemento(item, sugerido) : "";
-  const complementos = item ? complementosSugeridos(item) : [];
+  // Maridaje CON RAZÓN: solo complementos que de verdad combinan (puede ser
+  // lista vacía, p. ej. un postre no lleva refresco).
+  const { items: complementos, motivo: motivoMaridaje } = item
+    ? obtenerMaridaje(item, TAQUERIA_EL_PRIMO.menu)
+    : { items: [], motivo: "" };
+  // El mejor maridaje (primero de la lista) alimenta el botón de 1 tap.
+  const sugerido = complementos[0] ?? null;
+  const mensajeCrossSell = mensajeComplemento(sugerido, motivoMaridaje);
 
   /**
    * ONE-TAP COMBO: garantiza que el platillo principal esté en el carrito,
@@ -402,6 +365,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
             {!faltanObligatorios && item.disponible && (
               <SugerenciasBebida
                 items={complementos}
+                motivo={motivoMaridaje}
                 onSeleccionar={handleAddRecommendation}
               />
             )}
