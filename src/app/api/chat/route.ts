@@ -75,7 +75,7 @@ CONTEXTO:
 
 REGLA DE CATEGORÍA (ESTRICTA, evita alucinaciones):
 - Categoría del platillo actual: ${categoria}.
-- Si es "Tacos", "Extras" o comida rápida: NUNCA sugieras guarniciones (como puré o espárragos); sugiere BEBIDAS o POSTRES.
+- Si es "Tacos", "Extras" o comida rápida: NUNCA sugieras guarniciones (como puré o papas a la francesa); sugiere BEBIDAS o POSTRES.
 - Si es "Cortes" o "Especiales" (como el Ribeye): sugiere GUARNICIONES o una copa de vino/cerveza.
 - NUNCA llames "corte" a un taco ni confundas las categorías.
 

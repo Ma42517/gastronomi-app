@@ -59,6 +59,15 @@ const RASGOS: Record<string, string> = {
   "sin-cebolla": "sin cebolla, para que nada se interponga entre tú y la carne",
   "sin-cilantro": "sin cilantro, limpio y al punto",
   sencillo: "sencillo, para el sabor más puro y directo",
+  // --- Términos del corte ---
+  rojo: "en término “Rojo”, jugoso y con el centro tibio",
+  medio: "en término “Medio”, el punto que recomienda el chef",
+  "tres-cuartos": "en “3/4”, apenas rosado y muy firme",
+  "bien-cocido": "“Bien cocido”, cocinado por completo",
+  // --- Guarniciones del corte ---
+  "papas-francesa": "con papas a la francesa doraditas",
+  "pure-papa": "con puré de papa cremoso",
+  "verduras-vapor": "con verduras al vapor para equilibrar",
   // --- Queso / extras ---
   "con-queso": "con queso fundido encima, como debe ser",
   "sin-queso": "sin queso, ligero y sin distracciones",
@@ -72,6 +81,8 @@ const INVITACIONES: Record<string, string> = {
   salsa: "¿Con qué salsa vas a armar tu experiencia hoy?",
   prep: "¿Cómo te la preparamos?",
   queso: "¿La quieres con queso fundido o sin él?",
+  termino: "¿En qué término lo quieres?",
+  guarnicion: "¿Con qué guarnición lo acompañamos?",
 };
 
 /** Une fragmentos con comas y una "y" final, sin sonar a lista de máquina. */

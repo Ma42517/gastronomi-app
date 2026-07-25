@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Plus, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, Minus, Plus, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
 import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
@@ -43,6 +44,13 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   const [imgError, setImgError] = useState(false);
   const [selecciones, setSelecciones] = useState<Record<string, string[]>>({});
   const [toast, setToast] = useState<string | null>(null);
+  // --- VENTA CRUZADA CON STEPPER ---
+  // Al elegir una bebida el modal NO se cierra: la tarjeta elegida se queda,
+  // las demás se ocultan y el precio se convierte en un stepper de cantidad.
+  const [selectedBeverageId, setSelectedBeverageId] = useState<string | null>(
+    null,
+  );
+  const [beverageQty, setBeverageQty] = useState(1);
 
   // Toast discreto (favoritos).
   const mostrarToast = (mensaje: string) => setToast(mensaje);
@@ -61,6 +69,8 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     });
     setSelecciones(init);
     setImgError(false);
+    setSelectedBeverageId(null);
+    setBeverageQty(1);
   }, [abierto, item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Maridaje real (puede venir vacío: un postre no lleva refresco).
@@ -106,21 +116,47 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     });
   };
 
-  /** ESTADO 3 — bebida: agrega platillo + bebida y cierra al instante. */
-  const elegirBebida = (bebida: MenuItemMock) => {
-    agregarPlatillo();
-    addToCart({
-      id: bebida.id,
-      nombre: bebida.nombre,
-      precio: bebida.precio,
-      emoji: bebida.emoji,
-    });
-    onCerrar();
+  /**
+   * Selecciona una bebida SIN cerrar el modal ni tocar el carrito todavía.
+   * Solo marca la intención: las demás tarjetas se ocultan y el precio se
+   * transforma en el stepper. El carrito se toca una única vez, al confirmar.
+   */
+  const seleccionarBebida = (bebida: MenuItemMock) => {
+    setSelectedBeverageId(bebida.id);
+    setBeverageQty(1);
   };
 
-  /** Botón fijo: agrega solo el platillo, cierra y abre la vista de pago. */
+  /** Stepper: al bajar de 1 se deselecciona y reaparecen las otras opciones. */
+  const bajarCantidad = () => {
+    if (beverageQty <= 1) {
+      setSelectedBeverageId(null);
+      setBeverageQty(1);
+      return;
+    }
+    setBeverageQty((q) => q - 1);
+  };
+
+  const subirCantidad = () => setBeverageQty((q) => Math.min(q + 1, 20));
+
+  /**
+   * ÚNICA salida del modal: agrega el platillo, más la bebida elegida con su
+   * cantidad exacta, cierra y abre la vista de la orden.
+   */
   const anadirYVerOrden = () => {
     agregarPlatillo();
+
+    const bebida = complementos.find((b) => b.id === selectedBeverageId);
+    if (bebida) {
+      for (let i = 0; i < beverageQty; i += 1) {
+        addToCart({
+          id: bebida.id,
+          nombre: bebida.nombre,
+          precio: bebida.precio,
+          emoji: bebida.emoji,
+        });
+      }
+    }
+
     onCerrar();
     abrirCarrito();
   };
@@ -140,6 +176,13 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   // ESTADO 2: la venta cruzada se desbloquea al completar los obligatorios.
   const mostrarBebidas =
     platillo.disponible && !faltanObligatorios && complementos.length > 0;
+
+  // El botón refleja el total real que va a entrar al carrito (platillo +
+  // bebida × cantidad), para que nadie confirme sin ver lo que va a pagar.
+  const bebidaElegida =
+    complementos.find((b) => b.id === selectedBeverageId) ?? null;
+  const totalAAgregar =
+    platillo.precio + (bebidaElegida ? bebidaElegida.precio * beverageQty : 0);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center">
@@ -221,32 +264,118 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
             <CopilotoAI texto={textoCopiloto} pensando={copilotoPensando} />
 
-            {/* ESTADO 2 — venta cruzada integrada en el bloque de la IA.
-                Un toque agrega platillo + bebida y cierra el modal. */}
+            {/* ===== ESTADO 2 — VENTA CRUZADA CON STEPPER =====
+                Integrada en el bloque de la IA. Tocar una bebida NO cierra el
+                modal: oculta las demás con AnimatePresence, agranda la elegida
+                y cambia su precio por un stepper para sumar unidades ahí mismo.
+                `layout` hace que el reacomodo sea fluido en vez de un salto. */}
             {mostrarBebidas && (
-              <div className="animate-fade-in mt-2.5 flex gap-2">
-                {complementos.slice(0, 2).map((bebida) => (
-                  <button
-                    key={bebida.id}
-                    type="button"
-                    onClick={() => elegirBebida(bebida)}
-                    className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-2.5 py-2 text-left transition active:scale-[0.97]"
-                  >
-                    <span className="text-lg leading-none">{bebida.emoji}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-bold leading-tight">
-                        {bebida.nombre}
-                      </span>
-                      <span
-                        className="block text-[11px] font-bold"
-                        style={{ color: brand }}
+              <motion.div layout className="mt-2.5 flex gap-2">
+                <AnimatePresence initial={false} mode="popLayout">
+                  {complementos.slice(0, 2).map((bebida) => {
+                    const elegida = selectedBeverageId === bebida.id;
+                    // Si ya hay una elegida, las demás salen de escena.
+                    if (selectedBeverageId && !elegida) return null;
+
+                    return (
+                      <motion.div
+                        key={bebida.id}
+                        layout
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{
+                          opacity: 1,
+                          // La elegida se expande ligeramente.
+                          scale: elegida ? 1.02 : 1,
+                        }}
+                        exit={{ opacity: 0, scale: 0.85, y: 4 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 420,
+                          damping: 32,
+                        }}
+                        className="min-w-0 flex-1"
                       >
-                        + {formatCurrency(bebida.precio)}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
+                        {elegida ? (
+                          /* --- Tarjeta ELEGIDA: contiene el stepper ---
+                             Es un <div>, no un <button>: anidar botones dentro
+                             de un botón es HTML inválido y rompe los taps. */
+                          <div
+                            className="flex min-w-0 items-center gap-2 rounded-xl border px-2.5 py-2"
+                            style={{
+                              borderColor: brand,
+                              background: `color-mix(in srgb, ${brand} 16%, transparent)`,
+                            }}
+                          >
+                            <span className="text-lg leading-none">
+                              {bebida.emoji}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[13px] font-bold leading-tight">
+                                {bebida.nombre}
+                              </p>
+                              <p className="text-[11px] font-semibold text-white/45">
+                                {formatCurrency(bebida.precio * beverageQty)}
+                              </p>
+                            </div>
+
+                            {/* STEPPER en forma de píldora */}
+                            <div className="flex shrink-0 items-center justify-between gap-1 rounded-full bg-zinc-800 px-3 py-1">
+                              <button
+                                type="button"
+                                onClick={bajarCantidad}
+                                className="flex h-6 w-6 items-center justify-center rounded-full text-white/70 transition hover:text-white active:scale-90"
+                                aria-label={`Quitar un ${bebida.nombre}`}
+                              >
+                                <Minus className="h-3.5 w-3.5" strokeWidth={3} />
+                              </button>
+                              <motion.span
+                                key={beverageQty}
+                                initial={{ scale: 0.6, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ duration: 0.18 }}
+                                className="w-4 text-center text-sm font-extrabold"
+                              >
+                                {beverageQty}
+                              </motion.span>
+                              <button
+                                type="button"
+                                onClick={subirCantidad}
+                                className="flex h-6 w-6 items-center justify-center rounded-full transition active:scale-90"
+                                style={{ color: brand }}
+                                aria-label={`Agregar un ${bebida.nombre}`}
+                              >
+                                <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* --- Tarjeta SIN elegir: muestra el precio --- */
+                          <button
+                            type="button"
+                            onClick={() => seleccionarBebida(bebida)}
+                            className="flex w-full min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-2.5 py-2 text-left transition active:scale-[0.97]"
+                          >
+                            <span className="text-lg leading-none">
+                              {bebida.emoji}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[13px] font-bold leading-tight">
+                                {bebida.nombre}
+                              </span>
+                              <span
+                                className="block text-[11px] font-bold"
+                                style={{ color: brand }}
+                              >
+                                + {formatCurrency(bebida.precio)}
+                              </span>
+                            </span>
+                          </button>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </motion.div>
             )}
           </div>
 
@@ -327,7 +456,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
               ) : (
                 <>
                   <ShoppingBag className="h-4 w-4" strokeWidth={2.5} />
-                  Añadir y ver orden · {formatCurrency(platillo.precio)}
+                  Añadir y ver orden · {formatCurrency(totalAAgregar)}
                 </>
               )}
             </button>

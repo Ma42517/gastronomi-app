@@ -100,12 +100,28 @@ export function BarraNavegacion({
         <Home className="h-5 w-5" />
       </BotonCirculo>
 
-      {/* 2) VIP / Premios — con micro-interacción de brillo */}
+      {/* 2) VIP / Premios — EFECTO "CASINO".
+             El halo naranja late en bucle mientras el tab NO está activo, para
+             que la sección de premios se sienta como una máquina de recompensas
+             y atraiga el toque. Al entrar al tab el latido se apaga (ya cumplió
+             su función) y al ganar un sello se dispara el destello puntual. */}
       <BotonCirculo
         activo={tab === "vip"}
         onClick={() => onTab("vip")}
         aria-label="Beneficios y premios"
-        className={brillarVIP ? "animate-vip-glow" : ""}
+        // Una sola animación a la vez: dos clases `animate-*` en el mismo
+        // elemento se pisan entre sí (gana la última del CSS, no la del JSX).
+        // El destello puntual tiene prioridad sobre el latido de fondo.
+        className={
+          brillarVIP
+            ? "animate-vip-glow"
+            : tab === "vip"
+              ? ""
+              : // `!` fuerza el naranja sobre el text-gray-700 de BotonCirculo:
+                // ambas son utilidades text-*, así que sin important el ganador
+                // dependería del orden del CSS generado, no del JSX.
+                "animate-casino !text-orange-400 transition-all duration-700 ease-in-out"
+        }
       >
         <Gift className="h-5 w-5" />
       </BotonCirculo>

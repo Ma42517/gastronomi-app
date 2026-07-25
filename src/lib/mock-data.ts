@@ -153,6 +153,37 @@ const MODIFICADORES_PAPA: GrupoModificador[] = [
   },
 ];
 
+/**
+ * Modificadores del Ribeye. El término es OBLIGATORIO (nadie sirve un corte
+ * sin preguntarlo) y la guarnición es opcional. Con esto el Ribeye deja de
+ * necesitar su propio configurador y usa el MISMO modal y el MISMO botón de
+ * confirmación estandarizado que los tacos.
+ */
+const MODIFICADORES_RIBEYE: GrupoModificador[] = [
+  {
+    id: "termino",
+    titulo: "Elige tu término",
+    tipo: "single",
+    requerido: true,
+    opciones: [
+      { id: "rojo", nombre: "Rojo" },
+      { id: "medio", nombre: "Medio" },
+      { id: "tres-cuartos", nombre: "3/4" },
+      { id: "bien-cocido", nombre: "Bien cocido" },
+    ],
+  },
+  {
+    id: "guarnicion",
+    titulo: "Guarnición",
+    tipo: "single",
+    opciones: [
+      { id: "papas-francesa", nombre: "Papas a la francesa" },
+      { id: "pure-papa", nombre: "Puré de papa" },
+      { id: "verduras-vapor", nombre: "Verduras al vapor" },
+    ],
+  },
+];
+
 /** Modificadores de quesadillas/volcanes: salsa obligatoria. */
 const MODIFICADORES_SALSA: GrupoModificador[] = [
   {
@@ -169,22 +200,46 @@ const MODIFICADORES_SALSA: GrupoModificador[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Fotos (URLs directas de Unsplash; respaldo de emoji si alguna falla).
+// Fotos — UNA IMAGEN DISTINTA POR PLATILLO.
+//
+// Antes se reutilizaban 4 constantes en 10 platillos (IMG_TACOS aparecía 3
+// veces, IMG_MEX 3, IMG_FRIES 2, IMG_POTATO 2), así que el menú mostraba la
+// misma foto repetida. Además IMG_POTATO devolvía 404 y caía al emoji.
+//
+// Todas las URLs de abajo se verificaron con HTTP 200 antes de escribirlas.
+// El respaldo de emoji sigue activo por si alguna dejara de estar disponible.
 // ---------------------------------------------------------------------------
-const IMG_TACOS =
-  "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&w=800&q=80";
-const IMG_MEX =
-  "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80";
-const IMG_FRIES =
-  "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=800&q=80";
-const IMG_POTATO =
-  "https://images.unsplash.com/photo-1593922146430-8199eb3c1a82?auto=format&fit=crop&w=800&q=80";
-const IMG_BEBIDA =
-  "https://images.unsplash.com/photo-1554866585-cd94860890b7?auto=format&fit=crop&w=800&q=80";
-const IMG_FANTA =
-  "https://images.unsplash.com/photo-1624552184280-9e9631bbeee9?auto=format&fit=crop&w=800&q=80";
-const IMG_HORCHATA =
-  "https://images.unsplash.com/photo-1497534446932-c925b458314e?auto=format&fit=crop&w=800&q=80";
+const U = (id: string) =>
+  `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=800&q=80`;
+
+// --- Especial ---
+const IMG_RIBEYE = U("1558030006-450675393462");
+// --- Tacos ---
+const IMG_TACO_PASTOR = U("1551504734-5ee1c4a1479b");
+const IMG_TACO_BISTEC = U("1613514785940-daed07799d9b");
+// --- Tortas ---
+const IMG_TORTA_SUADERO = U("1565299624946-b28f40a0ae38");
+const IMG_TORTA_ESPECIAL = U("1627308595229-7830a5c91f9f");
+// --- Quesadillas ---
+const IMG_QUESADILLA_ASADA = U("1552332386-f8dd00dc2f85");
+const IMG_QUESADILLA_SENCILLA = U("1504674900247-0877df9cc836");
+// --- Volcanes ---
+const IMG_VOLCAN_PASTOR = U("1512058564366-18510be2db19");
+const IMG_VOLCAN_CAMPECHANO = U("1466637574441-749b8f19452f");
+// --- Papas rellenas ---
+const IMG_PAPA_MANTEQUILLA = U("1600891964092-4316c288032e");
+const IMG_PAPA_ARRACHERA = U("1626700051175-6818013e1d4f");
+// --- Bebidas ---
+const IMG_COCA = U("1554866585-cd94860890b7");
+const IMG_FANTA = U("1624552184280-9e9631bbeee9");
+const IMG_HORCHATA = U("1497534446932-c925b458314e");
+// --- Postre ---
+const IMG_FLAN = U("1608039829572-78524f79c4c7");
+// --- Guarniciones ---
+const IMG_PURE = U("1541014741259-de529411b96a");
+const IMG_VERDURAS = U("1601050690597-df0568f70950");
+const IMG_PAPAS_FRITAS = U("1573080496219-bb080dd4f877");
+const IMG_ENSALADA = U("1567620905732-2d1ec7ab7445");
 
 // ---------------------------------------------------------------------------
 // MOCK: "Taquería El Primo"
@@ -218,14 +273,19 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
     {
       id: "h-ribeye",
       nombre: "Ribeye Añejado",
+      // NO se renderiza en ninguna parte: la UI muestra únicamente el texto de
+      // Ñom AI debajo del título. Este campo queda solo como fuente de
+      // ingredientes para el copiloto (sin él, la IA inventaría el corte).
+      // Se limpió la coletilla "Personaliza tu término y guarnición", que era
+      // residuo del configurador viejo.
       descripcion:
-        "Corte de 400g madurado 30 días, sellado a la parrilla con mantequilla de ajo y romero. Personaliza tu término y guarnición.",
+        "Corte de 400g madurado 30 días, sellado a la parrilla con mantequilla de ajo y romero.",
       precio: 320,
       categoria: "Especiales",
       emoji: "🥩",
       disponible: true,
-      imagen_url:
-        "https://images.unsplash.com/photo-1558030006-450675393462?q=80&w=800",
+      imagen_url: IMG_RIBEYE,
+      modifiers: MODIFICADORES_RIBEYE,
     },
 
     // --- Tacos ---
@@ -239,7 +299,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       emoji: "🌮",
       disponible: true,
       isPopular: true,
-      imagen_url: IMG_TACOS,
+      imagen_url: IMG_TACO_PASTOR,
       modifiers: MODIFICADORES_TACO,
     },
     {
@@ -251,7 +311,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Tacos",
       emoji: "🌮",
       disponible: true,
-      imagen_url: IMG_TACOS,
+      imagen_url: IMG_TACO_BISTEC,
       modifiers: MODIFICADORES_TACO,
     },
 
@@ -265,7 +325,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Tortas",
       emoji: "🥪",
       disponible: true,
-      imagen_url: IMG_MEX,
+      imagen_url: IMG_TORTA_SUADERO,
     },
     {
       id: "to-especial",
@@ -277,7 +337,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       emoji: "🥪",
       disponible: true,
       isPopular: true,
-      imagen_url: IMG_MEX,
+      imagen_url: IMG_TORTA_ESPECIAL,
     },
 
     // --- Quesadillas ---
@@ -290,7 +350,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Quesadillas",
       emoji: "🫓",
       disponible: true,
-      imagen_url: IMG_TACOS,
+      imagen_url: IMG_QUESADILLA_ASADA,
       modifiers: MODIFICADORES_SALSA,
     },
     {
@@ -302,7 +362,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Quesadillas",
       emoji: "🫓",
       disponible: true,
-      imagen_url: IMG_MEX,
+      imagen_url: IMG_QUESADILLA_SENCILLA,
     },
 
     // --- Volcanes ---
@@ -316,7 +376,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       emoji: "🌋",
       disponible: true,
       isPopular: true,
-      imagen_url: IMG_FRIES,
+      imagen_url: IMG_VOLCAN_PASTOR,
       modifiers: MODIFICADORES_SALSA,
     },
     {
@@ -328,7 +388,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Volcanes",
       emoji: "🌋",
       disponible: true,
-      imagen_url: IMG_FRIES,
+      imagen_url: IMG_VOLCAN_CAMPECHANO,
       modifiers: MODIFICADORES_SALSA,
     },
 
@@ -342,7 +402,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Papas Rellenas",
       emoji: "🥔",
       disponible: true,
-      imagen_url: IMG_POTATO,
+      imagen_url: IMG_PAPA_MANTEQUILLA,
       modifiers: MODIFICADORES_PAPA,
     },
     {
@@ -355,7 +415,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       emoji: "🥔",
       disponible: true,
       isPopular: true,
-      imagen_url: IMG_POTATO,
+      imagen_url: IMG_PAPA_ARRACHERA,
       modifiers: MODIFICADORES_PAPA,
     },
 
@@ -369,7 +429,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Bebidas",
       emoji: "🥤",
       disponible: true,
-      imagen_url: IMG_BEBIDA,
+      imagen_url: IMG_COCA,
     },
     {
       id: "b-fanta",
@@ -404,6 +464,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Postres",
       emoji: "🍮",
       disponible: true,
+      imagen_url: IMG_FLAN,
     },
   ],
   sommelier: {
@@ -420,32 +481,29 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
         nombre: "Puré de Papa",
         precio_extra: 35,
         emoji: "🥔",
-        imagen_url:
-          "https://images.unsplash.com/photo-1593922146430-8199eb3c1a82?auto=format&fit=crop&w=600&q=80",
+        // Antes apuntaba a una foto que devolvía 404.
+        imagen_url: IMG_PURE,
       },
       {
-        id: "g-esparragos",
-        nombre: "Espárragos a la Parrilla",
+        id: "g-verduras",
+        nombre: "Verduras al Vapor",
         precio_extra: 45,
-        emoji: "🌿",
-        imagen_url:
-          "https://images.unsplash.com/photo-1554502078-ef0df4cf4df6?auto=format&fit=crop&w=600&q=80",
+        emoji: "🥦",
+        imagen_url: IMG_VERDURAS,
       },
       {
         id: "g-papas",
-        nombre: "Papas Rústicas",
+        nombre: "Papas a la Francesa",
         precio_extra: 30,
         emoji: "🍟",
-        imagen_url:
-          "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=600&q=80",
+        imagen_url: IMG_PAPAS_FRITAS,
       },
       {
         id: "g-ensalada",
         nombre: "Ensalada Verde",
         precio_extra: 25,
         emoji: "🥗",
-        imagen_url:
-          "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=600&q=80",
+        imagen_url: IMG_ENSALADA,
       },
     ],
   },

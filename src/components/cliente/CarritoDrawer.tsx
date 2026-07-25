@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  ChevronDown,
-  CreditCard,
-  Minus,
-  Plus,
-  Sparkles,
-  UtensilsCrossed,
-} from "lucide-react";
+import { CreditCard, Minus, Plus, Sparkles, UtensilsCrossed, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
 import type { MenuItemMock } from "@/lib/mock-data";
@@ -32,12 +25,17 @@ interface CarritoDrawerProps {
 }
 
 /**
- * Drawer del carrito (bottom sheet) — INDEPENDIENTE del chat de Ñom AI.
- * No tiene caja de mensajes: es una vista de compra pura. Orden vertical:
- *  1) Header "Tu orden"
- *  2) Lista de productos con + / -
- *  3) Banner proactivo de la IA (sugerencia de postre ANTES de pagar)
- *  4) Botón de pago final (va directo al checkout, sin interrupciones)
+ * VISTA "TU ORDEN" — PANTALLA COMPLETA (ya no es bottom sheet).
+ *
+ * Un bottom sheet obligaba a competir por el alto de la pantalla con el fondo
+ * y dejaba el checkout comprimido. Ahora la orden es una PANTALLA propia:
+ * `fixed inset-0 z-[100] h-screen w-screen bg-black overflow-y-auto`.
+ *
+ * Estructura:
+ *   - Header FIJO (sticky): X a la izquierda, "Tu Orden" centrado.
+ *   - Cuerpo con scroll: modalidad, progreso de recompensa, líneas del pedido
+ *     con sus + / -, y el banner de postre de Ñom AI.
+ *   - Pie FIJO: propinas, desglose y el botón de pago.
  */
 export function CarritoDrawer({
   abierto,
@@ -67,86 +65,90 @@ export function CarritoDrawer({
   const mostrarSugerencia =
     sugerido !== null && !sugeridoEnCarrito && items.length > 0;
 
+  const totalPiezas = items.reduce((a, i) => a + i.cantidad, 0);
+
   return (
-    <div className="fixed inset-0 z-[60] flex justify-center">
-      <button
-        type="button"
-        aria-label="Cerrar carrito"
-        onClick={onCerrar}
-        className="animate-backdrop-in absolute inset-0 bg-black/60 backdrop-blur-sm"
-      />
-
-      <div className="animate-sheet-up relative mt-auto flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl">
-        {/* Handle */}
-        <div className="flex justify-center pt-2.5">
-          <span className="block h-1.5 w-12 rounded-full bg-gray-300" />
-        </div>
-
-        {/* 1) HEADER */}
-        <div className="flex items-center justify-between px-5 pb-3 pt-3">
-          <div className="flex items-baseline gap-2">
-            <h2 className="text-xl font-extrabold text-gray-900">Tu orden</h2>
-            <span className="text-sm font-medium text-gray-400">
-              {items.length} {items.length === 1 ? "ítem" : "ítems"}
-            </span>
-          </div>
+    <div className="animate-fade-in fixed inset-0 z-[100] h-screen w-screen overflow-y-auto bg-black text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col">
+        {/* ===== HEADER FIJO: X a la izquierda, título centrado ===== */}
+        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-white/10 bg-black/95 px-4 py-3 backdrop-blur-md">
           <button
             type="button"
             onClick={onCerrar}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100"
-            aria-label="Cerrar"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 active:scale-90"
+            aria-label="Regresar al menú"
           >
-            <ChevronDown className="h-5 w-5" />
+            <X className="h-5 w-5" strokeWidth={2.5} />
           </button>
-        </div>
 
-        {/* 1.2) MODALIDAD: comer aquí vs. para llevar.
-              La mesa NO se pide aquí: se obtiene del QR escaneado. */}
-        <div className="px-5 pb-3">
+          <div className="min-w-0 flex-1 text-center">
+            <h2 className="text-lg font-extrabold leading-tight">Tu Orden</h2>
+            {totalPiezas > 0 && (
+              <p className="text-[11px] font-medium text-white/40">
+                {totalPiezas} {totalPiezas === 1 ? "producto" : "productos"}
+              </p>
+            )}
+          </div>
+
+          {/* Espaciador del mismo ancho que la X para centrar el título. */}
+          <span className="h-10 w-10 shrink-0" aria-hidden />
+        </header>
+
+        {/* ===== CUERPO ===== */}
+        <div className="flex-1 space-y-4 px-4 py-4">
+          {/* Modalidad: comer aquí vs. para llevar (la mesa viene del QR). */}
           <SelectorModalidad
             modalidad={modalidad}
             onCambiar={onCambiarModalidad}
           />
-        </div>
 
-        {/* 1.5) GATILLO DE UPSELLING: progreso hacia la recompensa gratis */}
-        {items.length > 0 && (
-          <div className="px-5 pb-3">
-            <BarraProgresoUpsell total={subtotal} />
-          </div>
-        )}
+          {/* Gatillo de upselling hacia la recompensa gratis */}
+          {items.length > 0 && <BarraProgresoUpsell total={subtotal} />}
 
-        {/* 2) LISTA DE PRODUCTOS + 3) BANNER (scroll) */}
-        <div className="flex-1 overflow-y-auto px-5 pb-4">
           {items.length === 0 ? (
-            <p className="py-12 text-center text-sm text-gray-400">
-              Tu orden está vacía.
-            </p>
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <UtensilsCrossed
+                className="h-12 w-12 text-white/15"
+                strokeWidth={1.5}
+              />
+              <p className="mt-4 text-sm font-medium text-white/40">
+                Tu orden está vacía.
+              </p>
+              <button
+                type="button"
+                onClick={onCerrar}
+                className="mt-5 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20"
+              >
+                Ver el menú
+              </button>
+            </div>
           ) : (
             <>
-              <ul className="space-y-4">
+              {/* Líneas del pedido */}
+              <ul className="space-y-2.5">
                 {items.map((ci) => (
-                  <li key={ci.id} className="flex items-center gap-3">
+                  <li
+                    key={ci.id}
+                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3"
+                  >
                     {ci.emoji ? (
-                      <span className="text-2xl">{ci.emoji}</span>
+                      <span className="text-2xl leading-none">{ci.emoji}</span>
                     ) : (
-                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-gray-100 text-gray-400">
+                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/10 text-white/40">
                         <UtensilsCrossed className="h-4 w-4" />
                       </span>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-gray-900">
-                        {ci.nombre}
-                      </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="truncate text-sm font-bold">{ci.nombre}</p>
+                      <p className="text-xs text-white/45">
                         {formatCurrency(ci.precio)} c/u
                       </p>
                     </div>
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex shrink-0 items-center gap-2">
                       <button
                         type="button"
                         onClick={() => removeFromCart(ci.id)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border-2 transition active:scale-95"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border-2 transition active:scale-90"
                         style={{
                           borderColor: "var(--brand)",
                           color: "var(--brand)",
@@ -155,7 +157,7 @@ export function CarritoDrawer({
                       >
                         <Minus className="h-4 w-4" strokeWidth={3} />
                       </button>
-                      <span className="w-4 text-center text-sm font-bold text-gray-900">
+                      <span className="w-4 text-center text-sm font-bold">
                         {ci.cantidad}
                       </span>
                       <button
@@ -168,7 +170,7 @@ export function CarritoDrawer({
                             emoji: ci.emoji,
                           })
                         }
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-white transition active:scale-95"
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-white transition active:scale-90"
                         style={{ background: "var(--brand)" }}
                         aria-label={`Agregar un ${ci.nombre}`}
                       >
@@ -179,13 +181,14 @@ export function CarritoDrawer({
                 ))}
               </ul>
 
-              {/* 3) BANNER PROACTIVO DE IA — sugerencia ANTES de pagar (no es chat) */}
+              {/* Banner proactivo de Ñom AI: postre ANTES de pagar */}
               {mostrarSugerencia && (
                 <div
-                  className="mt-5 rounded-2xl border border-dashed p-4"
+                  className="rounded-2xl border border-dashed p-4"
                   style={{
-                    borderColor: "color-mix(in srgb, var(--brand) 45%, transparent)",
-                    background: "color-mix(in srgb, var(--brand) 6%, white)",
+                    borderColor:
+                      "color-mix(in srgb, var(--brand) 45%, transparent)",
+                    background: "color-mix(in srgb, var(--brand) 12%, black)",
                   }}
                 >
                   <p
@@ -195,9 +198,8 @@ export function CarritoDrawer({
                     <Sparkles className="h-3.5 w-3.5" />
                     Ñom AI
                   </p>
-                  <p className="text-sm leading-snug text-gray-700">
-                    Aquí tienes tu orden. ¿Todo listo para pagar o se te antoja un
-                    postre? 🍮
+                  <p className="text-sm leading-snug text-white/80">
+                    ¿Todo listo para pagar o se te antoja un postre? 🍮
                   </p>
                   <button
                     type="button"
@@ -210,29 +212,28 @@ export function CarritoDrawer({
                   </button>
                 </div>
               )}
+
+              {/* Propinas */}
+              <ModuloPropinas
+                subtotal={subtotal}
+                porcentaje={porcentajePropina}
+                propina={propina}
+                onCambiar={onCambiarPropina}
+              />
             </>
           )}
         </div>
 
-        {/* 4) PROPINAS + DESGLOSE + PAGO FINAL (directo al checkout) */}
+        {/* ===== PIE FIJO: desglose + pago ===== */}
         {items.length > 0 && (
-          <div className="shrink-0 space-y-3 border-t border-gray-100 p-5 pb-6">
-            {/* Módulo de propinas (fricción cero) */}
-            <ModuloPropinas
-              subtotal={subtotal}
-              porcentaje={porcentajePropina}
-              propina={propina}
-              onCambiar={onCambiarPropina}
-            />
-
-            {/* Desglose exacto */}
+          <div className="sticky bottom-0 space-y-3 border-t border-white/10 bg-black/95 px-4 pb-5 pt-3 backdrop-blur-md">
             <div className="space-y-1 text-sm">
-              <div className="flex justify-between text-gray-500">
+              <div className="flex justify-between text-white/50">
                 <span>Subtotal</span>
                 <span>{formatCurrency(subtotal)}</span>
               </div>
               {propina > 0 && (
-                <div className="flex justify-between text-gray-500">
+                <div className="flex justify-between text-white/50">
                   <span>
                     Propina
                     {porcentajePropina ? ` (${porcentajePropina}%)` : ""}
@@ -240,8 +241,8 @@ export function CarritoDrawer({
                   <span>{formatCurrency(propina)}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between border-t border-gray-100 pt-1.5">
-                <span className="font-bold text-gray-900">Total</span>
+              <div className="flex items-center justify-between border-t border-white/10 pt-1.5">
+                <span className="font-bold">Total</span>
                 <span
                   className="text-lg font-extrabold"
                   style={{ color: "var(--brand)" }}
@@ -254,7 +255,7 @@ export function CarritoDrawer({
             <button
               type="button"
               onClick={onPagar}
-              className="flex w-full items-center justify-center gap-2 rounded-3xl px-6 py-4 text-base font-bold text-white shadow-lg transition active:scale-[0.98]"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-4 text-base font-bold text-white shadow-lg transition active:scale-[0.98]"
               style={{ background: "var(--brand)" }}
             >
               <CreditCard className="h-5 w-5" />

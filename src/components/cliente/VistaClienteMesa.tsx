@@ -18,7 +18,6 @@ import { TarjetaSellos } from "./TarjetaSellos";
 import { CategoriaPills } from "./CategoriaPills";
 import { SeccionPopulares } from "./SeccionPopulares";
 import { PlatilloHeroCard } from "./PlatilloHeroCard";
-import { ConfiguradorPlatillo } from "./ConfiguradorPlatillo";
 import { DetallePlatillo } from "./DetallePlatillo";
 import { MenuInteractivo, anchorCategoria } from "./MenuInteractivo";
 import { obtenerMaridaje } from "@/lib/maridajes";
@@ -48,7 +47,6 @@ export function VistaClienteMesa({
 
   const [categoriaActiva, setCategoriaActiva] = useState(categorias[0]);
   const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
-  const [configuradorAbierto, setConfiguradorAbierto] = useState(false);
   const [detalleItem, setDetalleItem] = useState<MenuItemMock | null>(null);
   const [lealtad, setLealtad] = useState<ProgramaLealtad>(restaurante.lealtad);
   // Lealtad / lead gen: intercepción del premio en la 5ª visita.
@@ -213,33 +211,21 @@ export function VistaClienteMesa({
   // el checkout, la barra se OCULTA para evitar colisiones de botones.
   useEffect(() => {
     setEscena(
-      configuradorAbierto || detalleItem
+      detalleItem
         ? "platillo"
         : modalPagoAbierto || carritoAbierto
           ? "carrito"
           : "categorias",
     );
-  }, [
-    configuradorAbierto,
-    detalleItem,
-    modalPagoAbierto,
-    carritoAbierto,
-    setEscena,
-  ]);
+  }, [detalleItem, modalPagoAbierto, carritoAbierto, setEscena]);
 
   // Informa a Ñom AI qué platillo (y categoría) está viendo el cliente.
+  // Con el Ribeye unificado en DetallePlatillo, `detalleItem` es la única
+  // fuente: ya no hay que distinguir el configurador del héroe.
   useEffect(() => {
-    const actual =
-      configuradorAbierto && heroItem ? heroItem : detalleItem ?? null;
-    setPlatilloActual(actual?.nombre ?? "");
-    setCategoriaActual(actual?.categoria ?? "");
-  }, [
-    configuradorAbierto,
-    heroItem,
-    detalleItem,
-    setPlatilloActual,
-    setCategoriaActual,
-  ]);
+    setPlatilloActual(detalleItem?.nombre ?? "");
+    setCategoriaActual(detalleItem?.categoria ?? "");
+  }, [detalleItem, setPlatilloActual, setCategoriaActual]);
 
   // --- Handlers ---
   const agregarMenuItem = (item: MenuItemMock) =>
@@ -377,15 +363,17 @@ export function VistaClienteMesa({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/30" />
 
-        {/* Badge de mesa + perfil (invitado con CTA de registro / saludo) */}
-        <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
+        {/* ===== NAVBAR SUPERIOR: mesa a la izquierda, perfil + CTA a la
+             derecha. El CTA de registro late para ser lo primero que note el
+             cliente al abrir la app. ===== */}
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 px-4 py-2">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
             <MapPin className="h-3.5 w-3.5" />
             Mesa {numeroMesa}
           </span>
 
-          {/* Contenedor flex alineado a la derecha (perfil del usuario) */}
-          <div className="flex items-center gap-2">
+          {/* Perfil del usuario + llamada a la acción */}
+          <div className="flex min-w-0 items-center gap-2">
             {estaRegistrado ? (
               /* Registrado: saludo personalizado (sin CTA de registro) */
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
@@ -394,17 +382,17 @@ export function VistaClienteMesa({
               </span>
             ) : (
               <>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/25 px-2.5 py-1.5 text-xs font-medium text-zinc-300 backdrop-blur-md">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-white/20 bg-black/25 px-2 py-1.5 text-xs font-medium text-zinc-300 backdrop-blur-md">
                   <UserCircle2 className="h-4 w-4" />
-                  Invitado
+                  <span className="hidden sm:inline">Invitado</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => setModalProactivoAbierto(true)}
-                  className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-red-600 to-orange-500 px-4 py-1.5 text-sm font-bold text-white shadow-lg shadow-red-500/30 transition-transform hover:scale-105 active:scale-95"
+                  className="animate-cta-latido inline-flex min-w-0 items-center gap-1 rounded-full bg-gradient-to-r from-orange-500 to-red-600 px-3 py-1.5 text-[10px] font-black uppercase text-white shadow-lg shadow-orange-500/30 transition-transform hover:scale-105 active:scale-95 sm:text-xs"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Regístrate
+                  <Sparkles className="h-3 w-3 shrink-0" />
+                  <span className="truncate">Regístrate y obtén recompensas</span>
                 </button>
               </>
             )}
@@ -604,11 +592,15 @@ export function VistaClienteMesa({
         ) : (
           <>
             {/* Selección del Chef — fija arriba para dirigir la atención */}
+            {/* El Ribeye ahora abre el MISMO modal que los tacos (con sus
+                modificadores de término y guarnición), así el botón de
+                confirmación es el componente estandarizado y no un
+                configurador aparte con su propia UI. */}
             {heroItem && (
               <PlatilloHeroCard
                 item={heroItem}
                 etiqueta={hero.etiqueta}
-                onPersonalizar={() => setConfiguradorAbierto(true)}
+                onPersonalizar={() => setDetalleItem(heroItem)}
               />
             )}
 
@@ -659,18 +651,8 @@ export function VistaClienteMesa({
         onPagoExitoso={handlePaymentSuccess}
       />
 
-      {/* CONFIGURADOR INMERSIVO DEL PLATILLO HÉROE (Ribeye) */}
-      {heroItem && (
-        <ConfiguradorPlatillo
-          abierto={configuradorAbierto}
-          item={heroItem}
-          guarniciones={hero.guarniciones}
-          onCerrar={() => setConfiguradorAbierto(false)}
-          onConfirmar={() => agregarMenuItem(heroItem)}
-        />
-      )}
-
-      {/* DETALLE PREMIUM UNIVERSAL (cualquier platillo del menú) */}
+      {/* DETALLE PREMIUM UNIVERSAL — un solo modal para TODO el menú,
+          incluido el Ribeye (antes tenía su propio ConfiguradorPlatillo). */}
       <DetallePlatillo
         abierto={detalleItem !== null}
         item={detalleItem}

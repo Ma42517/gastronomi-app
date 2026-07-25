@@ -34,13 +34,13 @@ export function BarraProgresoUpsell({
     <div
       className={`rounded-2xl border p-3 transition-all duration-500 ${
         logrado
-          ? "border-green-200 bg-green-50"
-          : "border-orange-200 bg-orange-50"
+          ? "border-green-500/30 bg-green-500/10"
+          : "border-orange-500/30 bg-orange-500/10"
       }`}
     >
       <p
         className={`mb-2 flex items-center gap-1.5 text-xs font-bold leading-snug transition-colors duration-500 ${
-          logrado ? "text-green-700" : "text-orange-700"
+          logrado ? "text-green-300" : "text-orange-300"
         }`}
       >
         <Gift className="h-4 w-4 shrink-0" />
@@ -60,7 +60,7 @@ export function BarraProgresoUpsell({
 
       {/* Riel de la barra */}
       <div
-        className="h-2.5 w-full overflow-hidden rounded-full bg-white/80 ring-1 ring-black/5"
+        className="h-2.5 w-full overflow-hidden rounded-full bg-black/40 ring-1 ring-white/10"
         role="progressbar"
         aria-valuenow={Math.round(progreso)}
         aria-valuemin={0}

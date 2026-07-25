@@ -21,7 +21,7 @@ export function SelectorModalidad({
   return (
     <div>
       {/* Segmented control */}
-      <div className="flex gap-1 rounded-2xl bg-gray-100 p-1">
+      <div className="flex gap-1 rounded-2xl bg-white/[0.06] p-1">
         <BotonSegmento
           activo={modalidad === "local"}
           onClick={() => onCambiar("local")}
@@ -39,9 +39,9 @@ export function SelectorModalidad({
       {/* En local NO se pide la mesa: ya viene del QR escaneado. */}
 
       {modalidad === "llevar" && (
-        <p className="animate-fade-in mt-2 rounded-2xl bg-gray-50 px-4 py-3 text-xs leading-relaxed text-gray-500">
+        <p className="animate-fade-in mt-2 rounded-2xl bg-white/[0.04] px-4 py-3 text-xs leading-relaxed text-white/50">
           🥡 Te avisaremos cuando esté listo. Al pagar te pediremos tu{" "}
-          <span className="font-semibold text-gray-700">nombre</span> para
+          <span className="font-semibold text-white/80">nombre</span> para
           identificar la orden.
         </p>
       )}
@@ -67,8 +67,8 @@ function BotonSegmento({
       aria-pressed={activo}
       className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold transition-all duration-200 ${
         activo
-          ? "bg-gray-900 text-white shadow-md"
-          : "bg-transparent text-gray-500 hover:text-gray-700"
+          ? "bg-white text-neutral-900 shadow-md"
+          : "bg-transparent text-white/50 hover:text-white/80"
       }`}
     >
       {icono}

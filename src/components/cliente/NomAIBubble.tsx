@@ -154,7 +154,7 @@ export function NomAIBubble({ onPagarOrden, enHome }: NomAIBubbleProps) {
               style={{ background: "var(--brand)" }}
             >
               <CreditCard className="h-3.5 w-3.5" />
-              Pagar Orden
+              Ver mi cuenta y pagar
             </button>
           </>
         )}

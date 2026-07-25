@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { ChevronRight, UtensilsCrossed } from "lucide-react";
+import { UtensilsCrossed } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock } from "@/lib/mock-data";
 
@@ -21,9 +21,12 @@ interface MenuInteractivoProps {
 }
 
 /**
- * Feed principal AGRUPADO por categoría (scroll vertical). Cada categoría es
- * una sección con su título y sus tarjetas, con un ancla (id) para que las
- * pills superiores puedan desplazar suavemente hasta ella.
+ * Feed principal AGRUPADO por categoría, en CUADRÍCULA DE 2 COLUMNAS (estilo
+ * Rappi / Uber Eats). Antes era una lista vertical con foto pequeña a la
+ * izquierda y descripción, que desperdiciaba ancho y enterraba las fotos.
+ *
+ * Cada categoría es una sección con su ancla (id) para que las pills
+ * superiores puedan desplazar suavemente hasta ella.
  */
 export function MenuInteractivo({
   categorias,
@@ -53,77 +56,82 @@ export function MenuInteractivo({
               {tituloUnico ?? categoria}
             </h2>
 
-            <ul className="space-y-3">
+            {/* CUADRÍCULA DE 2 COLUMNAS */}
+            <div className="grid grid-cols-2 gap-4">
               {items.map((item) => (
-                <li
+                <ProductCard
                   key={item.id}
-                  className={`flex items-stretch gap-3 rounded-3xl bg-white p-3 shadow-sm ring-1 ring-gray-100 transition ${
-                    item.disponible ? "" : "opacity-60"
-                  }`}
-                >
-                  {/* Área táctil: abre el detalle premium */}
-                  <button
-                    type="button"
-                    onClick={() => onVerDetalle(item)}
-                    className="flex min-w-0 flex-1 items-stretch gap-3 text-left"
-                  >
-                    {/* Foto real (placeholder de respaldo si falla o no hay) */}
-                    {item.imagen_url && !imgErrors[item.id] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.imagen_url}
-                        alt={item.nombre}
-                        onError={() =>
-                          setImgErrors((prev) => ({ ...prev, [item.id]: true }))
-                        }
-                        className="h-24 w-24 shrink-0 rounded-2xl object-cover"
-                      />
-                    ) : (
-                      <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200">
-                        <UtensilsCrossed className="h-7 w-7 text-gray-300" />
-                      </div>
-                    )}
-
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <p className="font-semibold leading-tight text-gray-900">
-                        {item.nombre}
-                      </p>
-                      <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-gray-400">
-                        {item.descripcion}
-                      </p>
-                      <span className="mt-auto pt-2 text-[15px] font-bold text-gray-900">
-                        {formatCurrency(item.precio)}
-                      </span>
-                    </div>
-                  </button>
-
-                  {/* CTA secundario (outline) */}
-                  <div className="flex shrink-0 items-end">
-                    {item.disponible ? (
-                      <button
-                        type="button"
-                        onClick={() => onVerDetalle(item)}
-                        className="flex items-center gap-0.5 rounded-full border-2 bg-transparent px-3 py-2 text-xs font-bold transition active:scale-95"
-                        style={{
-                          borderColor: "var(--brand)",
-                          color: "var(--brand)",
-                        }}
-                      >
-                        Personalizar
-                        <ChevronRight className="h-3.5 w-3.5" strokeWidth={3} />
-                      </button>
-                    ) : (
-                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-400">
-                        Agotado
-                      </span>
-                    )}
-                  </div>
-                </li>
+                  item={item}
+                  conError={!!imgErrors[item.id]}
+                  onErrorImagen={() =>
+                    setImgErrors((prev) => ({ ...prev, [item.id]: true }))
+                  }
+                  onAbrir={() => onVerDetalle(item)}
+                />
               ))}
-            </ul>
+            </div>
           </section>
         );
       })}
     </div>
+  );
+}
+
+/**
+ * TARJETA DE PRODUCTO — limpia y 100% clickable.
+ *
+ * Toda la tarjeta es el área táctil: no hay botón de "+" ni de "Personalizar"
+ * flotando encima. El cliente toca la tarjeta y entra al detalle, punto.
+ */
+function ProductCard({
+  item,
+  conError,
+  onErrorImagen,
+  onAbrir,
+}: {
+  item: MenuItemMock;
+  conError: boolean;
+  onErrorImagen: () => void;
+  onAbrir: () => void;
+}) {
+  const conFoto = item.imagen_url && !conError;
+
+  return (
+    <button
+      type="button"
+      onClick={onAbrir}
+      className={`relative flex flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 text-left transition active:scale-[0.97] ${
+        item.disponible ? "" : "opacity-60"
+      }`}
+    >
+      {/* Imagen arriba, cuadrada y recortada */}
+      {conFoto ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={item.imagen_url}
+          alt={item.nombre}
+          onError={onErrorImagen}
+          className="aspect-square w-full object-cover"
+        />
+      ) : (
+        <div className="grid aspect-square w-full place-items-center bg-gradient-to-br from-zinc-800 to-zinc-900">
+          <span className="text-4xl">{item.emoji}</span>
+        </div>
+      )}
+
+      {/* Contenido debajo de la imagen */}
+      <div className="flex flex-col gap-1 p-3">
+        <p className="truncate text-sm font-bold text-white">{item.nombre}</p>
+        <p className="text-sm font-semibold text-red-500">
+          {formatCurrency(item.precio)}
+        </p>
+      </div>
+
+      {!item.disponible && (
+        <span className="absolute inset-x-0 top-0 grid aspect-square place-items-center bg-black/60 text-[11px] font-bold uppercase tracking-wide text-white">
+          Agotado
+        </span>
+      )}
+    </button>
   );
 }

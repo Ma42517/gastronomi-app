@@ -58,12 +58,12 @@ export function ModuloPropinas({
   };
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
-      <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-gray-900">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-white">
         <Heart className="h-4 w-4" style={{ color: "var(--brand)" }} />
         Agradece a tu equipo
       </p>
-      <p className="mb-3 text-xs text-gray-500">
+      <p className="mb-3 text-xs text-white/45">
         El 100% de la propina va directo al personal.
       </p>
 
@@ -85,9 +85,9 @@ export function ModuloPropinas({
                       color: "#fff",
                     }
                   : {
-                      borderColor: "#e5e7eb",
-                      background: "#fff",
-                      color: "#4b5563",
+                      borderColor: "rgba(255,255,255,0.12)",
+                      background: "rgba(255,255,255,0.04)",
+                      color: "rgba(255,255,255,0.7)",
                     }
               }
             >
@@ -107,7 +107,11 @@ export function ModuloPropinas({
                   background: "var(--brand)",
                   color: "#fff",
                 }
-              : { borderColor: "#e5e7eb", background: "#fff", color: "#4b5563" }
+              : {
+                  borderColor: "rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.04)",
+                  color: "rgba(255,255,255,0.7)",
+                }
           }
         >
           Otro
@@ -116,8 +120,8 @@ export function ModuloPropinas({
 
       {/* Monto personalizado */}
       {modoLibre && (
-        <div className="animate-fade-in mt-2.5 flex items-center gap-2 rounded-xl bg-white px-3 py-2 ring-1 ring-gray-200">
-          <span className="text-sm font-bold text-gray-400">$</span>
+        <div className="animate-fade-in mt-2.5 flex items-center gap-2 rounded-xl bg-black/40 px-3 py-2 ring-1 ring-white/15">
+          <span className="text-sm font-bold text-white/40">$</span>
           <input
             type="number"
             inputMode="decimal"
@@ -126,14 +130,14 @@ export function ModuloPropinas({
             value={montoLibre}
             onChange={(e) => cambiarMontoLibre(e.target.value)}
             placeholder="0.00"
-            className="w-full bg-transparent text-sm font-bold text-gray-900 outline-none placeholder:text-gray-300"
+            className="w-full bg-transparent text-sm font-bold text-white outline-none placeholder:text-white/25"
             aria-label="Monto de propina personalizado"
           />
         </div>
       )}
 
       {propina > 0 && (
-        <p className="mt-2.5 text-xs font-semibold text-gray-600">
+        <p className="mt-2.5 text-xs font-semibold text-white/60">
           Propina: {formatCurrency(propina)} · ¡Gracias de parte del equipo! 🙌
         </p>
       )}
