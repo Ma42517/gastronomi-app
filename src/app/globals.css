@@ -694,3 +694,57 @@ textarea {
     animation: none;
   }
 }
+
+
+
+/* ============================================================
+   Salsa "líquido 3D" sobre la FOTO REAL del platillo
+   El trazo se dibuja como si se estuviera sirviendo la salsa.
+   ============================================================ */
+@keyframes salsaPour {
+  from {
+    stroke-dashoffset: 320;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.salsa-trazo {
+  stroke-dasharray: 320;
+  stroke-dashoffset: 320;
+  animation: salsaPour 1.1s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+/* La gota final aparece justo cuando el chorro termina de caer */
+@keyframes salsaGota {
+  0%,
+  70% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  85% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.salsa-gota {
+  transform-origin: center;
+  animation: salsaGota 1.3s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .salsa-trazo {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .salsa-gota {
+    animation: none;
+    opacity: 1;
+  }
+}
