@@ -77,6 +77,14 @@ export function VistaClienteMesa({
   const modoFavoritos = categoriaActiva === CATEGORIA_FAVORITOS;
   const platillosFavoritos = menu.filter((m) => favoriteItems.includes(m.id));
 
+  // El aviso de éxito es temporal: se oculta solo tras unos segundos para no
+  // quedarse fijo tapando la tarjeta de beneficios.
+  useEffect(() => {
+    if (!avisoExito) return;
+    const t = window.setTimeout(() => setAvisoExito(null), 4500);
+    return () => window.clearTimeout(t);
+  }, [avisoExito]);
+
   // Navegación por pills: desplaza suavemente a la sección de la categoría.
   const irACategoria = (categoria: string) => {
     setCategoriaActiva(categoria);
@@ -386,7 +394,7 @@ export function VistaClienteMesa({
       {/* Confirmación de recompensa guardada */}
       {avisoExito && (
         <div className="fixed inset-x-0 bottom-24 z-[75] mx-auto max-w-md px-4">
-          <div className="animate-fade-in-up flex items-start gap-3 rounded-2xl border border-green-200 bg-white p-4 shadow-2xl">
+          <div className="animate-toast flex items-start gap-3 rounded-2xl border border-green-200 bg-white p-4 shadow-2xl">
             <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">
               <Gift className="h-4 w-4" />
             </span>

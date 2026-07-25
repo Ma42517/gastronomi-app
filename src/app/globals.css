@@ -570,3 +570,35 @@ textarea {
     animation: none;
   }
 }
+
+
+
+/* ============================================================
+   Aviso temporal (toast) — entra desde abajo y se desvanece solo
+   ============================================================ */
+@keyframes toastInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  10%,
+  82% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.animate-toast {
+  /* Debe coincidir con el timeout que limpia el aviso en el componente. */
+  animation: toastInOut 4.5s ease-in-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-toast {
+    animation: none;
+  }
+}
