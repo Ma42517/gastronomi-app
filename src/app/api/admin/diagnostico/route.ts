@@ -4,6 +4,11 @@ import {
   servicioConfigurado,
   supabaseConfigurado,
 } from "@/lib/supabase/config";
+import {
+  clasificarLlave,
+  esLlavePrivilegiada,
+  nombreLlave,
+} from "@/lib/supabase/llaves";
 
 /**
  * DIAGNÓSTICO DE LA CONEXIÓN — GET /api/admin/diagnostico
@@ -101,23 +106,36 @@ export async function GET() {
       : "Añade NEXT_PUBLIC_SUPABASE_URL en Vercel > Settings > Environment Variables y vuelve a desplegar.",
   });
 
+  // Se identifica el TIPO de cada llave. Supabase mantiene dos sistemas: el
+  // nuevo (sb_publishable_ / sb_secret_) y el legacy (JWT eyJ…). Ambos valen.
+  const tipoPublica = clasificarLlave(anon);
+  const tipoServicio = clasificarLlave(service);
+
   chequeos.push({
-    paso: "1b. Anon key",
-    ok: Boolean(anon),
+    paso: "1b. Llave pública (navegador)",
+    ok: Boolean(anon) && !esLlavePrivilegiada(tipoPublica),
     // Solo la cola de la llave: suficiente para distinguirla, inútil para robarla.
-    detalle: anon ? `presente (…${anon.slice(-4)})` : "AUSENTE",
-    que_hacer: anon
-      ? undefined
-      : "Añade NEXT_PUBLIC_SUPABASE_ANON_KEY en Vercel y vuelve a desplegar.",
+    detalle: anon
+      ? `${nombreLlave(tipoPublica)} — …${anon.slice(-4)}`
+      : "AUSENTE",
+    que_hacer: !anon
+      ? "Añade NEXT_PUBLIC_SUPABASE_ANON_KEY con tu Publishable key y vuelve a desplegar."
+      : esLlavePrivilegiada(tipoPublica)
+        ? "🚨 PELIGRO: pusiste la llave SECRETA en una variable NEXT_PUBLIC_. Next.js la incrusta en el bundle del navegador, así que es pública. Rótala en Supabase (Project Settings > API Keys) y pon ahí la Publishable key."
+        : undefined,
   });
 
   chequeos.push({
-    paso: "1c. SUPABASE_SERVICE_ROLE_KEY",
-    ok: Boolean(service),
-    detalle: service ? `presente (…${service.slice(-4)})` : "AUSENTE",
-    que_hacer: service
-      ? undefined
-      : "Sin ella el panel puede LEER pero no GUARDAR. Añádela en Vercel (sin el prefijo NEXT_PUBLIC_).",
+    paso: "1c. Llave de servicio (SUPABASE_SERVICE_ROLE_KEY)",
+    ok: Boolean(service) && esLlavePrivilegiada(tipoServicio),
+    detalle: service
+      ? `${nombreLlave(tipoServicio)} — …${service.slice(-4)}`
+      : "AUSENTE",
+    que_hacer: !service
+      ? "Sin ella el panel puede LEER pero no GUARDAR. Añádela con tu Secret key (sb_secret_…), SIN el prefijo NEXT_PUBLIC_."
+      : !esLlavePrivilegiada(tipoServicio)
+        ? "Aquí va la Secret key (sb_secret_…), no la Publishable. Con la publishable, guardar fallará por RLS con un error confuso."
+        : undefined,
   });
 
   // Si falta lo básico, no tiene sentido seguir intentando conectar.
@@ -147,22 +165,32 @@ export async function GET() {
     if (errorEstructura) {
       const mensaje = errorEstructura.message;
       const faltaTabla = /does not exist|schema cache/i.test(mensaje);
+      // Sin esta rama, una llave inválida se reportaba como "falta estructura",
+      // mandando al usuario a correr un SQL que no arreglaría nada.
+      const llaveInvalida =
+        /invalid api key|invalid jwt|jwt expired|unauthorized|no api key/i.test(
+          mensaje,
+        );
 
       chequeos.push({
         paso: "2. Conexión y estructura",
         ok: false,
         detalle: mensaje,
-        que_hacer: faltaTabla
-          ? "Corre supabase/INSTALACION-COMPLETA.sql en el SQL Editor de Supabase."
-          : "Revisa el mensaje: suele ser una columna que falta (corre la migración 001).",
+        que_hacer: llaveInvalida
+          ? "La llave no es válida para este proyecto. Verifica que la URL y las llaves salgan del MISMO proyecto de Supabase (Project Settings > API Keys)."
+          : faltaTabla
+            ? "Corre supabase/INSTALACION-COMPLETA.sql en el SQL Editor de Supabase."
+            : "Revisa el mensaje: suele ser una columna que falta (corre la migración 001).",
       });
 
       return Response.json(
         {
           listo: false,
-          resumen: faltaTabla
-            ? "Conecta con Supabase, pero las tablas no existen todavía."
-            : "Conecta con Supabase, pero falta parte de la estructura.",
+          resumen: llaveInvalida
+            ? "Las llaves no son válidas para este proyecto de Supabase."
+            : faltaTabla
+              ? "Conecta con Supabase, pero las tablas no existen todavía."
+              : "Conecta con Supabase, pero falta parte de la estructura.",
           chequeos,
         },
         { status: 200 },

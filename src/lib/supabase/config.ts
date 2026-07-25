@@ -28,15 +28,31 @@ export function supabaseConfigurado(): boolean {
   return Boolean(
     url &&
       key &&
-      // El .env.local.example trae marcadores de posición; si alguien copia el
-      // archivo sin rellenarlo, esto evita intentos de conexión inútiles.
-      !url.includes("TU-PROYECTO") &&
-      !key.startsWith("tu-"),
+      // Si alguien copia el .env.local.example sin rellenarlo, esto evita
+      // intentos de conexión inútiles.
+      !esMarcadorDePosicion(url) &&
+      !esMarcadorDePosicion(key),
   );
 }
 
 /** ¿Está la llave de servicio, necesaria para ESCRIBIR? (solo servidor) */
 export function servicioConfigurado(): boolean {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return Boolean(key && !key.startsWith("tu-"));
+  return Boolean(key && !esMarcadorDePosicion(key));
+}
+
+/**
+ * ¿Es un marcador de posición del `.env.local.example` en lugar de una llave real?
+ *
+ * Se comprueba por lista de marcadores conocidos y NO por el formato de la
+ * llave: Supabase mantiene dos sistemas en paralelo — el nuevo
+ * (`sb_publishable_…` / `sb_secret_…`) y el antiguo, que son JWT y empiezan por
+ * `eyJ`. Validar el formato rompería uno de los dos.
+ */
+function esMarcadorDePosicion(valor: string): boolean {
+  return (
+    valor.startsWith("tu-") ||
+    valor.includes("TU-PROYECTO") ||
+    valor.trim() === ""
+  );
 }
