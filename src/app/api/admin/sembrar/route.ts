@@ -5,6 +5,7 @@ import {
   supabaseConfigurado,
 } from "@/lib/supabase/config";
 import { platilloAUpsert } from "@/lib/restaurante-repo";
+import { mensajeDeError } from "@/lib/supabase/errores";
 import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
 import type { MenuItemMock } from "@/lib/mock-data";
 import type { LealtadEditable } from "@/lib/restaurante-store";
@@ -91,7 +92,7 @@ export async function POST(req: Request) {
 
     return Response.json({ ok: true, platillos: filas.length });
   } catch (error) {
-    const mensaje = error instanceof Error ? error.message : "Error desconocido";
+    const mensaje = mensajeDeError(error);
     console.error("[Supabase][admin/sembrar] POST:", mensaje);
     return Response.json({ error: mensaje }, { status: 500 });
   }

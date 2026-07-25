@@ -38,9 +38,17 @@ alter table public.menu_items
   add column if not exists is_popular boolean not null default false;
 
 -- Un slug no puede repetirse dentro del mismo restaurante (sí entre distintos).
+--
+-- IMPORTANTE: el índice NO debe ser parcial (`where slug is not null`). El panel
+-- guarda con UPSERT, que es `on conflict (restaurante_id, slug) do update`, y
+-- Postgres solo acepta un índice parcial como árbitro de ON CONFLICT si la
+-- sentencia repite su predicado — algo que PostgREST no hace. Con un índice
+-- parcial, todo intento de guardar falla con el error 42P10.
+--
+-- El predicado tampoco era necesario: en un índice único los NULL no colisionan
+-- entre sí, así que las filas sin slug se permiten igual.
 create unique index if not exists uniq_menu_slug_por_restaurante
-  on public.menu_items (restaurante_id, slug)
-  where slug is not null;
+  on public.menu_items (restaurante_id, slug);
 
 -- ----------------------------------------------------------------------------
 -- 2. RESTAURANTES — premio y tema visual

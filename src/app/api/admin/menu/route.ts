@@ -5,6 +5,7 @@ import {
   supabaseConfigurado,
 } from "@/lib/supabase/config";
 import { platilloAUpsert } from "@/lib/restaurante-repo";
+import { mensajeDeError } from "@/lib/supabase/errores";
 import type { MenuItemMock } from "@/lib/mock-data";
 
 /**
@@ -87,7 +88,7 @@ export async function POST(req: Request) {
     if (error) throw error;
     return Response.json({ ok: true });
   } catch (error) {
-    const mensaje = error instanceof Error ? error.message : "Error desconocido";
+    const mensaje = mensajeDeError(error);
     console.error("[Supabase][admin/menu] POST:", mensaje);
     return Response.json({ error: mensaje }, { status: 500 });
   }
@@ -114,7 +115,7 @@ export async function DELETE(req: Request) {
     if (error) throw error;
     return Response.json({ ok: true });
   } catch (error) {
-    const mensaje = error instanceof Error ? error.message : "Error desconocido";
+    const mensaje = mensajeDeError(error);
     console.error("[Supabase][admin/menu] DELETE:", mensaje);
     return Response.json({ error: mensaje }, { status: 500 });
   }

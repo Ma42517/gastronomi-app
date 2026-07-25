@@ -4,6 +4,7 @@ import {
   servicioConfigurado,
   supabaseConfigurado,
 } from "@/lib/supabase/config";
+import { mensajeDeError } from "@/lib/supabase/errores";
 import type { LealtadEditable } from "@/lib/restaurante-store";
 
 /**
@@ -55,7 +56,7 @@ export async function PUT(req: Request) {
     if (error) throw error;
     return Response.json({ ok: true });
   } catch (error) {
-    const mensaje = error instanceof Error ? error.message : "Error desconocido";
+    const mensaje = mensajeDeError(error);
     console.error("[Supabase][admin/lealtad] PUT:", mensaje);
     return Response.json({ error: mensaje }, { status: 500 });
   }

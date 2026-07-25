@@ -175,6 +175,9 @@ export async function GET() {
       // nuevas del esquema public: hace falta un GRANT explícito. Sin esta rama
       // el error se confundía con "falta una columna".
       const faltanPermisos = /permission denied|42501/i.test(mensaje);
+      // 42P10: el upsert no encuentra un índice único que sirva de árbitro.
+      // Ocurre si el índice del slug quedó como PARCIAL (ver migración 004).
+      const indiceMalo = /42P10|no unique or exclusion constraint/i.test(mensaje);
 
       chequeos.push({
         paso: "2. Conexión y estructura",
@@ -184,9 +187,11 @@ export async function GET() {
           ? "La llave no es válida para este proyecto. Verifica que la URL y las llaves salgan del MISMO proyecto de Supabase (Project Settings > API Keys)."
           : faltanPermisos
             ? "Las tablas existen pero no están expuestas a la API. Corre supabase/migrations/002_permisos.sql en el SQL Editor."
-            : faltaTabla
-              ? "Corre supabase/INSTALACION-COMPLETA.sql en el SQL Editor de Supabase."
-              : "Revisa el mensaje: suele ser una columna que falta (corre la migración 001).",
+            : indiceMalo
+              ? "El índice único del slug quedó como parcial y el upsert no puede usarlo. Corre supabase/migrations/004_arreglar_indice_upsert.sql."
+              : faltaTabla
+                ? "Corre supabase/INSTALACION-COMPLETA.sql en el SQL Editor de Supabase."
+                : "Revisa el mensaje: suele ser una columna que falta (corre la migración 001).",
       });
 
       return Response.json(
