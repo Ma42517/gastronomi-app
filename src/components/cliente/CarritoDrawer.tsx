@@ -26,8 +26,6 @@ interface CarritoDrawerProps {
   // --- Módulos operativos (estado en el padre para que el checkout lo use) ---
   modalidad: Modalidad;
   onCambiarModalidad: (m: Modalidad) => void;
-  mesa: string;
-  onCambiarMesa: (mesa: string) => void;
   propina: number;
   porcentajePropina: number | null;
   onCambiarPropina: (porcentaje: number | null, monto: number) => void;
@@ -49,8 +47,6 @@ export function CarritoDrawer({
   onAgregarSugerido,
   modalidad,
   onCambiarModalidad,
-  mesa,
-  onCambiarMesa,
   propina,
   porcentajePropina,
   onCambiarPropina,
@@ -104,13 +100,12 @@ export function CarritoDrawer({
           </button>
         </div>
 
-        {/* 1.2) MODALIDAD: comer aquí vs. para llevar */}
+        {/* 1.2) MODALIDAD: comer aquí vs. para llevar.
+              La mesa NO se pide aquí: se obtiene del QR escaneado. */}
         <div className="px-5 pb-3">
           <SelectorModalidad
             modalidad={modalidad}
             onCambiar={onCambiarModalidad}
-            mesa={mesa}
-            onCambiarMesa={onCambiarMesa}
           />
         </div>
 

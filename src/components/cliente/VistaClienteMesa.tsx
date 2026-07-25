@@ -66,7 +66,7 @@ export function VistaClienteMesa({
   const [brillarVIP, setBrillarVIP] = useState(false);
   // --- Módulos operativos del checkout ---
   const [modalidad, setModalidad] = useState<Modalidad>("local");
-  const [mesaElegida, setMesaElegida] = useState(numeroMesa);
+  // La mesa NO es editable: viene del QR escaneado (`numeroMesa` de la URL).
   const [propina, setPropina] = useState(0);
   const [porcentajePropina, setPorcentajePropina] = useState<number | null>(null);
 
@@ -654,7 +654,7 @@ export function VistaClienteMesa({
         total={total}
         propina={propina}
         modalidad={modalidad}
-        mesa={mesaElegida}
+        mesa={numeroMesa}
         onCerrar={() => setModalPagoAbierto(false)}
         onPagoExitoso={handlePaymentSuccess}
       />
@@ -689,8 +689,6 @@ export function VistaClienteMesa({
         }
         modalidad={modalidad}
         onCambiarModalidad={setModalidad}
-        mesa={mesaElegida}
-        onCambiarMesa={setMesaElegida}
         propina={propina}
         porcentajePropina={porcentajePropina}
         onCambiarPropina={(pct, monto) => {
