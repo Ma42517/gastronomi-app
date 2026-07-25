@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Check,
   CreditCard,
@@ -77,6 +77,9 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   const [reaccion, setReaccion] = useState<string | null>(null);
   const [sugeridoAgregado, setSugeridoAgregado] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  // Ancla de la tarjeta de Ñom AI: al agregar, la vista baja hasta aquí para
+  // que el botón "Ver orden y pagar" quede visible sin cerrar el modal.
+  const tarjetaAIRef = useRef<HTMLDivElement>(null);
 
   // Toast discreto (favoritos).
   const mostrarToast = (mensaje: string) => setToast(mensaje);
@@ -96,9 +99,9 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   const mensajeCrossSell = mensajeComplemento(sugerido, motivoMaridaje);
 
   /**
-   * ONE-TAP COMBO: garantiza que el platillo principal esté en el carrito,
-   * agrega el complemento elegido y CIERRA el modal (auto-collapse) para que
-   * el cliente caiga en el home con la barra ya en "Ver orden y Pagar".
+   * ONE-TAP COMBO: garantiza que el platillo principal esté en el carrito y
+   * agrega el complemento elegido. El modal NO se cierra: el cliente decide
+   * cuándo salir o pagar con el botón "Ver orden y pagar".
    */
   const handleAddRecommendation = (bebida: MenuItemMock) => {
     if (!item) return;
@@ -121,9 +124,6 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
       precio: bebida.precio,
       emoji: bebida.emoji,
     });
-
-    // 3) Auto-collapse: cierra el detalle del platillo.
-    onCerrar();
   };
 
   // "Agregar al carrito" se habilita solo cuando TODOS los grupos marcados como
@@ -173,6 +173,19 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     setSugeridoAgregado(false);
   }, [abierto, item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Al agregar, el modal se queda abierto: se baja la vista a la tarjeta de
+  // Ñom AI para revelar las sugerencias y el botón "Ver orden y pagar".
+  useEffect(() => {
+    if (!agregado) return;
+    const t = window.setTimeout(() => {
+      tarjetaAIRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [agregado]);
+
   if (!abierto || !item) return null;
 
   const brand = "var(--brand, #DC2626)";
@@ -197,13 +210,13 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
       (g) => (resultado[g.id]?.length ?? 0) > 0,
     );
 
-    // ONE-TAP ADD: al completar el último obligatorio, se agrega y se cierra
-    // solo. Un pequeño delay deja ver la selección para que se sienta
-    // intencional (no un salto brusco).
+    // ONE-TAP ADD: al completar el último obligatorio se agrega al carrito,
+    // pero el modal PERMANECE ABIERTO para que el cliente siga viendo las
+    // sugerencias de Ñom AI y el botón "Ver orden y pagar". Un pequeño delay
+    // deja ver la selección para que se sienta intencional.
     if (completoTodo && !agregado && item.disponible) {
       window.setTimeout(() => {
         agregar();
-        onCerrar();
       }, 260);
     }
   };
@@ -370,7 +383,10 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
               Va DEBAJO del botón de agregar; no es barra fija ni tiene chevron.
               Incluye el carrusel visual de complementos con One-Tap Combo
               (agrega platillo + bebida y cierra el modal para ir al pago). */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div
+            ref={tarjetaAIRef}
+            className="scroll-mt-4 rounded-2xl border border-white/10 bg-white/5 p-4"
+          >
             <p
               className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"
               style={{ color: brand }}
