@@ -171,6 +171,10 @@ export async function GET() {
         /invalid api key|invalid jwt|jwt expired|unauthorized|no api key/i.test(
           mensaje,
         );
+      // Supabase dejó de exponer automáticamente a la Data API las tablas
+      // nuevas del esquema public: hace falta un GRANT explícito. Sin esta rama
+      // el error se confundía con "falta una columna".
+      const faltanPermisos = /permission denied|42501/i.test(mensaje);
 
       chequeos.push({
         paso: "2. Conexión y estructura",
@@ -178,9 +182,11 @@ export async function GET() {
         detalle: mensaje,
         que_hacer: llaveInvalida
           ? "La llave no es válida para este proyecto. Verifica que la URL y las llaves salgan del MISMO proyecto de Supabase (Project Settings > API Keys)."
-          : faltaTabla
-            ? "Corre supabase/INSTALACION-COMPLETA.sql en el SQL Editor de Supabase."
-            : "Revisa el mensaje: suele ser una columna que falta (corre la migración 001).",
+          : faltanPermisos
+            ? "Las tablas existen pero no están expuestas a la API. Corre supabase/migrations/002_permisos.sql en el SQL Editor."
+            : faltaTabla
+              ? "Corre supabase/INSTALACION-COMPLETA.sql en el SQL Editor de Supabase."
+              : "Revisa el mensaje: suele ser una columna que falta (corre la migración 001).",
       });
 
       return Response.json(
@@ -188,9 +194,11 @@ export async function GET() {
           listo: false,
           resumen: llaveInvalida
             ? "Las llaves no son válidas para este proyecto de Supabase."
-            : faltaTabla
-              ? "Conecta con Supabase, pero las tablas no existen todavía."
-              : "Conecta con Supabase, pero falta parte de la estructura.",
+            : faltanPermisos
+              ? "Las tablas existen, pero les faltan permisos de acceso a la API (corre la migración 002)."
+              : faltaTabla
+                ? "Conecta con Supabase, pero las tablas no existen todavía."
+                : "Conecta con Supabase, pero falta parte de la estructura.",
           chequeos,
         },
         { status: 200 },
