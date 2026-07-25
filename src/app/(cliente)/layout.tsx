@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { NomAIProvider } from "@/components/cliente/NomAIContext";
 import { NomAIAssistant } from "@/components/cliente/NomAIAssistant";
+import { HidratarRestaurante } from "@/components/HidratarRestaurante";
 
 /**
  * Layout del grupo (cliente).
@@ -12,6 +13,8 @@ import { NomAIAssistant } from "@/components/cliente/NomAIAssistant";
 export default function ClienteLayout({ children }: { children: ReactNode }) {
   return (
     <NomAIProvider>
+      {/* Trae los cambios guardados por el Panel Administrador. */}
+      <HidratarRestaurante />
       {children}
       <NomAIAssistant />
     </NomAIProvider>

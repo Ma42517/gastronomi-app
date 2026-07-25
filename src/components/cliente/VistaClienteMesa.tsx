@@ -12,8 +12,12 @@ import {
   UserCircle2,
   X,
 } from "lucide-react";
-import type { MenuItemMock, ProgramaLealtad, RestauranteMock } from "@/lib/mock-data";
+import type { MenuItemMock, RestauranteMock } from "@/lib/mock-data";
 import { useCartStore } from "@/lib/cart-store";
+import {
+  useRestauranteStore,
+  type LealtadEditable,
+} from "@/lib/restaurante-store";
 import { TarjetaSellos } from "./TarjetaSellos";
 import { CategoriaPills } from "./CategoriaPills";
 import { SeccionPopulares } from "./SeccionPopulares";
@@ -43,12 +47,50 @@ export function VistaClienteMesa({
   restaurante,
   numeroMesa,
 }: VistaClienteMesaProps) {
-  const { tema, menu, categorias, hero } = restaurante;
+  const { tema, hero } = restaurante;
+
+  // MENÚ Y LEALTAD VIVOS: se leen del store, no del mock. Así lo que el dueño
+  // guarda en el Panel Administrador (precio, foto, agotado, premio) aparece
+  // aquí en cuanto se vuelve al menú. El store arranca sembrado con el mock,
+  // por lo que sin ninguna edición el resultado es idéntico al de antes.
+  const menu = useRestauranteStore((s) => s.menu);
+  const lealtadConfig = useRestauranteStore((s) => s.lealtad);
+
+  /**
+   * SECCIONES DEL MENÚ. El orden base lo define el restaurante
+   * (`restaurante.categorias`), pero si el administrador inventa una categoría
+   * nueva en el panel, se añade al final en lugar de quedar invisible.
+   * La categoría del platillo héroe se omite: ya tiene su tarjeta destacada.
+   */
+  const categorias = (() => {
+    const base = restaurante.categorias;
+    const categoriaHero = menu.find((m) => m.id === hero.item_id)?.categoria;
+    const nuevas = Array.from(new Set(menu.map((m) => m.categoria))).filter(
+      (c) =>
+        !base.includes(c) &&
+        c !== categoriaHero &&
+        // "Postres" existe solo para el cross-sell del carrito.
+        c !== "Postres",
+    );
+    return [...base, ...nuevas];
+  })();
 
   const [categoriaActiva, setCategoriaActiva] = useState(categorias[0]);
   const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
   const [detalleItem, setDetalleItem] = useState<MenuItemMock | null>(null);
-  const [lealtad, setLealtad] = useState<ProgramaLealtad>(restaurante.lealtad);
+  // Solo el PROGRESO del cliente es estado local; el resto de la tarjeta
+  // (cuántos sellos hacen falta, cuál es el premio y su foto) lo manda el
+  // administrador desde el panel.
+  const [sellosActuales, setSellosActuales] = useState(
+    restaurante.lealtad.sellos_actuales,
+  );
+  const lealtad: LealtadEditable = {
+    ...lealtadConfig,
+    sellos_actuales: Math.min(
+      sellosActuales,
+      lealtadConfig.sellos_para_recompensa,
+    ),
+  };
   // Lealtad / lead gen: intercepción del premio en la 5ª visita.
   const [modalRegistroAbierto, setModalRegistroAbierto] = useState(false);
   const [premioReclamado, setPremioReclamado] = useState(false);
@@ -251,7 +293,7 @@ export function VistaClienteMesa({
 
     // CIERRE DEL LOOP: si se pagó el premio, el ciclo vuelve a empezar en 0/5.
     if (incluiaPremio) {
-      setLealtad((l) => ({ ...l, sellos_actuales: 0 }));
+      setSellosActuales(0);
       setPremioCanjeado(false);
       setPremioReclamado(false);
       setAvisoExito(
@@ -263,10 +305,7 @@ export function VistaClienteMesa({
     // Flujo normal: +1 visita. Se calcula fuera del updater para no producir
     // efectos secundarios dentro de él (React puede invocarlo más de una vez).
     const nuevasVisitas = lealtad.sellos_actuales + 1;
-    setLealtad((l) => ({
-      ...l,
-      sellos_actuales: Math.min(nuevasVisitas, l.sellos_para_recompensa),
-    }));
+    setSellosActuales(nuevasVisitas);
     if (nuevasVisitas >= lealtad.sellos_para_recompensa && !premioReclamado) {
       setModalRegistroAbierto(true);
     }

@@ -5,10 +5,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, Minus, Plus, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
-import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
 import { obtenerMaridaje } from "@/lib/maridajes";
 import type { GrupoModificador, MenuItemMock } from "@/lib/mock-data";
 import { useCopiloto } from "@/lib/use-copiloto";
+import { useRestauranteStore } from "@/lib/restaurante-store";
 import { useNomAI } from "./NomAIContext";
 import { BotonFavorito } from "./BotonFavorito";
 import { CopilotoAI } from "./CopilotoAI";
@@ -136,9 +136,13 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     setBeverageQty(1);
   }, [abierto, item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // El maridaje se calcula sobre el menú VIVO del store: si el dueño marca
+  // una bebida como agotada en el panel, deja de sugerirse aquí.
+  const menu = useRestauranteStore((s) => s.menu);
+
   // Maridaje real (puede venir vacío: un postre no lleva refresco).
   const { items: complementos, motivo: motivoMaridaje } = item
-    ? obtenerMaridaje(item, TAQUERIA_EL_PRIMO.menu)
+    ? obtenerMaridaje(item, menu)
     : { items: [], motivo: "" };
 
   const gruposObligatorios = (item?.modifiers ?? []).filter((g) => g.requerido);

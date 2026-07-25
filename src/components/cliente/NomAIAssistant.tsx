@@ -13,15 +13,24 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
-import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
+import type { MenuItemMock } from "@/lib/mock-data";
+import { useRestauranteStore } from "@/lib/restaurante-store";
 import { useNomAI } from "./NomAIContext";
 
 const SALUDO =
   "¡Hola! Soy Ñom AI. ¿Tienes antojo de algo en especial o alguna alergia que deba conocer?";
 
-/** Resuelve el item sugerido por la IA a un producto real del menú. */
-function resolverItem(nombre: string, precio?: number) {
-  const enMenu = TAQUERIA_EL_PRIMO.menu.find(
+/**
+ * Resuelve el item sugerido por la IA a un producto real del menú.
+ * Recibe el menú por parámetro (ya no lee el mock directo) para que respete
+ * los precios y nombres que el administrador tenga guardados.
+ */
+function resolverItem(
+  menu: MenuItemMock[],
+  nombre: string,
+  precio?: number,
+) {
+  const enMenu = menu.find(
     (m) => m.nombre.toLowerCase() === nombre.toLowerCase(),
   );
   if (enMenu) {
@@ -59,6 +68,9 @@ export function NomAIAssistant() {
   const [userLocation] = useState("Zamora, Michoacán");
 
   const addToCart = useCartStore((s) => s.addToCart);
+  // Menú vivo: lo que sugiera la IA se resuelve contra los datos que el
+  // administrador tenga guardados, no contra el mock original.
+  const menu = useRestauranteStore((s) => s.menu);
 
   const {
     messages,
@@ -116,7 +128,7 @@ export function NomAIAssistant() {
     precio?: number,
   ) => {
     if (agregados.includes(toolCallId)) return;
-    const item = resolverItem(nombre, precio);
+    const item = resolverItem(menu, nombre, precio);
     addToCart(item);
     setAgregados((prev) => [...prev, toolCallId]);
     setAviso(`✓ ${item.nombre} añadido a la cuenta`);
