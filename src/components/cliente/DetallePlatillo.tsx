@@ -16,6 +16,7 @@ import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
 import type { GrupoModificador, MenuItemMock } from "@/lib/mock-data";
 import { useNomAI } from "./NomAIContext";
 import { BotonFavorito } from "./BotonFavorito";
+import { SugerenciasBebida } from "./SugerenciasBebida";
 
 interface DetallePlatilloProps {
   abierto: boolean;
@@ -61,6 +62,24 @@ function sugerirCrossSell(item: MenuItemMock): MenuItemMock | null {
 
   // Antojitos salados → refresco bien frío (o horchata como respaldo).
   return buscar("b-coca") ?? buscar("b-horchata") ?? buscar("p-flan");
+}
+
+/**
+ * Complementos para el carrusel visual de Ñom AI (máx. 3).
+ * Antojitos y postres → BEBIDAS reales del menú; bebidas → antojitos.
+ */
+function complementosSugeridos(item: MenuItemMock): MenuItemMock[] {
+  const menu = TAQUERIA_EL_PRIMO.menu;
+  const disponibles = (categoria: string) =>
+    menu.filter(
+      (m) => m.categoria === categoria && m.disponible && m.id !== item.id,
+    );
+
+  if (item.categoria === "Bebidas") {
+    return [...disponibles("Tacos"), ...disponibles("Quesadillas")].slice(0, 3);
+  }
+  // Antojitos salados y postres: bebidas bien frías para acompañar.
+  return disponibles("Bebidas").slice(0, 3);
 }
 
 /** Mensaje del complemento según lo que se está pidiendo. */
@@ -111,6 +130,38 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
 
   const sugerido = item ? sugerirCrossSell(item) : null;
   const mensajeCrossSell = item ? mensajeComplemento(item, sugerido) : "";
+  const complementos = item ? complementosSugeridos(item) : [];
+
+  /**
+   * ONE-TAP COMBO: garantiza que el platillo principal esté en el carrito,
+   * agrega el complemento elegido y CIERRA el modal (auto-collapse) para que
+   * el cliente caiga en el home con la barra ya en "Ver orden y Pagar".
+   */
+  const handleAddRecommendation = (bebida: MenuItemMock) => {
+    if (!item) return;
+
+    // 1) El platillo principal se agrega si aún no estaba en la orden.
+    if (!agregado) {
+      addToCart({
+        id: item.id,
+        nombre: item.nombre,
+        precio: item.precio,
+        emoji: item.emoji,
+      });
+      setAgregado(true);
+    }
+
+    // 2) Se agrega la bebida seleccionada.
+    addToCart({
+      id: bebida.id,
+      nombre: bebida.nombre,
+      precio: bebida.precio,
+      emoji: bebida.emoji,
+    });
+
+    // 3) Auto-collapse: cierra el detalle del platillo.
+    onCerrar();
+  };
 
   // "Agregar al carrito" se habilita solo cuando TODOS los grupos marcados como
   // obligatorios tienen al menos una selección real del cliente.
@@ -334,8 +385,8 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
 
           {/* ===== Tarjeta Ñom AI INTEGRADA (estática, position: static) =====
               Va DEBAJO del botón de agregar; no es barra fija ni tiene chevron.
-              Timing estricto: no sugiere complementos ni muestra botón de extra
-              hasta que el usuario agrega el platillo principal a la cuenta. */}
+              Incluye el carrusel visual de complementos con One-Tap Combo
+              (agrega platillo + bebida y cierra el modal para ir al pago). */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <p
               className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"
@@ -346,7 +397,16 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
             </p>
             <p className="text-sm leading-snug text-white/85">{textoTarjeta}</p>
 
-            {agregado && sugerido ? (
+            {/* Carrusel visual de complementos (One-Tap Combo). Se muestra en
+                cuanto el cliente puede ordenar, para no frenar la venta. */}
+            {!faltanObligatorios && item.disponible && (
+              <SugerenciasBebida
+                items={complementos}
+                onSeleccionar={handleAddRecommendation}
+              />
+            )}
+
+            {agregado && sugerido && complementos.length === 0 ? (
               <button
                 type="button"
                 onClick={agregarSugeridoInline}

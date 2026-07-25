@@ -149,6 +149,10 @@ const IMG_POTATO =
   "https://images.unsplash.com/photo-1593922146430-8199eb3c1a82?auto=format&fit=crop&w=800&q=80";
 const IMG_BEBIDA =
   "https://images.unsplash.com/photo-1554866585-cd94860890b7?auto=format&fit=crop&w=800&q=80";
+const IMG_FANTA =
+  "https://images.unsplash.com/photo-1624552184280-9e9631bbeee9?auto=format&fit=crop&w=800&q=80";
+const IMG_HORCHATA =
+  "https://images.unsplash.com/photo-1497534446932-c925b458314e?auto=format&fit=crop&w=800&q=80";
 
 // ---------------------------------------------------------------------------
 // MOCK: "Taquería El Primo"
@@ -334,6 +338,17 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       imagen_url: IMG_BEBIDA,
     },
     {
+      id: "b-fanta",
+      nombre: "Fanta",
+      descripcion:
+        "Refresco de naranja bien frío, 355 ml. Dulce y burbujeante para bajar los antojitos.",
+      precio: 30,
+      categoria: "Bebidas",
+      emoji: "🍊",
+      disponible: true,
+      imagen_url: IMG_FANTA,
+    },
+    {
       id: "b-horchata",
       nombre: "Agua de Horchata",
       descripcion:
@@ -342,7 +357,7 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
       categoria: "Bebidas",
       emoji: "🧉",
       disponible: true,
-      imagen_url: IMG_BEBIDA,
+      imagen_url: IMG_HORCHATA,
     },
 
     // --- Postre (no se lista en categorías: solo cross-sell / drawer) ---
