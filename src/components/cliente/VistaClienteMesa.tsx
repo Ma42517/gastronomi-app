@@ -559,8 +559,6 @@ export function VistaClienteMesa({
           categorias={categoriasConFavoritos}
           activa={categoriaActiva}
           onSelect={irACategoria}
-          busqueda={busqueda}
-          onBuscar={setBusqueda}
         />
 
         {buscando ? (
@@ -646,6 +644,8 @@ export function VistaClienteMesa({
           abrirCarrito();
         }}
         brillarVIP={brillarVIP}
+        busqueda={busqueda}
+        onBuscar={setBusqueda}
       />
 
       {/* MODAL DE PAGO / SPLIT BILL */}

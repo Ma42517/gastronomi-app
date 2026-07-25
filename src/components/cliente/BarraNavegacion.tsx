@@ -1,6 +1,7 @@
 "use client";
 
-import { Gift, Home, Sparkles, User } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Gift, Home, Search, Sparkles, User, X } from "lucide-react";
 import { NomAIBubble } from "./NomAIBubble";
 
 export type TabActivo = "home" | "vip" | "perfil";
@@ -14,13 +15,20 @@ interface BarraNavegacionProps {
   onPagarOrden: () => void;
   /** Dispara el destello del botón VIP (al agregar algo o sumar un sello). */
   brillarVIP: boolean;
+  /** Texto de búsqueda global (controlado por el padre). */
+  busqueda: string;
+  onBuscar: (texto: string) => void;
 }
 
 /**
  * Barra de navegación flotante y modular (estilo Uber Eats):
- * 4 elementos balanceados — Home y VIP a la izquierda, píldora central de
- * Ñom AI y Perfil a la derecha. NO hay botón de carrito: Ñom AI asume el rol
- * de cajero a través de su viñeta proactiva.
+ * Home y VIP a la izquierda, píldora central de Ñom AI, y Lupa + Perfil a la
+ * derecha. NO hay botón de carrito: Ñom AI asume el rol de cajero a través de
+ * su viñeta proactiva.
+ *
+ * La LUPA vive junto a la píldora de Ñom AI (antes estaba en las pills de
+ * categorías). Al tocarla, la barra completa se transforma en un campo de
+ * búsqueda a todo lo ancho, sin sacar al cliente de su contexto.
  */
 export function BarraNavegacion({
   tab,
@@ -28,7 +36,59 @@ export function BarraNavegacion({
   onAbrirChat,
   onPagarOrden,
   brillarVIP,
+  busqueda,
+  onBuscar,
 }: BarraNavegacionProps) {
+  const [buscando, setBuscando] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Al expandir la lupa, enfoca el campo para escribir de inmediato.
+  useEffect(() => {
+    if (buscando) inputRef.current?.focus();
+  }, [buscando]);
+
+  /** Los resultados de búsqueda solo se pintan en el Home: se fuerza ese tab. */
+  const abrirBusqueda = () => {
+    onTab("home");
+    setBuscando(true);
+  };
+
+  const cerrarBusqueda = () => {
+    onBuscar("");
+    setBuscando(false);
+  };
+
+  // --- MODO BÚSQUEDA: la barra se convierte en un campo a todo lo ancho ---
+  if (buscando) {
+    return (
+      <nav className="fixed bottom-4 left-4 right-4 z-50 mx-auto flex max-w-md items-center">
+        <div className="flex flex-1 items-center gap-2 rounded-full bg-white py-1 pl-4 pr-1.5 shadow-lg ring-1 ring-black/5">
+          <Search
+            className="h-4 w-4 shrink-0"
+            strokeWidth={2.5}
+            style={{ color: "var(--brand)" }}
+          />
+          <input
+            ref={inputRef}
+            type="text"
+            value={busqueda}
+            onChange={(e) => onBuscar(e.target.value)}
+            placeholder="¿Qué se te antoja?"
+            className="min-w-0 flex-1 bg-transparent py-2.5 text-sm font-medium text-gray-900 outline-none placeholder:font-normal placeholder:text-gray-400"
+          />
+          <button
+            type="button"
+            onClick={cerrarBusqueda}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 active:scale-90"
+            aria-label="Cerrar búsqueda"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </nav>
+    );
+  }
+
   return (
     <nav className="fixed bottom-4 left-4 right-4 z-50 mx-auto flex max-w-md items-center justify-between gap-2">
       {/* 1) Home */}
@@ -58,7 +118,7 @@ export function BarraNavegacion({
         <button
           type="button"
           onClick={onAbrirChat}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-3 shadow-lg ring-1 ring-black/5 transition active:scale-95"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-5 py-3 shadow-lg ring-1 ring-black/5 transition active:scale-95"
           aria-label="Abrir chat de Ñom AI"
         >
           <Sparkles
@@ -71,7 +131,16 @@ export function BarraNavegacion({
         </button>
       </div>
 
-      {/* 4) Perfil — el carrito ya no vive aquí: Ñom AI hace de cajero */}
+      {/* 4) Lupa — pegada a Ñom AI: buscar y preguntar viven juntos */}
+      <BotonCirculo
+        activo={busqueda.trim().length > 0}
+        onClick={abrirBusqueda}
+        aria-label="Buscar en el menú"
+      >
+        <Search className="h-5 w-5" strokeWidth={2.5} />
+      </BotonCirculo>
+
+      {/* 5) Perfil — el carrito ya no vive aquí: Ñom AI hace de cajero */}
       <BotonCirculo
         activo={tab === "perfil"}
         onClick={() => onTab("perfil")}
