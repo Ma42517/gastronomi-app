@@ -3,10 +3,15 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Loader2, LockKeyhole } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  Loader2,
+  LockKeyhole,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { supabaseConfigurado } from "@/lib/supabase/config";
-import { DesbloqueoPlataforma } from "@/components/admin/DesbloqueoPlataforma";
 
 /**
  * ENTRADA AL PANEL — /admin/login
@@ -26,8 +31,38 @@ function FormularioLogin() {
   const [password, setPassword] = useState("");
   const [entrando, setEntrando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Aviso verde tras desbloquear el modo plataforma. */
+  const [desbloqueado, setDesbloqueado] = useState(false);
 
   const hayBaseDeDatos = supabaseConfigurado();
+
+  /**
+   * DESBLOQUEO DEL MODO PLATAFORMA.
+   *
+   * Se dispara cuando lo escrito en el primer campo NO es un correo (no lleva
+   * "@"): entonces se interpreta como el usuario de plataforma y la contraseña
+   * como el código. No abre sesión, solo activa el menú de super admin.
+   */
+  const desbloquearPlataforma = async (usuario: string) => {
+    const res = await fetch("/api/dev/acceso", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario, clave: password }),
+    });
+    const data = (await res.json()) as { error?: string };
+
+    if (!res.ok) {
+      setError(data.error ?? "No se pudo activar el modo plataforma.");
+      return;
+    }
+
+    setDesbloqueado(true);
+    // Se limpian las credenciales del desbloqueo: lo siguiente que toca es
+    // entrar con el correo real, y dejar el código en pantalla invita a
+    // pulsar "Entrar" otra vez sin cambiar nada.
+    setEmail("");
+    setPassword("");
+  };
 
   const entrar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +70,15 @@ function FormularioLogin() {
     setEntrando(true);
 
     try {
+      // UN SOLO FORMULARIO, DOS CAMINOS. Se decide por el contenido del campo:
+      // con "@" es un correo (login de Supabase); sin "@" es el usuario de
+      // plataforma. Antes esto vivía en una sección aparte y plegada, que nadie
+      // encontraba: lo natural es teclear "admin" aquí mismo.
+      if (!email.includes("@")) {
+        await desbloquearPlataforma(email);
+        return;
+      }
+
       const supabase = createClient();
       const { error: errorAuth } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -118,18 +162,33 @@ function FormularioLogin() {
             </div>
           ) : (
             <form onSubmit={entrar} className="mt-5 space-y-3">
+              {desbloqueado && (
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5">
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-300">
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                    Modo plataforma activado
+                  </p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-emerald-200/70">
+                    Ahora entra con tu correo y contraseña. Verás el acceso a
+                    Plataforma en el panel.
+                  </p>
+                </div>
+              )}
               <div>
                 <label
                   htmlFor="email"
                   className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-white/50"
                 >
-                  Correo
+                  Correo o usuario
                 </label>
+                {/* type="text" y NO "email": con type="email" el navegador
+                    rechazaba "admin" con su propio aviso ("falta un @") y no
+                    dejaba ni enviar el formulario. */}
                 <input
                   id="email"
-                  type="email"
+                  type="text"
                   required
-                  autoComplete="email"
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="dueno@mirestaurante.com"
@@ -142,7 +201,7 @@ function FormularioLogin() {
                   htmlFor="password"
                   className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-white/50"
                 >
-                  Contraseña
+                  Contraseña o código
                 </label>
                 <input
                   id="password"
@@ -173,17 +232,15 @@ function FormularioLogin() {
             </form>
           )}
 
-          {/* Interruptor del modo plataforma: no es un login alternativo, solo
-              activa el menú de super admin. El login de arriba sigue siendo
-              obligatorio. */}
-          <DesbloqueoPlataforma />
         </div>
 
         {hayBaseDeDatos && (
           <p className="mt-4 text-center text-[11px] leading-relaxed text-white/30">
             Las cuentas se crean en Supabase:{" "}
-            <span className="text-white/45">Authentication &gt; Users</span>. Para
-            dar acceso al panel, ejecuta el bloque final de la migración 005.
+            <span className="text-white/45">Authentication &gt; Users</span>.
+            <br />
+            Para activar el modo plataforma, escribe tu usuario de administrador
+            (sin arroba) y su código.
           </p>
         )}
       </div>
