@@ -30,6 +30,14 @@ export type Restaurante = {
   iniciales: string | null;
 }
 
+/** Vincula un usuario de Supabase Auth con el restaurante que administra. */
+export type RestauranteUsuario = {
+  restaurante_id: string;
+  user_id: string;
+  rol: "dueno" | "staff";
+  created_at: string;
+};
+
 export type Mesa = {
   id: string;
   restaurante_id: string;
@@ -100,6 +108,13 @@ export type Database = {
         Row: Restaurante;
         Insert: Omit<Restaurante, "id" | "created_at"> & Partial<Pick<Restaurante, "id" | "created_at">>;
         Update: Partial<Restaurante>;
+        Relationships: [];
+      };
+      restaurante_usuarios: {
+        Row: RestauranteUsuario;
+        Insert: Omit<RestauranteUsuario, "created_at"> &
+          Partial<Pick<RestauranteUsuario, "created_at">>;
+        Update: Partial<RestauranteUsuario>;
         Relationships: [];
       };
       mesas: {

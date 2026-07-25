@@ -1,9 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  RESTAURANTE_SLUG,
-  servicioConfigurado,
-  supabaseConfigurado,
-} from "@/lib/supabase/config";
+import { verificarDueno } from "@/lib/admin-auth";
+import { RESTAURANTE_SLUG } from "@/lib/supabase/config";
 import { platilloAUpsert } from "@/lib/restaurante-repo";
 import { mensajeDeError } from "@/lib/supabase/errores";
 import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
@@ -27,16 +24,12 @@ import type { LealtadEditable } from "@/lib/restaurante-store";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  if (!supabaseConfigurado() || !servicioConfigurado()) {
-    return Response.json(
-      {
-        error:
-          "Supabase no está configurado en el servidor. Revisa NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY.",
-        configurado: false,
-      },
-      { status: 503 },
-    );
-  }
+  // `permitirSinRestaurante`: esta ruta es la que CREA la fila del restaurante,
+  // así que no puede exigir que ya exista para comprobar la propiedad. Sigue
+  // exigiendo sesión válida; si el restaurante ya existe, exige además ser su
+  // dueño.
+  const auth = await verificarDueno({ permitirSinRestaurante: true });
+  if (!auth.ok) return auth.respuesta;
 
   try {
     const { menu, lealtad } = (await req.json()) as {
@@ -75,6 +68,34 @@ export async function POST(req: Request) {
       .single();
 
     if (errorRest) throw errorRest;
+
+    // 1b) AUTO-REGISTRO DEL PRIMER DUEÑO.
+    //     Si el restaurante acababa de no existir (`restauranteId === null`), la
+    //     guardia no pudo comprobar la propiedad. Se registra ahora a quien lo
+    //     publicó, de modo que a partir de la siguiente petición ya se le exija
+    //     ser dueño como a todos. Sin esto, el panel quedaría inaccesible tras
+    //     sembrar hasta correr un INSERT a mano.
+    if (auth.restauranteId === null) {
+      const { error: errorDueno } = await supabase
+        .from("restaurante_usuarios")
+        .upsert(
+          {
+            restaurante_id: restaurante.id,
+            user_id: auth.userId,
+            rol: "dueno",
+          } as never,
+          { onConflict: "restaurante_id,user_id" },
+        );
+
+      // No se aborta la siembra si esto falla (p. ej. falta la migración 005):
+      // el menú es lo importante y el acceso se puede conceder por SQL.
+      if (errorDueno) {
+        console.error(
+          "[Supabase][admin/sembrar] No se pudo registrar al dueño:",
+          mensajeDeError(errorDueno),
+        );
+      }
+    }
 
     // 2) Menú completo. `orden` conserva la posición del array, que es la que
     //    define el orden de las secciones y del carrusel en la vista cliente.

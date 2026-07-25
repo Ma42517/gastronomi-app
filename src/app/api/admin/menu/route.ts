@@ -1,9 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  RESTAURANTE_SLUG,
-  servicioConfigurado,
-  supabaseConfigurado,
-} from "@/lib/supabase/config";
+import { verificarDueno } from "@/lib/admin-auth";
 import { platilloAUpsert } from "@/lib/restaurante-repo";
 import { mensajeDeError } from "@/lib/supabase/errores";
 import type { MenuItemMock } from "@/lib/mock-data";
@@ -19,47 +15,17 @@ import type { MenuItemMock } from "@/lib/mock-data";
  *   POST   /api/admin/menu   { platillo }  -> crea o actualiza (upsert por slug)
  *   DELETE /api/admin/menu?slug=t-pastor   -> elimina
  *
- * ⚠️ PENDIENTE DE AUTENTICACIÓN: hoy la ruta no comprueba quién llama, así que
- * cualquiera que conozca la URL puede editar el menú. Antes de exponer esto a
- * producción hay que añadir login de dueños (Supabase Auth) y validar la sesión
- * aquí. Está anotado en el README.
+ * AUTORIZACIÓN: cada petición pasa por `verificarDueno()`, que exige sesión
+ * válida Y que ese usuario esté registrado como dueño de ESTE restaurante. La
+ * comprobación se repite en cada método aunque el middleware ya proteja /admin:
+ * el middleware cubre las PÁGINAS, no las llamadas directas a la API.
  */
 
 export const dynamic = "force-dynamic";
 
-/** Respuesta uniforme para que el cliente distinga "no configurado" de "error". */
-function sinConfiguracion() {
-  return Response.json(
-    {
-      error:
-        "Supabase no está configurado en el servidor. Falta NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY.",
-      configurado: false,
-    },
-    { status: 503 },
-  );
-}
-
-/** Localiza el restaurante de esta instancia por su slug. */
-async function obtenerRestauranteId(
-  supabase: ReturnType<typeof createAdminClient>,
-): Promise<string> {
-  const { data, error } = await supabase
-    .from("restaurantes")
-    .select("id")
-    .eq("slug", RESTAURANTE_SLUG)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) {
-    throw new Error(
-      `No existe el restaurante "${RESTAURANTE_SLUG}". Usa "Publicar en Supabase" para sembrarlo.`,
-    );
-  }
-  return data.id;
-}
-
 export async function POST(req: Request) {
-  if (!supabaseConfigurado() || !servicioConfigurado()) return sinConfiguracion();
+  const auth = await verificarDueno();
+  if (!auth.ok) return auth.respuesta;
 
   try {
     const { platillo } = (await req.json()) as { platillo: MenuItemMock };
@@ -72,7 +38,7 @@ export async function POST(req: Request) {
     }
 
     const supabase = createAdminClient();
-    const restauranteId = await obtenerRestauranteId(supabase);
+    const restauranteId = auth.restauranteId;
 
     const { error } = await supabase.from("menu_items").upsert(
       {
@@ -95,7 +61,8 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  if (!supabaseConfigurado() || !servicioConfigurado()) return sinConfiguracion();
+  const auth = await verificarDueno();
+  if (!auth.ok) return auth.respuesta;
 
   try {
     const slug = new URL(req.url).searchParams.get("slug");
@@ -104,12 +71,11 @@ export async function DELETE(req: Request) {
     }
 
     const supabase = createAdminClient();
-    const restauranteId = await obtenerRestauranteId(supabase);
 
     const { error } = await supabase
       .from("menu_items")
       .delete()
-      .eq("restaurante_id", restauranteId)
+      .eq("restaurante_id", auth.restauranteId)
       .eq("slug", slug);
 
     if (error) throw error;

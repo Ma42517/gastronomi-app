@@ -8,6 +8,7 @@ import type { MenuItemMock } from "@/lib/mock-data";
 import { platilloVacio, useRestauranteStore } from "@/lib/restaurante-store";
 import { HidratarRestaurante } from "@/components/HidratarRestaurante";
 import { EstadoConexion } from "@/components/admin/EstadoConexion";
+import { SesionDueno } from "@/components/admin/SesionDueno";
 import { ModalPlatillo } from "@/components/admin/ModalPlatillo";
 import { PanelRecompensas } from "@/components/admin/PanelRecompensas";
 import { Switch } from "@/components/admin/Switch";
@@ -78,7 +79,10 @@ export default function PanelAdmin() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Identidad del dueño + salir (solo si hay sesión). */}
+            <SesionDueno />
+
             <Link
               href="/mesa/el-primo/4"
               className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-bold text-white/80 backdrop-blur-xl transition hover:bg-white/[0.12]"
