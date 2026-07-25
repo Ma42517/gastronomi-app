@@ -3,11 +3,14 @@
 import { useState } from "react";
 import {
   AlertTriangle,
+  Check,
   CloudOff,
   CloudUpload,
   Database,
   Loader2,
   RefreshCw,
+  Stethoscope,
+  X,
 } from "lucide-react";
 import { useRestauranteStore } from "@/lib/restaurante-store";
 
@@ -19,6 +22,13 @@ import { useRestauranteStore } from "@/lib/restaurante-store";
  * base estuviera caída o sin sembrar. Aquí se hace visible dónde vive de verdad
  * cada cambio.
  */
+/** Forma de la respuesta de /api/admin/diagnostico. */
+interface Diagnostico {
+  listo: boolean;
+  resumen: string;
+  chequeos: { paso: string; ok: boolean; detalle: string; que_hacer?: string }[];
+}
+
 export function EstadoConexion() {
   const estado = useRestauranteStore((s) => s.estadoNube);
   const error = useRestauranteStore((s) => s.errorNube);
@@ -26,11 +36,36 @@ export function EstadoConexion() {
   const cargarDesdeNube = useRestauranteStore((s) => s.cargarDesdeNube);
 
   const [publicando, setPublicando] = useState(false);
+  // Diagnóstico embebido: evita tener que teclear la URL de la API a mano, que
+  // es donde más fácil se equivoca uno (y devuelve un 404 desconcertante).
+  const [diagnostico, setDiagnostico] = useState<Diagnostico | null>(null);
+  const [diagnosticando, setDiagnosticando] = useState(false);
+  const [fallo404, setFallo404] = useState(false);
 
   const publicar = async () => {
     setPublicando(true);
     await publicarEnNube();
     setPublicando(false);
+  };
+
+  const revisar = async () => {
+    setDiagnosticando(true);
+    setFallo404(false);
+    setDiagnostico(null);
+    try {
+      const res = await fetch("/api/admin/diagnostico");
+      if (res.status === 404) {
+        // El navegador tiene una versión del panel más nueva que el servidor:
+        // señal inequívoca de que el despliegue no se completó.
+        setFallo404(true);
+        return;
+      }
+      setDiagnostico((await res.json()) as Diagnostico);
+    } catch {
+      setFallo404(true);
+    } finally {
+      setDiagnosticando(false);
+    }
   };
 
   return (
@@ -101,6 +136,23 @@ export function EstadoConexion() {
             </button>
           </>
         )}
+
+        {/* Disponible SIEMPRE, también en modo local: es justo cuando más se
+            necesita saber qué variable falta. */}
+        <button
+          type="button"
+          onClick={() => void revisar()}
+          disabled={diagnosticando}
+          className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs font-bold text-white/50 transition hover:text-white/80 disabled:opacity-50"
+          title="Comprueba variables, conexión, tablas y datos"
+        >
+          {diagnosticando ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Stethoscope className="h-3.5 w-3.5" />
+          )}
+          Revisar conexión
+        </button>
       </div>
 
       {/* --- Explicaciones accionables --- */}
@@ -125,6 +177,62 @@ export function EstadoConexion() {
         <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-medium leading-relaxed text-rose-300">
           {error}
         </p>
+      )}
+
+      {/* --- Despliegue incompleto ---
+          El panel que ves en el navegador es más nuevo que el servidor. */}
+      {fallo404 && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs leading-relaxed text-rose-300">
+          <p className="font-bold">El servidor no tiene la ruta de diagnóstico.</p>
+          <p className="mt-1 text-rose-300/80">
+            Estás viendo una versión del panel más nueva que la del servidor: el
+            despliegue no se completó. En Vercel, entra a{" "}
+            <strong>Deployments</strong> y revisa que el último diga{" "}
+            <strong>Ready</strong> (no <em>Error</em> ni <em>Building</em>).
+          </p>
+        </div>
+      )}
+
+      {/* --- Resultado del diagnóstico --- */}
+      {diagnostico && (
+        <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <p
+            className={`text-xs font-bold ${
+              diagnostico.listo ? "text-emerald-300" : "text-amber-300"
+            }`}
+          >
+            {diagnostico.resumen}
+          </p>
+
+          <ul className="space-y-1.5">
+            {diagnostico.chequeos.map((c) => (
+              <li key={c.paso} className="flex gap-2 text-[11px] leading-snug">
+                <span
+                  className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full ${
+                    c.ok
+                      ? "bg-emerald-500/20 text-emerald-300"
+                      : "bg-rose-500/20 text-rose-300"
+                  }`}
+                >
+                  {c.ok ? (
+                    <Check className="h-2.5 w-2.5" strokeWidth={4} />
+                  ) : (
+                    <X className="h-2.5 w-2.5" strokeWidth={4} />
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className="font-semibold text-white/80">{c.paso}</span>
+                  <span className="text-white/45"> — {c.detalle}</span>
+                  {c.que_hacer && (
+                    <span className="mt-0.5 block text-amber-300/80">
+                      → {c.que_hacer}
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );
