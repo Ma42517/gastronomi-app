@@ -16,7 +16,10 @@ import { useRestauranteStore } from "@/lib/restaurante-store";
  */
 export function HidratarRestaurante() {
   useEffect(() => {
-    useRestauranteStore.persist.rehydrate();
+    // 1) Caché local: pinta el menú al instante, sin esperar la red.
+    void useRestauranteStore.persist.rehydrate();
+    // 2) Supabase: fuente de verdad. Sobrescribe la caché al llegar.
+    void useRestauranteStore.getState().cargarDesdeNube();
   }, []);
 
   return null;

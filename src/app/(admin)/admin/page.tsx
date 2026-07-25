@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock } from "@/lib/mock-data";
 import { platilloVacio, useRestauranteStore } from "@/lib/restaurante-store";
 import { HidratarRestaurante } from "@/components/HidratarRestaurante";
+import { EstadoConexion } from "@/components/admin/EstadoConexion";
 import { ModalPlatillo } from "@/components/admin/ModalPlatillo";
 import { PanelRecompensas } from "@/components/admin/PanelRecompensas";
 import { Switch } from "@/components/admin/Switch";
@@ -103,6 +104,10 @@ export default function PanelAdmin() {
             </button>
           </div>
         </header>
+
+        {/* Estado real de la conexión: sin esto el dueño no sabría si su
+            cambio quedó en la nube o solo en este navegador. */}
+        <EstadoConexion />
 
         {/* ===== PESTAÑAS DE CATEGORÍA ===== */}
         <nav className="mb-6 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

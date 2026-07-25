@@ -2,6 +2,8 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { supabaseConfigurado } from "@/lib/supabase/config";
+import { leerRestauranteRemoto } from "@/lib/supabase/leer-menu";
 import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
 import type {
   GrupoModificador,
@@ -34,18 +36,36 @@ export type LealtadEditable = ProgramaLealtad & {
   imagen_premio?: string;
 };
 
+/** Estado de la conexión con la base de datos, para avisar en la interfaz. */
+export type EstadoNube =
+  | "local" // Sin Supabase configurado: todo vive en el navegador.
+  | "cargando"
+  | "sincronizado"
+  | "sin-sembrar" // Conectado, pero la base todavía no tiene el menú.
+  | "error";
+
 interface RestauranteState {
   menu: MenuItemMock[];
   lealtad: LealtadEditable;
 
+  // --- Estado de la sincronización con Supabase ---
+  estadoNube: EstadoNube;
+  /** Último error de escritura, para mostrarlo en el panel. */
+  errorNube: string | null;
+
+  /** Trae el menú desde Supabase y reemplaza el estado local. */
+  cargarDesdeNube: () => Promise<void>;
+  /** Sube el menú completo a Supabase (arranque en frío). */
+  publicarEnNube: () => Promise<boolean>;
+
   /** Crea o actualiza un platillo (upsert por id). */
-  guardarPlatillo: (platillo: MenuItemMock) => void;
+  guardarPlatillo: (platillo: MenuItemMock) => Promise<void>;
   /** Elimina un platillo del menú. */
-  eliminarPlatillo: (id: string) => void;
+  eliminarPlatillo: (id: string) => Promise<void>;
   /** Cambia disponible/agotado sin abrir el formulario. */
-  alternarDisponibilidad: (id: string) => void;
+  alternarDisponibilidad: (id: string) => Promise<void>;
   /** Guarda la configuración del premio. */
-  guardarLealtad: (lealtad: LealtadEditable) => void;
+  guardarLealtad: (lealtad: LealtadEditable) => Promise<void>;
   /** Devuelve el menú a los datos originales del mock. */
   restablecer: () => void;
 }
@@ -58,41 +78,174 @@ const ESTADO_INICIAL = {
 
 export const useRestauranteStore = create<RestauranteState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...ESTADO_INICIAL,
+      estadoNube: supabaseConfigurado() ? "cargando" : "local",
+      errorNube: null,
 
-      guardarPlatillo: (platillo) =>
+      // --- LECTURA ---------------------------------------------------------
+      cargarDesdeNube: async () => {
+        if (!supabaseConfigurado()) {
+          set({ estadoNube: "local" });
+          return;
+        }
+
+        set({ estadoNube: "cargando", errorNube: null });
+        const remoto = await leerRestauranteRemoto();
+
+        if (!remoto) {
+          // Conectado pero sin datos (o error ya registrado en consola): se
+          // conserva el menú local para no dejar al cliente con la carta vacía.
+          set({ estadoNube: "sin-sembrar" });
+          return;
+        }
+
+        set({
+          menu: remoto.menu,
+          // El progreso de sellos del comensal es local; de la nube solo vienen
+          // la meta y el premio.
+          lealtad: {
+            ...remoto.lealtad,
+            sellos_actuales: get().lealtad.sellos_actuales,
+          },
+          estadoNube: "sincronizado",
+        });
+      },
+
+      // --- SIEMBRA ---------------------------------------------------------
+      publicarEnNube: async () => {
+        const { menu, lealtad } = get();
+        set({ errorNube: null });
+
+        const res = await escribirEnNube("/api/admin/sembrar", "POST", {
+          menu,
+          lealtad,
+        });
+
+        if (!res.ok) {
+          set({ estadoNube: "error", errorNube: res.error });
+          return false;
+        }
+        set({ estadoNube: "sincronizado" });
+        return true;
+      },
+
+      // --- ESCRITURAS ------------------------------------------------------
+      // Todas son OPTIMISTAS: primero se actualiza la interfaz y luego se
+      // manda el cambio. Si la escritura falla, el estado local se conserva
+      // (queda en la caché) y se expone `errorNube` para avisar en el panel,
+      // en lugar de descartar en silencio lo que el dueño acaba de escribir.
+      guardarPlatillo: async (platillo) => {
         set((state) => {
           const existe = state.menu.some((m) => m.id === platillo.id);
           return {
             menu: existe
               ? state.menu.map((m) => (m.id === platillo.id ? platillo : m))
               : [...state.menu, platillo],
+            errorNube: null,
           };
-        }),
+        });
+        await sincronizarPlatillo(platillo, set);
+      },
 
-      eliminarPlatillo: (id) =>
-        set((state) => ({ menu: state.menu.filter((m) => m.id !== id) })),
-
-      alternarDisponibilidad: (id) =>
+      eliminarPlatillo: async (id) => {
         set((state) => ({
-          menu: state.menu.map((m) =>
-            m.id === id ? { ...m, disponible: !m.disponible } : m,
-          ),
-        })),
+          menu: state.menu.filter((m) => m.id !== id),
+          errorNube: null,
+        }));
 
-      guardarLealtad: (lealtad) => set({ lealtad }),
+        if (!supabaseConfigurado()) return;
+        const res = await escribirEnNube(
+          `/api/admin/menu?slug=${encodeURIComponent(id)}`,
+          "DELETE",
+        );
+        if (!res.ok) set({ errorNube: res.error });
+      },
 
-      restablecer: () => set({ ...ESTADO_INICIAL }),
+      alternarDisponibilidad: async (id) => {
+        const actualizado = get().menu.find((m) => m.id === id);
+        if (!actualizado) return;
+
+        const nuevo = { ...actualizado, disponible: !actualizado.disponible };
+        set((state) => ({
+          menu: state.menu.map((m) => (m.id === id ? nuevo : m)),
+          errorNube: null,
+        }));
+        await sincronizarPlatillo(nuevo, set);
+      },
+
+      guardarLealtad: async (lealtad) => {
+        set({ lealtad, errorNube: null });
+
+        if (!supabaseConfigurado()) return;
+        const res = await escribirEnNube("/api/admin/lealtad", "PUT", {
+          lealtad,
+        });
+        if (!res.ok) set({ errorNube: res.error });
+      },
+
+      restablecer: () => set({ ...ESTADO_INICIAL, errorNube: null }),
     }),
     {
       name: "nom-restaurante",
-      // Solo se persisten los datos, nunca las funciones.
+      /**
+       * Con Supabase conectado, localStorage deja de ser la fuente de verdad y
+       * pasa a ser una CACHÉ: permite pintar el menú al instante mientras llega
+       * la respuesta de la red, y que la carta siga visible si el comensal se
+       * queda sin cobertura a mitad de la comida.
+       *
+       * Nunca se persisten las funciones ni el estado de conexión.
+       */
       partialize: (state) => ({ menu: state.menu, lealtad: state.lealtad }),
       skipHydration: true,
     },
   ),
 );
+
+// ---------------------------------------------------------------------------
+// Auxiliares de red
+// ---------------------------------------------------------------------------
+
+type Resultado = { ok: true } | { ok: false; error: string };
+type Set = (parcial: Partial<RestauranteState>) => void;
+
+/** Llama a una ruta /api/admin/* y normaliza el error para la interfaz. */
+async function escribirEnNube(
+  url: string,
+  method: "POST" | "PUT" | "DELETE",
+  cuerpo?: unknown,
+): Promise<Resultado> {
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: cuerpo ? { "Content-Type": "application/json" } : undefined,
+      body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+    });
+
+    if (res.ok) return { ok: true };
+
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    return {
+      ok: false,
+      error:
+        data.error ??
+        `La base de datos respondió ${res.status}. El cambio quedó solo en este dispositivo.`,
+    };
+  } catch {
+    return {
+      ok: false,
+      error:
+        "Sin conexión con la base de datos. El cambio quedó solo en este dispositivo.",
+    };
+  }
+}
+
+/** Manda un platillo a Supabase (creación, edición o cambio de disponibilidad). */
+async function sincronizarPlatillo(platillo: MenuItemMock, set: Set) {
+  if (!supabaseConfigurado()) return;
+  const res = await escribirEnNube("/api/admin/menu", "POST", { platillo });
+  if (!res.ok) set({ errorNube: res.error });
+}
 
 // ---------------------------------------------------------------------------
 // Utilidades de dominio
