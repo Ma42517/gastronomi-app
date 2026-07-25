@@ -37,6 +37,12 @@ export interface CopilotoPayload {
   grupos: GrupoElegido[];
   /** Grupos obligatorios que aún no se han elegido. */
   pendientes: GrupoPendiente[];
+  /**
+   * Complemento a ofrecer cuando el platillo ya está completo (ESTADO 2 de
+   * venta cruzada). Los botones de bebida aparecen justo debajo de este texto,
+   * así que el copiloto debe invitar a tomarlos.
+   */
+  complemento?: { nombre: string; motivo: string };
 }
 
 /**
@@ -101,6 +107,12 @@ export function copilotoLocal(payload: CopilotoPayload): string {
   if (pendientes.length > 0) {
     const falta = pendientes[0];
     texto += ` Solo falta que definas ${falta.titulo.toLowerCase()} y quedamos.`;
+  } else if (payload.complemento) {
+    // ESTADO 2: los botones de bebida se pintan justo debajo de este texto.
+    const razon = payload.complemento.motivo
+      ? ` ${payload.complemento.motivo}`
+      : "";
+    texto += ` ¿Le sumas algo para tomar?${razon}`;
   } else {
     texto += " Así queda armado a tu medida.";
   }

@@ -22,6 +22,8 @@ interface Params {
   selecciones: Record<string, string[]>;
   /** Solo consulta a la IA mientras el modal está abierto. */
   activo: boolean;
+  /** Complemento a ofrecer cuando el platillo ya está completo (venta cruzada). */
+  complemento?: { nombre: string; motivo: string };
 }
 
 interface Resultado {
@@ -44,7 +46,12 @@ interface Resultado {
  * Si la IA falla o no hay API key, la capa 1 se queda como texto final: el
  * cliente nunca ve un espacio vacío ni un spinner.
  */
-export function useCopiloto({ item, selecciones, activo }: Params): Resultado {
+export function useCopiloto({
+  item,
+  selecciones,
+  activo,
+  complemento,
+}: Params): Resultado {
   const [textoIA, setTextoIA] = useState<string | null>(null);
   const [pensando, setPensando] = useState(false);
 
@@ -81,8 +88,10 @@ export function useCopiloto({ item, selecciones, activo }: Params): Resultado {
       categoria: item.categoria,
       grupos,
       pendientes,
+      // El complemento solo se ofrece cuando ya no falta ningún obligatorio.
+      complemento: pendientes.length === 0 ? complemento : undefined,
     };
-  }, [item, selecciones]);
+  }, [item, selecciones, complemento]);
 
   const firma = payload ? firmaPayload(payload) : "";
 

@@ -51,6 +51,7 @@ REGLAS DURAS
 2. Devuelve SOLO el texto. Sin comillas externas, sin prefijos, sin "Ñom AI:".
 3. Si el cliente no ha elegido nada: describe el platillo de forma apetitosa y cierra con UNA pregunta que lo invite a elegir el primer grupo pendiente.
 4. Si ya eligió: NOMBRA cada opción elegida entre comillas dobles y justifica sensorialmente por qué mejora su experiencia (sabor, textura, aroma, intensidad).
+4b. Si ya NO le falta ningún grupo obligatorio y hay un complemento sugerido, CIERRA invitándolo a tomar algo. Debajo de tu texto aparecen botones de bebida, así que la invitación debe ser abierta ("¿Le sumas algo para tomar?"): NO nombres una bebida concreta ni menciones precios, los botones ya lo hacen.
 5. NUNCA menciones opciones que NO eligió. Nunca lo regañes por lo que quitó.
 6. NUNCA inventes ingredientes que no estén en la descripción del platillo.
 7. Máximo 1 emoji, y solo si suma. Cero listas, cero viñetas.
@@ -80,6 +81,13 @@ ${
     payload.pendientes.length > 0
       ? payload.pendientes.map((p) => `- ${p.titulo}`).join("\n")
       : "- Ninguno: ya completó su platillo."
+  }
+
+VENTA CRUZADA DISPONIBLE
+${
+    payload.complemento
+      ? `Sí. Razón del maridaje: ${payload.complemento.motivo || "combina bien con este platillo"}. Invítalo a tomar algo SIN nombrar bebidas ni precios.`
+      : "No hay complemento que ofrecer: no menciones bebidas."
   }`;
 }
 
