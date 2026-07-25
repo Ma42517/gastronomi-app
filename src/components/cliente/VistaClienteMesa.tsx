@@ -381,15 +381,19 @@ export function VistaClienteMesa({
               <>
                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-white/20 bg-black/25 px-2 py-1.5 text-xs font-medium text-zinc-300 backdrop-blur-md">
                   <UserCircle2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Invitado</span>
+                  Invitado
                 </span>
+                {/* Copy corto a propósito: "Regístrate y obtén recompensas"
+                    no cabía en el navbar de un móvil y se cortaba a media
+                    frase, que es peor que no decirlo. El beneficio se explica
+                    dentro del modal, no en un botón de 90px. */}
                 <button
                   type="button"
                   onClick={() => setModalProactivoAbierto(true)}
-                  className="animate-cta-latido inline-flex min-w-0 items-center gap-1 rounded-full bg-gradient-to-r from-orange-500 to-red-600 px-3 py-1.5 text-[10px] font-black uppercase text-white shadow-lg shadow-orange-500/30 transition-transform hover:scale-105 active:scale-95 sm:text-xs"
+                  className="animate-cta-latido inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-orange-500 to-red-600 px-3.5 py-1.5 text-xs font-black uppercase text-white shadow-lg shadow-orange-500/30 transition-transform hover:scale-105 active:scale-95"
                 >
                   <Sparkles className="h-3 w-3 shrink-0" />
-                  <span className="truncate">Regístrate y obtén recompensas</span>
+                  Regístrate
                 </button>
               </>
             )}
