@@ -153,15 +153,18 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
       {/* Hoja compacta: max-h al 92vh y contenido dimensionado para caber sin
           scroll en un móvil estándar (>=640px de alto útil). */}
       <div className="animate-sheet-up relative mt-auto flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border-t border-white/10 bg-neutral-900/95 text-white shadow-2xl backdrop-blur-2xl">
-        {/* ===== 1) IMAGEN (altura fija y baja: antes robaba 220px) ===== */}
-        <div className="relative h-32 w-full shrink-0 overflow-hidden bg-zinc-900 sm:h-40">
+        {/* ===== 1) IMAGEN — formato 16:9 completo (apetito visual).
+             Es el elemento que vende el platillo, así que recupera su tamaño
+             original. El resto del layout sigue compactado, así que el total
+             continúa entrando en una pantalla sin scroll. ===== */}
+        <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-zinc-900">
           {platillo.imagen_url && !imgError ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={platillo.imagen_url}
               alt={platillo.nombre}
               onError={() => setImgError(true)}
-              className="absolute inset-0 h-full w-full object-cover"
+              className="animate-live-photo absolute inset-0 h-full w-full object-cover"
             />
           ) : (
             <>
@@ -172,16 +175,16 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
                 }}
               />
               <div className="absolute inset-0 grid place-items-center">
-                <UtensilsCrossed className="h-12 w-12 text-white/25" />
+                <UtensilsCrossed className="h-16 w-16 text-white/25" />
               </div>
             </>
           )}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-black/20" />
 
-          <div className="absolute left-1/2 top-2 -translate-x-1/2">
+          <div className="absolute left-1/2 top-2.5 -translate-x-1/2">
             <span className="block h-1.5 w-12 rounded-full bg-white/60" />
           </div>
-          <div className="absolute right-3 top-2.5 flex items-center gap-2">
+          <div className="absolute right-3 top-3 flex items-center gap-2">
             <BotonFavorito
               itemId={platillo.id}
               nombre={platillo.nombre}
@@ -190,10 +193,10 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
             <button
               type="button"
               onClick={onCerrar}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white/90 backdrop-blur-md transition hover:bg-black/60"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white/90 backdrop-blur-md transition hover:bg-black/60"
               aria-label="Cerrar"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
           </div>
         </div>
