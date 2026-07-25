@@ -78,10 +78,15 @@ export function MenuInteractivo({
 }
 
 /**
- * TARJETA DE PRODUCTO — limpia y 100% clickable.
+ * TARJETA DE PRODUCTO — sin marco, integrada al fondo claro de la app.
  *
- * Toda la tarjeta es el área táctil: no hay botón de "+" ni de "Personalizar"
- * flotando encima. El cliente toca la tarjeta y entra al detalle, punto.
+ * No tiene contenedor con fondo ni borde: la foto redondeada es la que define
+ * la silueta y el texto va suelto debajo, alineado exactamente al ancho de la
+ * imagen. Así el grid respira y no aparecen bloques oscuros peleando con el
+ * tema claro del menú.
+ *
+ * Toda la tarjeta es el área táctil: no hay botón de "+" flotando encima.
+ * "Personalizar" es solo una PISTA de texto, no un segundo botón.
  */
 function ProductCard({
   item,
@@ -100,38 +105,51 @@ function ProductCard({
     <button
       type="button"
       onClick={onAbrir}
-      className={`relative flex flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 text-left transition active:scale-[0.97] ${
+      className={`group flex w-full flex-col bg-transparent text-left transition active:scale-[0.97] ${
         item.disponible ? "" : "opacity-60"
       }`}
     >
-      {/* Imagen arriba, cuadrada y recortada */}
-      {conFoto ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={item.imagen_url}
-          alt={item.nombre}
-          onError={onErrorImagen}
-          className="aspect-square w-full object-cover"
-        />
-      ) : (
-        <div className="grid aspect-square w-full place-items-center bg-gradient-to-br from-zinc-800 to-zinc-900">
-          <span className="text-4xl">{item.emoji}</span>
-        </div>
-      )}
+      {/* Imagen: cuadrada, recortada y con las esquinas redondeadas. */}
+      <div className="relative w-full overflow-hidden rounded-2xl">
+        {conFoto ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.imagen_url}
+            alt={item.nombre}
+            onError={onErrorImagen}
+            className="aspect-square w-full object-cover"
+          />
+        ) : (
+          <div className="grid aspect-square w-full place-items-center bg-gray-100">
+            <span className="text-4xl">{item.emoji}</span>
+          </div>
+        )}
 
-      {/* Contenido debajo de la imagen */}
-      <div className="flex flex-col gap-1 p-3">
-        <p className="truncate text-sm font-bold text-white">{item.nombre}</p>
-        <p className="text-sm font-semibold text-red-500">
-          {formatCurrency(item.precio)}
-        </p>
+        {!item.disponible && (
+          <span className="absolute inset-0 grid place-items-center bg-black/60 text-[11px] font-bold uppercase tracking-wide text-white">
+            Agotado
+          </span>
+        )}
       </div>
 
-      {!item.disponible && (
-        <span className="absolute inset-x-0 top-0 grid aspect-square place-items-center bg-black/60 text-[11px] font-bold uppercase tracking-wide text-white">
-          Agotado
-        </span>
-      )}
+      {/* Info: mismo ancho que la foto, con padding ligero. */}
+      <div className="w-full px-1 py-2">
+        {/* `truncate` corta con puntos suspensivos: nunca desborda ni empuja. */}
+        <p className="truncate text-sm font-bold text-gray-900">
+          {item.nombre}
+        </p>
+
+        <div className="mt-1 flex w-full items-center justify-between gap-1">
+          <span className="shrink-0 text-sm font-bold text-red-500">
+            {formatCurrency(item.precio)}
+          </span>
+          {/* Pista de acción. `truncate` + `min-w-0` evitan que en nombres
+              largos o pantallas estrechas se salga del ancho de la foto. */}
+          <span className="min-w-0 truncate text-[10px] font-semibold uppercase text-gray-400 sm:text-xs">
+            Personalizar
+          </span>
+        </div>
+      </div>
     </button>
   );
 }

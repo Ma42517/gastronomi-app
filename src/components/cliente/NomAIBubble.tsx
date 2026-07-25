@@ -84,7 +84,7 @@ export function NomAIBubble({ onPagarOrden, enHome }: NomAIBubbleProps) {
       aria-live="polite"
     >
       <div
-        className={`pointer-events-auto relative w-72 max-w-[calc(100vw-2.5rem)] rounded-2xl border border-zinc-700/80 bg-zinc-900/95 p-3 text-white shadow-2xl backdrop-blur-md ${
+        className={`pointer-events-auto relative w-72 max-w-[calc(100vw-2.5rem)] rounded-2xl border border-gray-100 bg-white p-3 text-gray-900 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] ring-1 ring-black/5 ${
           saliendo ? "animate-bubble-out" : "animate-bubble-in"
         }`}
       >
@@ -94,7 +94,7 @@ export function NomAIBubble({ onPagarOrden, enHome }: NomAIBubbleProps) {
           onClick={() =>
             burbuja ? cerrarSugerencia() : setCajeroOculto(true)
           }
-          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
+          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-gray-300 transition hover:bg-gray-100 hover:text-gray-600"
           aria-label="Cerrar mensaje"
         >
           <X className="h-3.5 w-3.5" />
@@ -108,7 +108,7 @@ export function NomAIBubble({ onPagarOrden, enHome }: NomAIBubbleProps) {
                 className="mt-0.5 h-4 w-4 shrink-0"
                 style={{ color: "var(--brand)" }}
               />
-              <p className="text-[13px] font-medium leading-snug text-white/90">
+              <p className="text-[13px] font-medium leading-snug text-gray-600">
                 {burbuja.mensaje}
               </p>
             </div>
@@ -134,13 +134,14 @@ export function NomAIBubble({ onPagarOrden, enHome }: NomAIBubbleProps) {
                 className="mt-0.5 h-4 w-4 shrink-0"
                 style={{ color: "var(--brand)" }}
               />
-              <p className="text-[13px] font-medium leading-snug text-white/90">
+              {/* Resumen de la orden: resalta en oscuro sobre el fondo blanco. */}
+              <p className="text-[13px] font-bold leading-snug text-gray-900">
                 Tienes{" "}
-                <span className="font-bold text-white">
+                <span className="font-bold text-gray-900">
                   {totalItems} platillo{totalItems === 1 ? "" : "s"}
                 </span>{" "}
                 por{" "}
-                <span className="font-bold text-white">
+                <span className="font-bold text-gray-900">
                   {formatCurrency(totalCarrito)}
                 </span>
                 . ¿Listo para pedir?
@@ -160,7 +161,7 @@ export function NomAIBubble({ onPagarOrden, enHome }: NomAIBubbleProps) {
         )}
 
         {/* Flechita apuntando a la píldora central */}
-        <span className="absolute -bottom-[7px] left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b border-r border-zinc-700/80 bg-zinc-900/95" />
+        <span className="absolute -bottom-[7px] left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b border-r border-gray-100 bg-white" />
       </div>
     </div>
   );
