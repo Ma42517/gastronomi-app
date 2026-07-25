@@ -11,10 +11,19 @@
 export const RESTAURANTE_SLUG =
   process.env.NEXT_PUBLIC_RESTAURANTE_SLUG?.trim() || "el-primo";
 
-/** ¿Están las dos variables públicas necesarias para LEER de Supabase? */
+/**
+ * ¿Están las variables necesarias para LEER de Supabase?
+ *
+ * Los respaldos sin prefijo (`SUPABASE_URL`) solo existen en el servidor: en el
+ * navegador, Next.js únicamente incrusta las que empiezan por `NEXT_PUBLIC_`, y
+ * lo hace al COMPILAR. Por eso, aunque la integración defina `SUPABASE_URL`,
+ * hacen falta también las públicas para que el menú se lea desde el cliente.
+ */
 export function supabaseConfigurado(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
 
   return Boolean(
     url &&

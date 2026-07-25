@@ -31,29 +31,84 @@ interface Chequeo {
   que_hacer?: string;
 }
 
+/**
+ * Lista los NOMBRES de las variables relacionadas con Supabase o Postgres que
+ * existen en el entorno. Nunca sus valores.
+ *
+ * Es la comprobación que distingue las dos causas de "todo AUSENTE":
+ *   a) No se ha vuelto a desplegar -> la lista sale vacía.
+ *   b) La integración usó otros nombres (SUPABASE_URL en vez de
+ *      NEXT_PUBLIC_SUPABASE_URL) -> la lista sale con esos nombres.
+ * Sin esto habría que adivinar entre las dos.
+ */
+function nombresDetectados(): string[] {
+  return Object.keys(process.env)
+    .filter((k) => /SUPABASE|POSTGRES/i.test(k))
+    .sort();
+}
+
 export async function GET() {
   const chequeos: Chequeo[] = [];
 
   // --- 1. Variables de entorno ---------------------------------------------
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Se aceptan los nombres sin prefijo como respaldo: la integración de Vercel
+  // a veces solo define SUPABASE_URL / SUPABASE_ANON_KEY. En el SERVIDOR sirven
+  // igual; lo que el NAVEGADOR necesita son las NEXT_PUBLIC_ (se incrustan en
+  // el bundle al compilar y no se pueden leer en tiempo de ejecución).
+  const url =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+  const anon =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+  const detectadas = nombresDetectados();
+
   chequeos.push({
-    paso: "1a. NEXT_PUBLIC_SUPABASE_URL",
+    paso: "0. Variables detectadas en el entorno",
+    ok: detectadas.length > 0,
+    detalle:
+      detectadas.length > 0
+        ? detectadas.join(", ")
+        : "NINGUNA variable con SUPABASE o POSTGRES en el nombre",
+    que_hacer:
+      detectadas.length > 0
+        ? undefined
+        : "La integración no llegó a este deploy. Ve a Vercel > Deployments > (···) > Redeploy.",
+  });
+
+  // Aviso específico: existen las de servidor pero no las públicas.
+  const faltanPublicas =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    Boolean(process.env.SUPABASE_URL);
+
+  if (faltanPublicas) {
+    chequeos.push({
+      paso: "0b. Nombres de las variables",
+      ok: false,
+      detalle:
+        "Existe SUPABASE_URL pero no NEXT_PUBLIC_SUPABASE_URL. El navegador solo puede leer las que empiezan por NEXT_PUBLIC_.",
+      que_hacer:
+        "Crea a mano NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY con el mismo valor, y vuelve a desplegar.",
+    });
+  }
+
+  chequeos.push({
+    paso: "1a. URL de Supabase",
     ok: Boolean(url),
     detalle: url ? `presente (${url})` : "AUSENTE",
     que_hacer: url
       ? undefined
-      : "Añádela en Vercel > Settings > Environment Variables y vuelve a desplegar.",
+      : "Añade NEXT_PUBLIC_SUPABASE_URL en Vercel > Settings > Environment Variables y vuelve a desplegar.",
   });
 
   chequeos.push({
-    paso: "1b. NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    paso: "1b. Anon key",
     ok: Boolean(anon),
     // Solo la cola de la llave: suficiente para distinguirla, inútil para robarla.
     detalle: anon ? `presente (…${anon.slice(-4)})` : "AUSENTE",
-    que_hacer: anon ? undefined : "Añádela en Vercel y vuelve a desplegar.",
+    que_hacer: anon
+      ? undefined
+      : "Añade NEXT_PUBLIC_SUPABASE_ANON_KEY en Vercel y vuelve a desplegar.",
   });
 
   chequeos.push({

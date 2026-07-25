@@ -16,12 +16,16 @@ import type { Database } from "@/types/database";
  * de servicio puntual y no debe arrastrar estado de sesión entre llamadas.
  */
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // Respaldo a `SUPABASE_URL`: la integración de Vercel a veces solo define ese
+  // nombre. En el servidor da igual el prefijo, así que se aprovecha en lugar
+  // de fallar pidiendo una variable que ya existe con otro nombre.
+  const url =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceKey) {
     throw new Error(
-      "Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY.",
+      "Faltan NEXT_PUBLIC_SUPABASE_URL (o SUPABASE_URL) y SUPABASE_SERVICE_ROLE_KEY.",
     );
   }
 
