@@ -261,12 +261,11 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
     descripcion_recompensa: "Orden de Pastor gratis",
   },
   categorias: [
-    // "Especiales" va primero: el corte del chef abre el menú, pero como una
-    // tarjeta normal del grid (con su foto real), no como un bloque oscuro
-    // aparte con etiqueta flotante.
-    // El nombre NO se puede cambiar: `maridajes.ts` lo usa como clave para
-    // calcular las sugerencias de bebida del Ribeye.
-    "Especiales",
+    // "Especiales" NO se lista aquí a propósito: el corte del chef tiene su
+    // propia tarjeta destacada arriba del menú (PlatilloHeroCard). Si además
+    // apareciera como sección del grid, saldría duplicado.
+    // El nombre de la categoría no se puede cambiar: `maridajes.ts` lo usa
+    // como clave para calcular las sugerencias de bebida del Ribeye.
     "Tacos",
     "Tortas",
     "Quesadillas",

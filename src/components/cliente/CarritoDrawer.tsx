@@ -29,7 +29,11 @@ interface CarritoDrawerProps {
  *
  * Un bottom sheet obligaba a competir por el alto de la pantalla con el fondo
  * y dejaba el checkout comprimido. Ahora la orden es una PANTALLA propia:
- * `fixed inset-0 z-[100] h-screen w-screen bg-black overflow-y-auto`.
+ * `fixed inset-0 z-[100] h-screen w-screen bg-white overflow-y-auto`.
+ *
+ * TEMA: blanca como el resto de la interfaz. La ÚNICA excepción son las líneas
+ * del pedido (los platillos), que se mantienen en oscuro para que el contenido
+ * real de la orden destaque sobre todo lo demás.
  *
  * Estructura:
  *   - Header FIJO (sticky): X a la izquierda, "Tu Orden" centrado.
@@ -68,14 +72,14 @@ export function CarritoDrawer({
   const totalPiezas = items.reduce((a, i) => a + i.cantidad, 0);
 
   return (
-    <div className="animate-fade-in fixed inset-0 z-[100] h-screen w-screen overflow-y-auto bg-black text-white">
+    <div className="animate-fade-in fixed inset-0 z-[100] h-screen w-screen overflow-y-auto bg-white text-gray-900">
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col">
         {/* ===== HEADER FIJO: X a la izquierda, título centrado ===== */}
-        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-white/10 bg-black/95 px-4 py-3 backdrop-blur-md">
+        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md">
           <button
             type="button"
             onClick={onCerrar}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 active:scale-90"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition hover:bg-gray-200 active:scale-90"
             aria-label="Regresar al menú"
           >
             <X className="h-5 w-5" strokeWidth={2.5} />
@@ -84,7 +88,7 @@ export function CarritoDrawer({
           <div className="min-w-0 flex-1 text-center">
             <h2 className="text-lg font-extrabold leading-tight">Tu Orden</h2>
             {totalPiezas > 0 && (
-              <p className="text-[11px] font-medium text-white/40">
+              <p className="text-[11px] font-medium text-gray-400">
                 {totalPiezas} {totalPiezas === 1 ? "producto" : "productos"}
               </p>
             )}
@@ -108,16 +112,16 @@ export function CarritoDrawer({
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <UtensilsCrossed
-                className="h-12 w-12 text-white/15"
+                className="h-12 w-12 text-gray-200"
                 strokeWidth={1.5}
               />
-              <p className="mt-4 text-sm font-medium text-white/40">
+              <p className="mt-4 text-sm font-medium text-gray-400">
                 Tu orden está vacía.
               </p>
               <button
                 type="button"
                 onClick={onCerrar}
-                className="mt-5 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20"
+                className="mt-5 rounded-full bg-gray-100 px-5 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-200"
               >
                 Ver el menú
               </button>
@@ -129,12 +133,12 @@ export function CarritoDrawer({
                 {items.map((ci) => (
                   <li
                     key={ci.id}
-                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3"
+                    className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-3 text-white"
                   >
                     {ci.emoji ? (
                       <span className="text-2xl leading-none">{ci.emoji}</span>
                     ) : (
-                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/10 text-white/40">
+                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/10 text-white/50">
                         <UtensilsCrossed className="h-4 w-4" />
                       </span>
                     )}
@@ -188,7 +192,7 @@ export function CarritoDrawer({
                   style={{
                     borderColor:
                       "color-mix(in srgb, var(--brand) 45%, transparent)",
-                    background: "color-mix(in srgb, var(--brand) 12%, black)",
+                    background: "color-mix(in srgb, var(--brand) 7%, white)",
                   }}
                 >
                   <p
@@ -198,7 +202,7 @@ export function CarritoDrawer({
                     <Sparkles className="h-3.5 w-3.5" />
                     Ñom AI
                   </p>
-                  <p className="text-sm leading-snug text-white/80">
+                  <p className="text-sm leading-snug text-gray-700">
                     ¿Todo listo para pagar o se te antoja un postre? 🍮
                   </p>
                   <button
@@ -226,14 +230,14 @@ export function CarritoDrawer({
 
         {/* ===== PIE FIJO: desglose + pago ===== */}
         {items.length > 0 && (
-          <div className="sticky bottom-0 space-y-3 border-t border-white/10 bg-black/95 px-4 pb-5 pt-3 backdrop-blur-md">
+          <div className="sticky bottom-0 space-y-3 border-t border-gray-100 bg-white/95 px-4 pb-5 pt-3 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] backdrop-blur-md">
             <div className="space-y-1 text-sm">
-              <div className="flex justify-between text-white/50">
+              <div className="flex justify-between text-gray-500">
                 <span>Subtotal</span>
                 <span>{formatCurrency(subtotal)}</span>
               </div>
               {propina > 0 && (
-                <div className="flex justify-between text-white/50">
+                <div className="flex justify-between text-gray-500">
                   <span>
                     Propina
                     {porcentajePropina ? ` (${porcentajePropina}%)` : ""}
@@ -241,7 +245,7 @@ export function CarritoDrawer({
                   <span>{formatCurrency(propina)}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between border-t border-white/10 pt-1.5">
+              <div className="flex items-center justify-between border-t border-gray-100 pt-1.5">
                 <span className="font-bold">Total</span>
                 <span
                   className="text-lg font-extrabold"

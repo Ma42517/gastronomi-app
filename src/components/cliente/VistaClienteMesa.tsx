@@ -17,6 +17,7 @@ import { useCartStore } from "@/lib/cart-store";
 import { TarjetaSellos } from "./TarjetaSellos";
 import { CategoriaPills } from "./CategoriaPills";
 import { SeccionPopulares } from "./SeccionPopulares";
+import { PlatilloHeroCard } from "./PlatilloHeroCard";
 import { DetallePlatillo } from "./DetallePlatillo";
 import { MenuInteractivo, anchorCategoria } from "./MenuInteractivo";
 import { obtenerMaridaje } from "@/lib/maridajes";
@@ -42,7 +43,7 @@ export function VistaClienteMesa({
   restaurante,
   numeroMesa,
 }: VistaClienteMesaProps) {
-  const { tema, menu, categorias } = restaurante;
+  const { tema, menu, categorias, hero } = restaurante;
 
   const [categoriaActiva, setCategoriaActiva] = useState(categorias[0]);
   const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
@@ -92,6 +93,8 @@ export function VistaClienteMesa({
     cerrarBurbuja,
   } = useNomAI();
 
+  // Corte del chef (Ribeye): tarjeta destacada arriba del menú.
+  const heroItem = menu.find((m) => m.id === hero.item_id);
   // Postre sugerido para el cierre de venta.
   const postreSugerido =
     menu.find((m) => m.id === "p-flan" && m.disponible) ?? null;
@@ -599,11 +602,17 @@ export function VistaClienteMesa({
         ) : (
           <>
             {/* Selección del Chef — fija arriba para dirigir la atención */}
-            {/* El corte del chef ya NO tiene tarjeta propia: se lista en el
-                grid dentro de "Especiales" (primera categoría) como cualquier
-                otro platillo, con su foto real. Antes vivía en una tarjeta
-                oscura con etiqueta flotante que rompía el tema claro y nunca
-                llegaba a renderizar su imagen. */}
+            {/* Selección del Chef — tarjeta destacada, fija arriba del menú.
+                Abre el MISMO modal que el resto (con sus modificadores de
+                término y guarnición), así el botón de confirmación es el
+                componente estandarizado. */}
+            {heroItem && (
+              <PlatilloHeroCard
+                item={heroItem}
+                etiqueta={hero.etiqueta}
+                onPersonalizar={() => setDetalleItem(heroItem)}
+              />
+            )}
 
             {/* 2) Carrusel horizontal "Populares" */}
             <SeccionPopulares items={populares} onVerDetalle={setDetalleItem} />

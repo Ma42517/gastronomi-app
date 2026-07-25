@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ChefHat, ChevronRight, Sparkles } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock } from "@/lib/mock-data";
@@ -19,6 +20,8 @@ export function PlatilloHeroCard({
   etiqueta,
   onPersonalizar,
 }: PlatilloHeroCardProps) {
+  const [imgError, setImgError] = useState(false);
+
   return (
     <button
       type="button"
@@ -35,17 +38,32 @@ export function PlatilloHeroCard({
       />
 
       <div className="relative flex items-center gap-4">
-        {/* Placeholder visual del corte */}
-        <div
-          className="grid h-24 w-24 shrink-0 place-items-center rounded-2xl border border-white/10"
-          style={{
-            background:
-              "radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--brand) 55%, #7c2d12), #1a1a1a 78%)",
-          }}
-        >
-          <div className="grid h-14 w-14 place-items-center rounded-full bg-black/25">
-            <ChefHat className="h-7 w-7 text-white/85" />
-          </div>
+        {/* FOTO REAL del corte. Antes aquí solo había un icono de gorro de
+            chef sobre un degradado: el componente nunca llegaba a usar
+            `item.imagen_url` aunque el dato existía. El icono queda ahora
+            únicamente como respaldo si la foto falla al cargar. */}
+        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-white/10">
+          {item.imagen_url && !imgError ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.imagen_url}
+              alt={item.nombre}
+              onError={() => setImgError(true)}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div
+              className="grid h-full w-full place-items-center"
+              style={{
+                background:
+                  "radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--brand) 55%, #7c2d12), #1a1a1a 78%)",
+              }}
+            >
+              <div className="grid h-14 w-14 place-items-center rounded-full bg-black/25">
+                <ChefHat className="h-7 w-7 text-white/85" />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="min-w-0 flex-1">
