@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import {
   Gift,
@@ -22,6 +22,7 @@ import { ConfiguradorPlatillo } from "./ConfiguradorPlatillo";
 import { DetallePlatillo } from "./DetallePlatillo";
 import { MenuInteractivo, anchorCategoria } from "./MenuInteractivo";
 import { CarritoDrawer } from "./CarritoDrawer";
+import { BarraNavegacion, type TabActivo } from "./BarraNavegacion";
 import type { Modalidad } from "./SelectorModalidad";
 import { ModalPago } from "./ModalPago";
 import { ModalRegistroPremio } from "./ModalRegistroPremio";
@@ -58,6 +59,10 @@ export function VistaClienteMesa({
   const [modalProactivoAbierto, setModalProactivoAbierto] = useState(false);
   // Buscador global (la "lupita" del menú sticky).
   const [busqueda, setBusqueda] = useState("");
+  // Navegación por tabs de la barra flotante inferior.
+  const [tab, setTab] = useState<TabActivo>("home");
+  // Micro-interacción: destello del botón VIP al agregar algo o sumar un sello.
+  const [brillarVIP, setBrillarVIP] = useState(false);
   // --- Módulos operativos del checkout ---
   const [modalidad, setModalidad] = useState<Modalidad>("local");
   const [mesaElegida, setMesaElegida] = useState(numeroMesa);
@@ -82,7 +87,9 @@ export function VistaClienteMesa({
     clienteNombre,
     setClienteNombre,
     carritoAbierto,
+    abrirCarrito,
     cerrarCarrito,
+    abrirChat,
   } = useNomAI();
 
   // Platillo héroe configurable (Ribeye).
@@ -113,6 +120,27 @@ export function VistaClienteMesa({
   const categoriasConFavoritos = [CATEGORIA_FAVORITOS, ...categorias];
   const modoFavoritos = categoriaActiva === CATEGORIA_FAVORITOS;
   const platillosFavoritos = menu.filter((m) => favoriteItems.includes(m.id));
+
+  /**
+   * MICRO-INTERACCIÓN: cuando el cliente agrega un platillo (crece el carrito)
+   * o suma un sello, el botón VIP de la barra emite un destello para recordarle
+   * que está avanzando hacia su recompensa.
+   */
+  const totalItems = items.reduce((a, i) => a + i.cantidad, 0);
+  const itemsPrevios = useRef(totalItems);
+  const sellosPrevios = useRef(lealtad.sellos_actuales);
+
+  useEffect(() => {
+    const crecioCarrito = totalItems > itemsPrevios.current;
+    const sumoSello = lealtad.sellos_actuales > sellosPrevios.current;
+    itemsPrevios.current = totalItems;
+    sellosPrevios.current = lealtad.sellos_actuales;
+
+    if (!crecioCarrito && !sumoSello) return;
+    setBrillarVIP(true);
+    const t = window.setTimeout(() => setBrillarVIP(false), 1500);
+    return () => window.clearTimeout(t);
+  }, [totalItems, lealtad.sellos_actuales]);
 
   // El aviso de éxito es temporal: se oculta solo tras unos segundos para no
   // quedarse fijo tapando la tarjeta de beneficios.
@@ -377,6 +405,117 @@ export function VistaClienteMesa({
 
       {/* CONTENIDO */}
       <main className="relative z-10 -mt-4 flex-1 space-y-5 rounded-t-3xl bg-gray-50 px-5 pb-32 pt-2">
+        {tab === "vip" ? (
+          /* ===== TAB VIP / PREMIOS: aquí vive la tarjeta de Beneficios ===== */
+          <div className="space-y-5 pt-3">
+            <div>
+              <h1 className="text-2xl font-extrabold text-gray-900">
+                Beneficios y premios
+              </h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Acumula visitas y desbloquea recompensas en cada compra.
+              </p>
+            </div>
+
+            <TarjetaSellos
+              lealtad={lealtad}
+              onCanjear={canjearPremio}
+              premioCanjeado={premioCanjeado}
+            />
+
+            {!estaRegistrado && (
+              <button
+                type="button"
+                onClick={() => setModalProactivoAbierto(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-red-600 to-orange-500 px-6 py-4 text-base font-bold text-white shadow-lg shadow-red-500/30 transition hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Sparkles className="h-5 w-5" />
+                Regístrate para guardar tus premios
+              </button>
+            )}
+
+            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+              <p className="mb-2 text-sm font-bold text-gray-900">
+                ¿Cómo funciona?
+              </p>
+              <ol className="space-y-2 text-sm leading-relaxed text-gray-500">
+                <li>1. Cada orden pagada suma una visita.</li>
+                <li>
+                  2. Al llegar a {lealtad.sellos_para_recompensa} visitas
+                  desbloqueas tu {lealtad.descripcion_recompensa}.
+                </li>
+                <li>3. Canjéalo desde aquí y el ciclo empieza de nuevo.</li>
+              </ol>
+            </div>
+          </div>
+        ) : tab === "perfil" ? (
+          /* ===== TAB PERFIL ===== */
+          <div className="space-y-5 pt-3">
+            <div className="flex items-center gap-4 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+              <span
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white"
+                style={{
+                  background:
+                    "linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 55%, #f59e0b))",
+                }}
+              >
+                <User className="h-7 w-7" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-lg font-extrabold text-gray-900">
+                  {estaRegistrado ? `Hola, ${clienteNombre}` : "Invitado"}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {estaRegistrado
+                    ? `${lealtad.sellos_actuales} de ${lealtad.sellos_para_recompensa} visitas`
+                    : "Regístrate para guardar tus favoritos y premios"}
+                </p>
+              </div>
+            </div>
+
+            {!estaRegistrado && (
+              <button
+                type="button"
+                onClick={() => setModalProactivoAbierto(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-red-600 to-orange-500 px-6 py-4 text-base font-bold text-white shadow-lg shadow-red-500/30 transition hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Sparkles className="h-5 w-5" />
+                Crear mi cuenta
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setTab("home");
+                irACategoria(CATEGORIA_FAVORITOS);
+              }}
+              className="flex w-full items-center gap-3 rounded-3xl bg-white p-5 text-left shadow-sm ring-1 ring-gray-100 transition active:scale-[0.99]"
+            >
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-red-50 text-red-500">
+                ❤️
+              </span>
+              <span className="flex-1">
+                <span className="block text-sm font-bold text-gray-900">
+                  Mis favoritos
+                </span>
+                <span className="block text-xs text-gray-500">
+                  {favoriteItems.length} platillo
+                  {favoriteItems.length === 1 ? "" : "s"} guardado
+                  {favoriteItems.length === 1 ? "" : "s"}
+                </span>
+              </span>
+            </button>
+
+            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+              <p className="text-sm font-bold text-gray-900">Mesa actual</p>
+              <p className="mt-0.5 text-sm text-gray-500">
+                Estás en la mesa {numeroMesa} de {tema.nombre_restaurante}.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
         {/* 1) Navegación por categorías (pills, scroll horizontal, sticky) */}
         <CategoriaPills
           categorias={categoriasConFavoritos}
@@ -437,12 +576,6 @@ export function VistaClienteMesa({
               />
             )}
 
-            <TarjetaSellos
-              lealtad={lealtad}
-              onCanjear={canjearPremio}
-              premioCanjeado={premioCanjeado}
-            />
-
             {/* 2) Carrusel horizontal "Populares" */}
             <SeccionPopulares items={populares} onVerDetalle={setDetalleItem} />
 
@@ -454,7 +587,19 @@ export function VistaClienteMesa({
             />
           </>
         )}
+          </>
+        )}
       </main>
+
+      {/* BARRA DE NAVEGACIÓN FLOTANTE (estilo Uber Eats) */}
+      <BarraNavegacion
+        tab={tab}
+        onTab={setTab}
+        onAbrirChat={abrirChat}
+        onAbrirCarrito={abrirCarrito}
+        totalItems={totalItems}
+        brillarVIP={brillarVIP}
+      />
 
       {/* MODAL DE PAGO / SPLIT BILL */}
       <ModalPago

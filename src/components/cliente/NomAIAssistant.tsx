@@ -7,7 +7,6 @@ import {
   Mic,
   Plus,
   Send,
-  ShoppingBag,
   Sparkles,
   UtensilsCrossed,
   X,
@@ -19,29 +18,6 @@ import { useNomAI } from "./NomAIContext";
 
 const SALUDO =
   "¡Hola! Soy Ñom AI. ¿Tienes antojo de algo en especial o alguna alergia que deba conocer?";
-
-const MENSAJE_BIENVENIDA = "¡Hola! Soy Ñom AI, pregúntame sobre el menú 👋";
-
-/** Fases del flujo de bienvenida automático (sin interacción del cliente). */
-type FaseBienvenida = "welcome" | "tooltip" | "done";
-
-/**
- * Resalta el nombre del cliente dentro del mensaje para que "reluzca"
- * (degradado dorado con barrido de luz) sin tocar el resto del texto.
- */
-function resaltarNombre(mensaje: string, nombre: string) {
-  if (!nombre) return mensaje;
-  const partes = mensaje.split(nombre);
-  if (partes.length === 1) return mensaje;
-  return partes.map((parte, i) => (
-    <span key={i}>
-      {parte}
-      {i < partes.length - 1 && (
-        <span className="nombre-brillante">{nombre}</span>
-      )}
-    </span>
-  ));
-}
 
 /** Resuelve el item sugerido por la IA a un producto real del menú. */
 function resolverItem(nombre: string, precio?: number) {
@@ -65,39 +41,24 @@ function resolverItem(nombre: string, precio?: number) {
 }
 
 /**
- * "Ñom AI" — BARRA GLOBAL fija en la parte inferior (montada en el layout,
- * visible en todas las pantallas). Muestra un mensaje según la máquina de
- * estados (bienvenida / elige opción / opción elegida / recomendación) y se
- * expande hacia arriba (bottom sheet) al tocarla para abrir el chat completo.
+ * "Ñom AI" — ventana de chat (bottom sheet) montada en el layout del cliente.
+ * Ya NO tiene barra flotante propia: se abre desde la píldora central de la
+ * barra de navegación inferior, evitando botones duplicados.
  */
 export function NomAIAssistant() {
   const {
     platilloActual,
     categoriaActual,
-    restauranteNombre,
     clienteNombre,
-    escena,
-    carritoAbierto,
-    abrirCarrito,
     chatAbierto,
-    abrirChat,
     cerrarChat,
   } = useNomAI();
 
   const [aviso, setAviso] = useState<string | null>(null);
   const [agregados, setAgregados] = useState<string[]>([]);
   const [userLocation] = useState("Zamora, Michoacán");
-  const [faseBienvenida, setFaseBienvenida] = useState<FaseBienvenida>("welcome");
 
   const addToCart = useCartStore((s) => s.addToCart);
-  const items = useCartStore((s) => s.items);
-  const totalItems = items.reduce((a, i) => a + i.cantidad, 0);
-  const totalCarrito = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
-  const hayItems = totalItems > 0;
-
-  // La barra flotante SOLO es visible en la escena de menú/categorías. Durante un
-  // platillo (tarjeta inline), el drawer del carrito o el checkout se oculta.
-  const barVisible = !chatAbierto && !carritoAbierto && escena === "categorias";
 
   const {
     messages,
@@ -137,16 +98,6 @@ export function NomAIAssistant() {
     );
   }, [clienteNombre, setMessages]);
 
-  // Flujo de bienvenida automático: saludo → tooltip corto → estado discreto.
-  useEffect(() => {
-    const aTooltip = window.setTimeout(() => setFaseBienvenida("tooltip"), 3200);
-    const aDone = window.setTimeout(() => setFaseBienvenida("done"), 6800);
-    return () => {
-      window.clearTimeout(aTooltip);
-      window.clearTimeout(aDone);
-    };
-  }, []);
-
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -157,25 +108,6 @@ export function NomAIAssistant() {
   }, [messages, isLoading, chatAbierto]);
 
   const brand = "var(--brand, #DC2626)";
-
-  // Texto de la barra INTELIGENTE según el estado del carrito:
-  //  - carrito vacío  → saludo/bienvenida de Ñom AI.
-  //  - con productos  → "Ver orden y Pagar" (toca el texto/total para abrir el
-  //    drawer del carrito; el avatar abre el chat conversacional).
-  const bienvenidaInicial = clienteNombre
-    ? `¡Qué bueno verte de nuevo, ${clienteNombre}!`
-    : `¡Bienvenido a ${
-        restauranteNombre || TAQUERIA_EL_PRIMO.tema.nombre_restaurante
-      }!`;
-  // Cliente registrado ⇒ saludo personalizado en la barra.
-  const mensajeReposo = clienteNombre
-    ? `¡Qué bueno verte de nuevo, ${clienteNombre}! ¿Se te antoja lo de siempre?`
-    : MENSAJE_BIENVENIDA;
-  const mensajeBar = hayItems
-    ? "Ver orden y Pagar"
-    : faseBienvenida === "welcome"
-      ? bienvenidaInicial
-      : mensajeReposo;
 
   // Añadir desde una tarjeta del chat (tool suggestItemTool).
   const agregarSugerido = (
@@ -381,87 +313,8 @@ export function NomAIAssistant() {
         </div>
       )}
 
-      {/* ============ BARRA GLOBAL (reposo) ============
-          Centrada y con ancho máximo (max-w-md). Solo visible en la escena de
-          menú: durante un platillo o el checkout se oculta por completo para no
-          colisionar con las tarjetas/modales (ver barVisible). */}
-      {barVisible && (
-        <div className="fixed inset-x-0 bottom-0 z-[55] mx-auto max-w-md p-2.5 sm:p-3">
-          <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-neutral-900/90 p-2.5 shadow-2xl backdrop-blur-xl">
-            {/* AVATAR → abre el CHAT conversacional (Acción B).
-                Invita a tocarlo: anillos que se expanden + balanceo periódico. */}
-            <button
-              type="button"
-              onClick={abrirChat}
-              className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-transform active:scale-90"
-              aria-label="Abrir chat de Ñom AI"
-              title="Toca para hablar con Ñom AI"
-            >
-              {/* Anillos de "tócame" (escalonados) */}
-              <span
-                className="animate-tap-ring absolute inset-0 rounded-full border-2"
-                style={{ borderColor: brand }}
-              />
-              <span
-                className="animate-tap-ring absolute inset-0 rounded-full border-2"
-                style={{ borderColor: brand, animationDelay: "1.2s" }}
-              />
-              {/* Halo + disco de marca */}
-              <span
-                className="absolute inset-0 animate-pulse rounded-full opacity-70 blur-md"
-                style={{
-                  background: `radial-gradient(circle, ${brand}, transparent 72%)`,
-                }}
-              />
-              <span
-                className="absolute inset-0 rounded-full border border-white/20"
-                style={{
-                  background: `linear-gradient(135deg, color-mix(in srgb, ${brand} 35%, #18181b), #18181b)`,
-                }}
-              />
-              <Sparkles
-                className="animate-tap-wiggle relative h-5 w-5"
-                style={{ color: brand }}
-              />
-              {/* Punto indicador de "disponible / tócame" */}
-              <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-neutral-900 bg-green-400" />
-            </button>
-
-            {/* TEXTO → abre el DRAWER del carrito si hay items (Acción A);
-                si el carrito está vacío, invita a preguntarle al chat. */}
-            <button
-              type="button"
-              onClick={hayItems ? abrirCarrito : abrirChat}
-              className="min-w-0 flex-1 text-left"
-              aria-label={hayItems ? "Ver orden y pagar" : "Preguntar a Ñom AI"}
-            >
-              <span
-                key={mensajeBar}
-                className="animate-text-in block whitespace-pre-wrap break-words text-sm font-medium leading-snug text-white/85"
-              >
-                {resaltarNombre(mensajeBar, clienteNombre)}
-              </span>
-            </button>
-
-            {/* $ TOTAL → abre el DRAWER del carrito (Acción A) */}
-            {hayItems && (
-              <button
-                type="button"
-                onClick={abrirCarrito}
-                className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-white shadow-md transition active:scale-95"
-                style={{ background: brand }}
-                aria-label="Ver tu orden y pagar"
-              >
-                <ShoppingBag className="h-4 w-4" />
-                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white/25 px-1 text-[10px] font-bold">
-                  {totalItems}
-                </span>
-                {formatCurrency(totalCarrito)}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      {/* La barra flotante antigua se eliminó: ahora Ñom AI se abre desde la
+          píldora central de la barra de navegación (BarraNavegacion). */}
 
       {/* Aviso tipo toast */}
       {aviso && (

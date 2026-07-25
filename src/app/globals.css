@@ -721,3 +721,39 @@ textarea {
     animation: none;
   }
 }
+
+
+
+/* ============================================================
+   Destello del botón VIP al agregar algo / sumar un sello
+   ============================================================ */
+@keyframes vipGlow {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(251, 146, 60, 0);
+  }
+  25% {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 6px rgba(251, 146, 60, 0.45);
+  }
+  50% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(251, 146, 60, 0);
+  }
+  75% {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 6px rgba(251, 146, 60, 0.45);
+  }
+}
+
+.animate-vip-glow {
+  animation: vipGlow 1.4s ease-in-out;
+  color: #f97316;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-vip-glow {
+    animation: none;
+  }
+}
