@@ -1,4 +1,6 @@
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { COOKIE_DEV, tokenDevValido } from "@/lib/acceso-dev";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { servicioConfigurado, supabaseConfigurado } from "@/lib/supabase/config";
 import { mensajeDeError } from "@/lib/supabase/errores";
@@ -10,14 +12,15 @@ import { mensajeDeError } from "@/lib/supabase/errores";
  * privilegio mayor que el de dueño, así que se comprueba por separado: ser dueño
  * de una taquería no debe dar acceso a los datos de las demás.
  *
- * Dos vías de autorización, en este orden:
- *   1. Estar en la tabla `plataforma_admins` (la vía normal).
- *   2. Estar en la variable de entorno `SUPER_ADMIN_EMAILS` (lista separada por
- *      comas). Sirve de arranque y de rescate: si la tabla no existe todavía o
- *      alguien se queda fuera por error, se recupera el acceso sin SQL.
+ * SIEMPRE se exige sesión de Supabase válida. Sobre esa base, hay tres vías de
+ * elevación al privilegio de plataforma:
+ *   1. Código de desbloqueo (`SUPER_ADMIN_CLAVE`) introducido en el login. Es un
+ *      SEGUNDO factor: sin cuenta válida no sirve de nada.
+ *   2. Estar en la variable `SUPER_ADMIN_EMAILS` (lista separada por comas).
+ *   3. Estar en la tabla `plataforma_admins` (la vía persistente).
  *
- * La variable NO lleva prefijo NEXT_PUBLIC_: se lee solo en el servidor, así la
- * lista de correos privilegiados no viaja al navegador.
+ * Las variables NO llevan prefijo NEXT_PUBLIC_: se leen solo en el servidor, así
+ * ni el código ni la lista de correos privilegiados viajan al navegador.
  */
 
 export interface SuperAdmin {
@@ -25,7 +28,7 @@ export interface SuperAdmin {
   userId: string;
   email: string | null;
   /** Cómo se concedió el acceso, útil para depurar. */
-  via: "tabla" | "variable-de-entorno";
+  via: "tabla" | "variable-de-entorno" | "codigo-plataforma";
 }
 
 export interface DevDenegado {
@@ -68,7 +71,15 @@ export async function verificarSuperAdmin(): Promise<ResultadoDev> {
 
     const email = user.email?.toLowerCase() ?? null;
 
-    // --- Vía 2 primero: es una comprobación en memoria, sin ir a la base ---
+    // --- Vía 3: código de desbloqueo del modo plataforma ---
+    // Ya hay sesión válida comprobada arriba, así que esto es un SEGUNDO factor,
+    // no un atajo: el código por sí solo no autentica a nadie.
+    if (tokenDevValido(cookies().get(COOKIE_DEV)?.value)) {
+      return { ok: true, userId: user.id, email, via: "codigo-plataforma" };
+    }
+
+    // --- Vía 2: lista de correos en variable de entorno ---
+    // Se comprueba antes de la tabla porque es una operación en memoria.
     if (email && correosDeEntorno().includes(email)) {
       return { ok: true, userId: user.id, email, via: "variable-de-entorno" };
     }

@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verificarDueno } from "@/lib/admin-auth";
+import { verificarSuperAdmin } from "@/lib/dev-auth";
+import { bloqueado, leerConfigServidor } from "@/lib/candados";
 import { platilloAUpsert } from "@/lib/restaurante-repo";
 import { mensajeDeError } from "@/lib/supabase/errores";
 import type { MenuItemMock } from "@/lib/mock-data";
@@ -40,6 +42,35 @@ export async function POST(req: Request) {
     const supabase = createAdminClient();
     const restauranteId = auth.restauranteId;
 
+    // --- CANDADOS DE LA PLATAFORMA ---
+    // El super admin queda exento: es el dueño de la app y los candados son
+    // suyos, no le aplican a él.
+    const plataforma = await verificarSuperAdmin();
+    if (!plataforma.ok) {
+      const config = await leerConfigServidor();
+
+      // ¿Existía ya este platillo? Distingue "crear" de "editar".
+      const { data: previo } = await supabase
+        .from("menu_items")
+        .select("precio")
+        .eq("restaurante_id", restauranteId)
+        .eq("slug", platillo.id)
+        .maybeSingle();
+
+      if (!previo && !config.dueno_puede_crear_platillos) {
+        return bloqueado("No puedes agregar platillos nuevos.");
+      }
+
+      // El precio se compara con el guardado: así se permite editar la foto o
+      // los modificadores aunque los precios estén bloqueados.
+      if (previo && !config.dueno_puede_editar_precios) {
+        const anterior = Number((previo as { precio: number }).precio);
+        if (Number(platillo.precio) !== anterior) {
+          return bloqueado("No puedes cambiar los precios.");
+        }
+      }
+    }
+
     const { error } = await supabase.from("menu_items").upsert(
       {
         ...platilloAUpsert(platillo),
@@ -71,6 +102,14 @@ export async function DELETE(req: Request) {
     }
 
     const supabase = createAdminClient();
+
+    const plataforma = await verificarSuperAdmin();
+    if (!plataforma.ok) {
+      const config = await leerConfigServidor();
+      if (!config.dueno_puede_borrar_platillos) {
+        return bloqueado("No puedes borrar platillos.");
+      }
+    }
 
     const { error } = await supabase
       .from("menu_items")

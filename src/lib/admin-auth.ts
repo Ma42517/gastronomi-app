@@ -6,6 +6,7 @@ import {
   supabaseConfigurado,
 } from "@/lib/supabase/config";
 import { mensajeDeError } from "@/lib/supabase/errores";
+import { verificarSuperAdmin } from "@/lib/dev-auth";
 
 /**
  * GUARDIA DE AUTORIZACIÓN DEL PANEL — solo servidor.
@@ -160,6 +161,19 @@ export async function verificarDueno(
     }
 
     if (!membresia) {
+      // Un super admin de la plataforma puede administrar CUALQUIER restaurante
+      // sin figurar como su dueño: si no, el operador no podría arreglar el menú
+      // de un cliente que lo pide por teléfono.
+      const plataforma = await verificarSuperAdmin();
+      if (plataforma.ok) {
+        return {
+          ok: true,
+          userId: user.id,
+          email: user.email ?? null,
+          restauranteId,
+        };
+      }
+
       return denegar(
         403,
         `Tu cuenta (${user.email ?? "sin correo"}) no está registrada como dueña de este restaurante. Añádela con el bloque final de la migración 005.`,

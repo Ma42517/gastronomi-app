@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AlertTriangle, ArrowLeft, Loader2, LockKeyhole } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { supabaseConfigurado } from "@/lib/supabase/config";
+import { DesbloqueoPlataforma } from "@/components/admin/DesbloqueoPlataforma";
 
 /**
  * ENTRADA AL PANEL — /admin/login
@@ -171,6 +172,11 @@ function FormularioLogin() {
               </button>
             </form>
           )}
+
+          {/* Interruptor del modo plataforma: no es un login alternativo, solo
+              activa el menú de super admin. El login de arriba sigue siendo
+              obligatorio. */}
+          <DesbloqueoPlataforma />
         </div>
 
         {hayBaseDeDatos && (

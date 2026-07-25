@@ -9,12 +9,15 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Settings,
+  Store,
   Trash2,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
 import { Switch } from "./Switch";
+import { AjustesPlataforma } from "./AjustesPlataforma";
 
 /**
  * PANEL DE PLATAFORMA (cliente) — lista y edita todos los restaurantes.
@@ -62,7 +65,10 @@ const NUEVO: Partial<Restaurante> = {
   activo: true,
 };
 
+type Pestana = "restaurantes" | "ajustes";
+
 export function PanelPlataforma() {
+  const [pestana, setPestana] = useState<Pestana>("restaurantes");
   const [lista, setLista] = useState<Restaurante[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -159,6 +165,31 @@ export function PanelPlataforma() {
 
   return (
     <div className="space-y-5">
+      {/* ===== PESTAÑAS =====
+          Separan lo que es de CADA restaurante de lo que es de LA APP: son dos
+          ámbitos distintos y mezclarlos invita a tocar por error los ajustes
+          globales creyendo que se edita un restaurante. */}
+      <nav className="flex gap-2">
+        <BotonPestana
+          activa={pestana === "restaurantes"}
+          onClick={() => setPestana("restaurantes")}
+          icono={<Store className="h-3.5 w-3.5" />}
+        >
+          Restaurantes
+        </BotonPestana>
+        <BotonPestana
+          activa={pestana === "ajustes"}
+          onClick={() => setPestana("ajustes")}
+          icono={<Settings className="h-3.5 w-3.5" />}
+        >
+          Ajustes de la app
+        </BotonPestana>
+      </nav>
+
+      {pestana === "ajustes" && <AjustesPlataforma />}
+
+      {pestana === "restaurantes" && (
+      <div className="space-y-5">
       {/* ===== Barra de acciones ===== */}
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -313,6 +344,9 @@ export function PanelPlataforma() {
         </ul>
       )}
 
+      </div>
+      )}
+
       {/* ===== Modales ===== */}
       {form && (
         <ModalRestaurante
@@ -340,6 +374,33 @@ export function PanelPlataforma() {
 // ---------------------------------------------------------------------------
 // Piezas
 // ---------------------------------------------------------------------------
+
+function BotonPestana({
+  activa,
+  onClick,
+  icono,
+  children,
+}: {
+  activa: boolean;
+  onClick: () => void;
+  icono: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-bold transition ${
+        activa
+          ? "border-violet-400/50 bg-violet-500/20 text-white"
+          : "border-white/10 bg-white/[0.04] text-white/55 hover:bg-white/[0.08]"
+      }`}
+    >
+      {icono}
+      {children}
+    </button>
+  );
+}
 
 function Metrica({
   valor,

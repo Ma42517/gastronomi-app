@@ -31,6 +31,8 @@ import type { Modalidad } from "./SelectorModalidad";
 import { ModalPago } from "./ModalPago";
 import { ModalRegistroPremio } from "./ModalRegistroPremio";
 import { HidratarRestaurante } from "@/components/HidratarRestaurante";
+import { useConfigPlataforma } from "@/lib/use-config-plataforma";
+import { pilaDeFuente } from "@/lib/config-plataforma";
 import { useNomAI } from "./NomAIContext";
 
 /** Categoría virtual (no existe en el menú) para filtrar los favoritos. */
@@ -392,8 +394,16 @@ export function VistaClienteMesa({
     setModalPagoAbierto(true);
   };
 
-  // Inyección del tema: la CSS var --brand alimenta todos los componentes hijos.
-  const estiloTema = { "--brand": tema.color_primario } as CSSProperties;
+  // Ajustes globales que decide el dueño de la APP (no el del restaurante).
+  const plataforma = useConfigPlataforma();
+
+  // Inyección del tema: --brand alimenta a todos los componentes hijos, y
+  // `fontFamily` aplica la tipografía elegida en el panel de plataforma a todo
+  // el árbol de la vista del cliente.
+  const estiloTema = {
+    "--brand": tema.color_primario,
+    fontFamily: pilaDeFuente(plataforma.fuente),
+  } as CSSProperties;
 
   return (
     <div
@@ -468,6 +478,24 @@ export function VistaClienteMesa({
 
       {/* CONTENIDO */}
       <main className="relative z-10 -mt-4 flex-1 space-y-5 rounded-t-3xl bg-gray-50 px-5 pb-32 pt-2">
+        {/* PROMOCIÓN GLOBAL de la plataforma. La anuncia el dueño de la app, así
+            que va antes de la identidad del restaurante: no es su oferta. */}
+        {plataforma.promo_activa && plataforma.promo_titulo && (
+          <div
+            className="animate-fade-in mt-3 rounded-2xl px-4 py-3 text-white shadow-lg"
+            style={{ background: plataforma.promo_color }}
+            role="status"
+          >
+            <p className="text-sm font-extrabold leading-tight">
+              {plataforma.promo_titulo}
+            </p>
+            {plataforma.promo_mensaje && (
+              <p className="mt-0.5 text-xs leading-relaxed opacity-90">
+                {plataforma.promo_mensaje}
+              </p>
+            )}
+          </div>
+        )}
         {/* ===== IDENTIDAD DEL RESTAURANTE =====
             Antes vivía sobre la foto de portada y por eso el nombre tenía que
             ser blanco con sombra. Aquí, sobre el fondo claro, puede ir en negro

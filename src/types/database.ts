@@ -30,6 +30,23 @@ export type Restaurante = {
   iniciales: string | null;
 }
 
+/** Ajustes globales de la app (fila única, id = 1). Migración 007. */
+export type PlataformaConfig = {
+  id: number;
+  fuente: string;
+  pagos_habilitados: unknown;
+  promo_activa: boolean;
+  promo_titulo: string | null;
+  promo_mensaje: string | null;
+  promo_color: string;
+  comision_pct: number;
+  dueno_puede_editar_precios: boolean;
+  dueno_puede_crear_platillos: boolean;
+  dueno_puede_borrar_platillos: boolean;
+  dueno_puede_editar_recompensas: boolean;
+  actualizado_at: string;
+};
+
 /**
  * Super administrador de la PLATAFORMA (panel /admin/dev). Nivel distinto a
  * `RestauranteUsuario`: no administra un restaurante, sino todos.
@@ -118,6 +135,12 @@ export type Database = {
         Row: Restaurante;
         Insert: Omit<Restaurante, "id" | "created_at"> & Partial<Pick<Restaurante, "id" | "created_at">>;
         Update: Partial<Restaurante>;
+        Relationships: [];
+      };
+      plataforma_config: {
+        Row: PlataformaConfig;
+        Insert: Partial<PlataformaConfig> & { id: number };
+        Update: Partial<PlataformaConfig>;
         Relationships: [];
       };
       plataforma_admins: {

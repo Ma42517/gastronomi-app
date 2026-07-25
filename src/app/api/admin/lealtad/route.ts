@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verificarDueno } from "@/lib/admin-auth";
+import { verificarSuperAdmin } from "@/lib/dev-auth";
+import { bloqueado, leerConfigServidor } from "@/lib/candados";
 import { mensajeDeError } from "@/lib/supabase/errores";
 import type { LealtadEditable } from "@/lib/restaurante-store";
 
@@ -28,6 +30,15 @@ export async function PUT(req: Request) {
         { error: "Los sellos para recompensa deben ser un entero mayor a 0." },
         { status: 400 },
       );
+    }
+
+    // El super admin está exento: los candados son suyos.
+    const plataforma = await verificarSuperAdmin();
+    if (!plataforma.ok) {
+      const config = await leerConfigServidor();
+      if (!config.dueno_puede_editar_recompensas) {
+        return bloqueado("No puedes cambiar el programa de recompensas.");
+      }
     }
 
     const supabase = createAdminClient();
