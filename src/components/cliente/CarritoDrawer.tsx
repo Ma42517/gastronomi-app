@@ -12,6 +12,8 @@ import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
 import type { MenuItemMock } from "@/lib/mock-data";
 import { BarraProgresoUpsell } from "./BarraProgresoUpsell";
+import { ModuloPropinas } from "./ModuloPropinas";
+import { SelectorModalidad, type Modalidad } from "./SelectorModalidad";
 
 interface CarritoDrawerProps {
   abierto: boolean;
@@ -21,6 +23,14 @@ interface CarritoDrawerProps {
   /** Postre sugerido (banner proactivo ANTES de pagar). */
   sugerido: MenuItemMock | null;
   onAgregarSugerido: () => void;
+  // --- Módulos operativos (estado en el padre para que el checkout lo use) ---
+  modalidad: Modalidad;
+  onCambiarModalidad: (m: Modalidad) => void;
+  mesa: string;
+  onCambiarMesa: (mesa: string) => void;
+  propina: number;
+  porcentajePropina: number | null;
+  onCambiarPropina: (porcentaje: number | null, monto: number) => void;
 }
 
 /**
@@ -37,11 +47,20 @@ export function CarritoDrawer({
   onPagar,
   sugerido,
   onAgregarSugerido,
+  modalidad,
+  onCambiarModalidad,
+  mesa,
+  onCambiarMesa,
+  propina,
+  porcentajePropina,
+  onCambiarPropina,
 }: CarritoDrawerProps) {
   const items = useCartStore((s) => s.items);
   const addToCart = useCartStore((s) => s.addToCart);
   const removeFromCart = useCartStore((s) => s.removeFromCart);
-  const total = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
+  const subtotal = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
+  // Total exacto (a centavos) = subtotal + propina.
+  const total = Math.round((subtotal + propina) * 100) / 100;
 
   if (!abierto) return null;
 
@@ -85,10 +104,20 @@ export function CarritoDrawer({
           </button>
         </div>
 
+        {/* 1.2) MODALIDAD: comer aquí vs. para llevar */}
+        <div className="px-5 pb-3">
+          <SelectorModalidad
+            modalidad={modalidad}
+            onCambiar={onCambiarModalidad}
+            mesa={mesa}
+            onCambiarMesa={onCambiarMesa}
+          />
+        </div>
+
         {/* 1.5) GATILLO DE UPSELLING: progreso hacia la recompensa gratis */}
         {items.length > 0 && (
           <div className="px-5 pb-3">
-            <BarraProgresoUpsell total={total} />
+            <BarraProgresoUpsell total={subtotal} />
           </div>
         )}
 
@@ -190,9 +219,43 @@ export function CarritoDrawer({
           )}
         </div>
 
-        {/* 4) BOTÓN DE PAGO FINAL — va DIRECTO al checkout, sin interrupciones */}
+        {/* 4) PROPINAS + DESGLOSE + PAGO FINAL (directo al checkout) */}
         {items.length > 0 && (
-          <div className="shrink-0 border-t border-gray-100 p-5 pb-6">
+          <div className="shrink-0 space-y-3 border-t border-gray-100 p-5 pb-6">
+            {/* Módulo de propinas (fricción cero) */}
+            <ModuloPropinas
+              subtotal={subtotal}
+              porcentaje={porcentajePropina}
+              propina={propina}
+              onCambiar={onCambiarPropina}
+            />
+
+            {/* Desglose exacto */}
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between text-gray-500">
+                <span>Subtotal</span>
+                <span>{formatCurrency(subtotal)}</span>
+              </div>
+              {propina > 0 && (
+                <div className="flex justify-between text-gray-500">
+                  <span>
+                    Propina
+                    {porcentajePropina ? ` (${porcentajePropina}%)` : ""}
+                  </span>
+                  <span>{formatCurrency(propina)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between border-t border-gray-100 pt-1.5">
+                <span className="font-bold text-gray-900">Total</span>
+                <span
+                  className="text-lg font-extrabold"
+                  style={{ color: "var(--brand)" }}
+                >
+                  {formatCurrency(total)}
+                </span>
+              </div>
+            </div>
+
             <button
               type="button"
               onClick={onPagar}

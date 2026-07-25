@@ -22,6 +22,7 @@ import { ConfiguradorPlatillo } from "./ConfiguradorPlatillo";
 import { DetallePlatillo } from "./DetallePlatillo";
 import { MenuInteractivo, anchorCategoria } from "./MenuInteractivo";
 import { CarritoDrawer } from "./CarritoDrawer";
+import type { Modalidad } from "./SelectorModalidad";
 import { ModalPago } from "./ModalPago";
 import { ModalRegistroPremio } from "./ModalRegistroPremio";
 import { useNomAI } from "./NomAIContext";
@@ -57,13 +58,20 @@ export function VistaClienteMesa({
   const [modalProactivoAbierto, setModalProactivoAbierto] = useState(false);
   // Buscador global (la "lupita" del menú sticky).
   const [busqueda, setBusqueda] = useState("");
+  // --- Módulos operativos del checkout ---
+  const [modalidad, setModalidad] = useState<Modalidad>("local");
+  const [mesaElegida, setMesaElegida] = useState(numeroMesa);
+  const [propina, setPropina] = useState(0);
+  const [porcentajePropina, setPorcentajePropina] = useState<number | null>(null);
 
   // --- Carrito global (Zustand) ---
   const items = useCartStore((s) => s.items);
   const addToCart = useCartStore((s) => s.addToCart);
   const clearCart = useCartStore((s) => s.clearCart);
   const favoriteItems = useCartStore((s) => s.favoriteItems);
-  const total = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
+  const subtotal = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
+  // Total exacto a cobrar (a centavos): subtotal + propina.
+  const total = Math.round((subtotal + propina) * 100) / 100;
 
   // Contexto de Ñom AI.
   const {
@@ -185,6 +193,9 @@ export function VistaClienteMesa({
     // Se evalúa ANTES de vaciar el carrito: ¿la orden incluía el premio canjeado?
     const incluiaPremio = items.some((i) => i.id === PREMIO_ID);
     clearCart();
+    // La propina no se arrastra a la siguiente orden.
+    setPropina(0);
+    setPorcentajePropina(null);
 
     // CIERRE DEL LOOP: si se pagó el premio, el ciclo vuelve a empezar en 0/5.
     if (incluiaPremio) {
@@ -261,6 +272,16 @@ export function VistaClienteMesa({
   // REGLA DE ORO: el pago del drawer va DIRECTO al checkout. La IA NO interrumpe
   // este clic con sugerencias (el postre se ofrece ANTES, como banner del drawer).
   const pagarAhora = () => {
+    // "Para llevar" exige nombre para identificar la orden: si el cliente no
+    // está registrado, se le pide primero (mismo modal de captura).
+    if (modalidad === "llevar" && !estaRegistrado) {
+      cerrarCarrito();
+      setModalProactivoAbierto(true);
+      setAvisoExito(
+        "Para pedidos para llevar necesitamos tu nombre para identificar la orden 🥡",
+      );
+      return;
+    }
     cerrarCarrito();
     setModalPagoAbierto(true);
   };
@@ -439,6 +460,9 @@ export function VistaClienteMesa({
       <ModalPago
         abierto={modalPagoAbierto}
         total={total}
+        propina={propina}
+        modalidad={modalidad}
+        mesa={mesaElegida}
         onCerrar={() => setModalPagoAbierto(false)}
         onPagoExitoso={handlePaymentSuccess}
       />
@@ -471,6 +495,16 @@ export function VistaClienteMesa({
         onAgregarSugerido={() =>
           postreSugerido && agregarMenuItem(postreSugerido)
         }
+        modalidad={modalidad}
+        onCambiarModalidad={setModalidad}
+        mesa={mesaElegida}
+        onCambiarMesa={setMesaElegida}
+        propina={propina}
+        porcentajePropina={porcentajePropina}
+        onCambiarPropina={(pct, monto) => {
+          setPorcentajePropina(pct);
+          setPropina(monto);
+        }}
       />
 
       {/* CLÍMAX DE LEALTAD: celebración + captura de datos en la 5ª visita */}
