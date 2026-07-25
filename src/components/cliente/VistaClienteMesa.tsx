@@ -358,7 +358,9 @@ export function VistaClienteMesa({
           role="img"
           aria-label={`Portada de ${tema.nombre_restaurante}`}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/30" />
+        {/* Velo más ligero que antes: ya no hay texto en la base de la foto que
+            necesite contraste, solo los badges de arriba. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-black/25" />
 
         {/* ===== NAVBAR SUPERIOR: mesa a la izquierda, perfil + CTA a la
              derecha. El CTA de registro late para ser lo primero que note el
@@ -400,38 +402,42 @@ export function VistaClienteMesa({
           </div>
         </div>
 
-        {/* Navbar: LOGO del restaurante (o iniciales como placeholder) + nombre */}
-        <div className="absolute inset-x-0 bottom-0 flex items-end gap-3 px-5 pb-7 pt-5">
+        {/* El logo y el nombre del restaurante ya NO van sobre la foto: se
+            movieron al área clara de abajo para poder pintarlos en negro. */}
+      </header>
+
+      {/* CONTENIDO */}
+      <main className="relative z-10 -mt-4 flex-1 space-y-5 rounded-t-3xl bg-gray-50 px-5 pb-32 pt-2">
+        {/* ===== IDENTIDAD DEL RESTAURANTE =====
+            Antes vivía sobre la foto de portada y por eso el nombre tenía que
+            ser blanco con sombra. Aquí, sobre el fondo claro, puede ir en negro
+            y se lee sin depender del brillo de la foto de cada restaurante. */}
+        <div className="flex items-center gap-3 pt-3">
           {tema.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={tema.logo_url}
               alt={`Logo de ${tema.nombre_restaurante}`}
-              className="h-12 w-12 shrink-0 rounded-2xl bg-white/90 object-cover shadow-md"
+              className="h-12 w-12 shrink-0 rounded-2xl bg-white object-cover shadow-md ring-1 ring-black/5"
             />
           ) : (
             <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/90 text-sm font-extrabold shadow-md backdrop-blur"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-extrabold shadow-md ring-1 ring-black/5"
               style={{ color: "var(--brand)" }}
             >
               {tema.iniciales}
             </div>
           )}
-          <div className="min-w-0 flex-1 pb-0.5">
-            <h1 className="truncate text-xl font-extrabold leading-tight text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.5)]">
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-xl font-extrabold leading-tight text-zinc-950">
               {tema.nombre_restaurante}
             </h1>
             {tema.eslogan && (
-              <p className="truncate text-xs text-white/90 [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
-                {tema.eslogan}
-              </p>
+              <p className="truncate text-xs text-gray-500">{tema.eslogan}</p>
             )}
           </div>
         </div>
-      </header>
 
-      {/* CONTENIDO */}
-      <main className="relative z-10 -mt-4 flex-1 space-y-5 rounded-t-3xl bg-gray-50 px-5 pb-32 pt-2">
         {tab === "vip" ? (
           /* ===== TAB VIP / PREMIOS: aquí vive la tarjeta de Beneficios ===== */
           <div className="space-y-5 pt-3">
