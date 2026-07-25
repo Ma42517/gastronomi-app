@@ -57,6 +57,7 @@ export function NomAIAssistant() {
     platilloActual,
     categoriaActual,
     restauranteNombre,
+    clienteNombre,
     escena,
     carritoAbierto,
     abrirCarrito,
@@ -80,8 +81,15 @@ export function NomAIAssistant() {
   // platillo (tarjeta inline), el drawer del carrito o el checkout se oculta.
   const barVisible = !chatAbierto && !carritoAbierto && escena === "categorias";
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error } =
-    useChat({
+  const {
+    messages,
+    setMessages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    isLoading,
+    error,
+  } = useChat({
       // id estable ⇒ la conversación se guarda en el store global del AI SDK y
       // sobrevive al cerrar/reabrir el chat (persiste a nivel de toda la app).
       id: "nom-ai-conversacion",
@@ -90,9 +98,26 @@ export function NomAIAssistant() {
         currentDish: platilloActual,
         category: categoriaActual,
         location: userLocation,
+        customerName: clienteNombre,
       },
       initialMessages: [{ id: "saludo", role: "assistant", content: SALUDO }],
     });
+
+  // Al registrarse, el saludo del chat se vuelve personalizado (deja de ser
+  // el genérico de invitado) sin perder el resto de la conversación.
+  useEffect(() => {
+    if (!clienteNombre) return;
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === "saludo"
+          ? {
+              ...m,
+              content: `¡Qué bueno verte de nuevo, ${clienteNombre}! ¿Se te antoja lo de siempre?`,
+            }
+          : m,
+      ),
+    );
+  }, [clienteNombre, setMessages]);
 
   // Flujo de bienvenida automático: saludo → tooltip corto → estado discreto.
   useEffect(() => {
@@ -119,14 +144,20 @@ export function NomAIAssistant() {
   //  - carrito vacío  → saludo/bienvenida de Ñom AI.
   //  - con productos  → "Ver orden y Pagar" (toca el texto/total para abrir el
   //    drawer del carrito; el avatar abre el chat conversacional).
-  const bienvenidaInicial = `¡Bienvenido a ${
-    restauranteNombre || TAQUERIA_EL_PRIMO.tema.nombre_restaurante
-  }!`;
+  const bienvenidaInicial = clienteNombre
+    ? `¡Qué bueno verte de nuevo, ${clienteNombre}!`
+    : `¡Bienvenido a ${
+        restauranteNombre || TAQUERIA_EL_PRIMO.tema.nombre_restaurante
+      }!`;
+  // Cliente registrado ⇒ saludo personalizado en la barra.
+  const mensajeReposo = clienteNombre
+    ? `¡Qué bueno verte de nuevo, ${clienteNombre}! ¿Se te antoja lo de siempre?`
+    : MENSAJE_BIENVENIDA;
   const mensajeBar = hayItems
     ? "Ver orden y Pagar"
     : faseBienvenida === "welcome"
       ? bienvenidaInicial
-      : MENSAJE_BIENVENIDA;
+      : mensajeReposo;
 
   // Añadir desde una tarjeta del chat (tool suggestItemTool).
   const agregarSugerido = (

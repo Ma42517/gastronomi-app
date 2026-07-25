@@ -40,6 +40,9 @@ interface NomAIContextValue {
   setPlatilloActual: (n: string) => void;
   categoriaActual: string;
   setCategoriaActual: (c: string) => void;
+  /** Nombre del cliente registrado ("" = invitado). Personaliza la UI y la IA. */
+  clienteNombre: string;
+  setClienteNombre: (n: string) => void;
   /** Mensaje contextual de la barra (null = mensaje de bienvenida por default). */
   barMensaje: string | null;
   setBarMensaje: (m: string | null) => void;
@@ -70,6 +73,7 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
   const [restauranteNombre, setRestauranteNombre] = useState("");
   const [platilloActual, setPlatilloActual] = useState("");
   const [categoriaActual, setCategoriaActual] = useState("");
+  const [clienteNombre, setClienteNombre] = useState("");
   const [chatAbierto, setChatAbierto] = useState(false);
   const [barMensaje, setBarMensaje] = useState<string | null>(null);
   const [barRecomendacion, setBarRecomendacion] =
@@ -92,6 +96,8 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
       setPlatilloActual,
       categoriaActual,
       setCategoriaActual,
+      clienteNombre,
+      setClienteNombre,
       barMensaje,
       setBarMensaje,
       barRecomendacion,
@@ -110,6 +116,7 @@ export function NomAIProvider({ children }: { children: ReactNode }) {
       restauranteNombre,
       platilloActual,
       categoriaActual,
+      clienteNombre,
       barMensaje,
       barRecomendacion,
       barAccion,
@@ -134,6 +141,8 @@ export function useNomAI(): NomAIContextValue {
       setPlatilloActual: () => {},
       categoriaActual: "",
       setCategoriaActual: () => {},
+      clienteNombre: "",
+      setClienteNombre: () => {},
       barMensaje: null,
       setBarMensaje: () => {},
       barRecomendacion: null,

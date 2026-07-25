@@ -45,6 +45,7 @@ function construirSystemPrompt(
   currentDish?: string,
   location?: string,
   category?: string,
+  customerName?: string,
 ): string {
   const nombre = TAQUERIA_EL_PRIMO.tema.nombre_restaurante;
   const ubicacion = location?.trim() || "una ubicación no especificada";
@@ -63,6 +64,11 @@ CÓMO RECOMENDAR:
 - INMEDIATAMENTE DESPUÉS de ese mensaje de texto cálido, ejecuta la herramienta "suggestItemTool" (con el nombre y precio exactos del menú) para mostrar el botón. Primero la charla, luego la herramienta.
 
 CONTEXTO:
+- ${
+    customerName?.trim()
+      ? `El cliente es ${customerName.trim()}, ya registrado en Beneficios Ñom. Trátalo por su nombre con calidez (como un cliente frecuente), sin exagerar ni repetirlo en cada frase.`
+      : "El cliente es un invitado (no registrado). No inventes su nombre."
+  }
 - Ubicación del cliente: ${ubicacion}. Úsala de forma muy sutil solo si suma (clima, vibra local).
 - El cliente está viendo: ${platillo}. Si dice "esto", "este platillo" o "esta carne", se refiere a ese.
 - NO cuentes trivia ni datos históricos. Enfócate 100% en descripciones apetitosas (ingredientes, textura, aromas) y en venta cruzada.
@@ -95,18 +101,25 @@ export async function POST(req: Request) {
       currentDish,
       location,
       category,
+      customerName,
     }: {
       messages: Message[];
       currentDish?: string;
       location?: string;
       category?: string;
+      customerName?: string;
     } = await req.json();
 
     const result = await streamText({
       // Modelo Flash vigente y GA (los 1.0/1.5/2.0 y 2.5 ya no aplican para
       // nuevos usuarios). gemini-3.6-flash es el workhorse actual de Google.
       model: google("gemini-3.6-flash"),
-      system: construirSystemPrompt(currentDish, location, category),
+      system: construirSystemPrompt(
+        currentDish,
+        location,
+        category,
+        customerName,
+      ),
       messages: convertToCoreMessages(messages),
       tools: {
         // La IA llama a esta herramienta al recomendar algo concreto; el

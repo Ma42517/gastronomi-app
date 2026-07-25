@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { Gift, HeartCrack, MapPin, X } from "lucide-react";
+import { Gift, HeartCrack, MapPin, User, X } from "lucide-react";
 import type { MenuItemMock, ProgramaLealtad, RestauranteMock } from "@/lib/mock-data";
 import { useCartStore } from "@/lib/cart-store";
 import { TarjetaSellos } from "./TarjetaSellos";
@@ -19,6 +19,9 @@ import { useNomAI } from "./NomAIContext";
 
 /** Categoría virtual (no existe en el menú) para filtrar los favoritos. */
 const CATEGORIA_FAVORITOS = "❤️ Favoritos";
+
+/** ID del ítem de premio canjeado (se agrega al carrito con precio $0.00). */
+const PREMIO_ID = "premio-lealtad";
 
 interface VistaClienteMesaProps {
   restaurante: RestauranteMock;
@@ -39,6 +42,7 @@ export function VistaClienteMesa({
   // Lealtad / lead gen: intercepción del premio en la 5ª visita.
   const [modalRegistroAbierto, setModalRegistroAbierto] = useState(false);
   const [premioReclamado, setPremioReclamado] = useState(false);
+  const [premioCanjeado, setPremioCanjeado] = useState(false);
   const [avisoExito, setAvisoExito] = useState<string | null>(null);
 
   // --- Carrito global (Zustand) ---
@@ -54,6 +58,8 @@ export function VistaClienteMesa({
     setRestauranteNombre,
     setPlatilloActual,
     setCategoriaActual,
+    clienteNombre,
+    setClienteNombre,
     carritoAbierto,
     cerrarCarrito,
   } = useNomAI();
@@ -139,9 +145,23 @@ export function VistaClienteMesa({
    * entregarlo de inmediato.
    */
   const handlePaymentSuccess = () => {
+    // Se evalúa ANTES de vaciar el carrito: ¿la orden incluía el premio canjeado?
+    const incluiaPremio = items.some((i) => i.id === PREMIO_ID);
     clearCart();
-    // Se calcula fuera del updater para no producir efectos secundarios dentro
-    // de él (React puede invocar el updater más de una vez).
+
+    // CIERRE DEL LOOP: si se pagó el premio, el ciclo vuelve a empezar en 0/5.
+    if (incluiaPremio) {
+      setLealtad((l) => ({ ...l, sellos_actuales: 0 }));
+      setPremioCanjeado(false);
+      setPremioReclamado(false);
+      setAvisoExito(
+        `¡Gracias${clienteNombre ? `, ${clienteNombre}` : ""}! Tu premio fue canjeado. Tu tarjeta empieza de nuevo. 🌮`,
+      );
+      return;
+    }
+
+    // Flujo normal: +1 visita. Se calcula fuera del updater para no producir
+    // efectos secundarios dentro de él (React puede invocarlo más de una vez).
     const nuevasVisitas = lealtad.sellos_actuales + 1;
     setLealtad((l) => ({
       ...l,
@@ -150,6 +170,20 @@ export function VistaClienteMesa({
     if (nuevasVisitas >= lealtad.sellos_para_recompensa && !premioReclamado) {
       setModalRegistroAbierto(true);
     }
+  };
+
+  /** Canje del premio: se agrega a la orden con precio $0.00. */
+  const canjearPremio = () => {
+    addToCart({
+      id: PREMIO_ID,
+      nombre: `${lealtad.descripcion_recompensa} (Premio)`,
+      precio: 0,
+      emoji: "🎁",
+    });
+    setPremioCanjeado(true);
+    setAvisoExito(
+      `¡Tu ${lealtad.descripcion_recompensa} se añadió gratis a tu orden! 🎁`,
+    );
   };
 
   /** Registro completado: guarda el lead, cierra el modal y confirma en la UI. */
@@ -162,6 +196,8 @@ export function VistaClienteMesa({
   }) => {
     // En producción: enviar {nombre, whatsapp} al CRM/backend del restaurante.
     console.info("[Beneficios Ñom] Nuevo registro:", { nombre, whatsapp });
+    // Personalización inmediata: deja de ser "invitado" en toda la app (header + IA).
+    setClienteNombre(nombre.split(" ")[0]);
     setPremioReclamado(true);
     setModalRegistroAbierto(false);
     setAvisoExito(
@@ -201,8 +237,12 @@ export function VistaClienteMesa({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/30" />
 
-        {/* Badge de mesa (glassmorphism) */}
-        <div className="absolute right-4 top-4">
+        {/* Saludo personalizado + badge de mesa (glassmorphism) */}
+        <div className="absolute inset-x-4 top-4 flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
+            <User className="h-3.5 w-3.5" />
+            {clienteNombre ? `Hola, ${clienteNombre}` : "Invitado"}
+          </span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
             <MapPin className="h-3.5 w-3.5" />
             Mesa {numeroMesa}
@@ -279,7 +319,11 @@ export function VistaClienteMesa({
               />
             )}
 
-            <TarjetaSellos lealtad={lealtad} />
+            <TarjetaSellos
+              lealtad={lealtad}
+              onCanjear={canjearPremio}
+              premioCanjeado={premioCanjeado}
+            />
 
             {/* 2) Carrusel horizontal "Populares" */}
             <SeccionPopulares items={populares} onVerDetalle={setDetalleItem} />

@@ -1,15 +1,28 @@
-import { Gift, Sparkles } from "lucide-react";
+import { Check, Gift, Sparkles } from "lucide-react";
 import type { ProgramaLealtad } from "@/lib/mock-data";
+
+interface TarjetaSellosProps {
+  lealtad: ProgramaLealtad;
+  /** Canjea el premio: lo agrega al carrito con precio $0.00. */
+  onCanjear?: () => void;
+  /** Si el premio ya fue añadido a la orden actual. */
+  premioCanjeado?: boolean;
+}
 
 /**
  * Tarjeta de beneficios PREMIUM ("✨ Beneficios Ñom").
  * Gradiente rojo→naranja (derivado de --brand, white-label) + barra de progreso
  * que indica claramente en qué visita va el usuario y genera anticipación.
  */
-export function TarjetaSellos({ lealtad }: { lealtad: ProgramaLealtad }) {
+export function TarjetaSellos({
+  lealtad,
+  onCanjear,
+  premioCanjeado = false,
+}: TarjetaSellosProps) {
   const { sellos_actuales, sellos_para_recompensa, descripcion_recompensa } =
     lealtad;
   const faltan = Math.max(sellos_para_recompensa - sellos_actuales, 0);
+  const recompensaLista = sellos_actuales >= sellos_para_recompensa;
   const progreso = Math.min(
     Math.round((sellos_actuales / sellos_para_recompensa) * 100),
     100,
@@ -78,6 +91,29 @@ export function TarjetaSellos({ lealtad }: { lealtad: ProgramaLealtad }) {
             );
           })}
         </div>
+
+        {/* CANJE: solo al completar el ciclo (5/5) */}
+        {recompensaLista && onCanjear && (
+          <button
+            type="button"
+            onClick={onCanjear}
+            disabled={premioCanjeado}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3.5 text-sm font-extrabold shadow-lg transition active:scale-[0.98] disabled:cursor-default disabled:opacity-90"
+            style={{ color: premioCanjeado ? "#16a34a" : "var(--brand)" }}
+          >
+            {premioCanjeado ? (
+              <>
+                <Check className="h-4 w-4" strokeWidth={3} />
+                Añadido a tu orden
+              </>
+            ) : (
+              <>
+                <Gift className="h-4 w-4" strokeWidth={2.5} />
+                Añadir gratis a mi orden
+              </>
+            )}
+          </button>
+        )}
       </div>
     </section>
   );
