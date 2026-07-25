@@ -17,16 +17,46 @@ export function SesionDueno() {
   const router = useRouter();
   const [email, setEmail] = useState<string | null>(null);
   const [saliendo, setSaliendo] = useState(false);
+  /** null mientras se comprueba; evita parpadear el aviso de "sin sesión". */
+  const [haySesion, setHaySesion] = useState<boolean | null>(null);
+
+  const conBaseDeDatos = supabaseConfigurado();
 
   useEffect(() => {
-    // En modo local no hay sesión que mostrar.
-    if (!supabaseConfigurado()) return;
+    // En modo local no hay sesión que mostrar ni que exigir.
+    if (!conBaseDeDatos) {
+      setHaySesion(false);
+      return;
+    }
 
     const supabase = createClient();
-    void supabase.auth
-      .getUser()
-      .then(({ data }) => setEmail(data.user?.email ?? null));
-  }, []);
+    void supabase.auth.getUser().then(({ data }) => {
+      setEmail(data.user?.email ?? null);
+      setHaySesion(Boolean(data.user));
+    });
+  }, [conBaseDeDatos]);
+
+  /**
+   * AVISO DE SESIÓN AUSENTE.
+   *
+   * Con Supabase configurado, el middleware debería haber redirigido al login
+   * antes de llegar aquí. Si el panel se ve igualmente, es que el middleware no
+   * está actuando —casi siempre porque el despliegue que lo incluye todavía no
+   * ha salido— y el panel estaría abierto a cualquiera. Callarse eso sería lo
+   * peor que podría hacer esta interfaz.
+   */
+  if (conBaseDeDatos && haySesion === false) {
+    return (
+      <a
+        href="/admin/login"
+        className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-xs font-bold text-rose-300 transition hover:bg-rose-500/25"
+        title="El panel se abrió sin sesión: el middleware no está activo"
+      >
+        <UserCircle2 className="h-3.5 w-3.5" />
+        Sin sesión — entrar
+      </a>
+    );
+  }
 
   if (!email) return null;
 

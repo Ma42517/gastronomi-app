@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import {
   RESTAURANTE_SLUG,
   servicioConfigurado,
@@ -137,6 +138,36 @@ export async function GET() {
         ? "Aquí va la Secret key (sb_secret_…), no la Publishable. Con la publishable, guardar fallará por RLS con un error confuso."
         : undefined,
   });
+
+  // --- 1d. ¿Hay sesión de dueño? -------------------------------------------
+  // Si el panel se abre SIN pedir contraseña, esto lo delata: significa que el
+  // middleware no está actuando (normalmente porque el despliegue con
+  // src/middleware.ts todavía no ha salido).
+  if (supabaseConfigurado()) {
+    try {
+      const sesion = createClient();
+      const {
+        data: { user },
+      } = await sesion.auth.getUser();
+
+      chequeos.push({
+        paso: "1d. Sesión de dueño",
+        ok: Boolean(user),
+        detalle: user
+          ? `sesión activa (${user.email ?? "sin correo"})`
+          : "SIN SESIÓN",
+        que_hacer: user
+          ? undefined
+          : "Estás viendo el panel sin haber iniciado sesión: el middleware no está actuando. Comprueba en Vercel > Deployments que el último despliegue esté en Ready e incluya src/middleware.ts.",
+      });
+    } catch {
+      chequeos.push({
+        paso: "1d. Sesión de dueño",
+        ok: false,
+        detalle: "No se pudo leer la sesión.",
+      });
+    }
+  }
 
   // Si falta lo básico, no tiene sentido seguir intentando conectar.
   if (!supabaseConfigurado() || !servicioConfigurado()) {
