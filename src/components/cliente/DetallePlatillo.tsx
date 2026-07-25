@@ -18,7 +18,6 @@ import type { GrupoModificador, MenuItemMock } from "@/lib/mock-data";
 import { useNomAI } from "./NomAIContext";
 import { BotonFavorito } from "./BotonFavorito";
 import { SugerenciasBebida } from "./SugerenciasBebida";
-import { SalsaOverlay } from "./SalsaOverlay";
 
 interface DetallePlatilloProps {
   abierto: boolean;
@@ -78,9 +77,6 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   const [reaccion, setReaccion] = useState<string | null>(null);
   const [sugeridoAgregado, setSugeridoAgregado] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  // Salsa servida sobre la FOTO REAL (overlay). trigger reinicia la animación.
-  const [salsaId, setSalsaId] = useState<string | null>(null);
-  const [salsaTrigger, setSalsaTrigger] = useState(0);
 
   // Toast discreto (favoritos).
   const mostrarToast = (mensaje: string) => setToast(mensaje);
@@ -175,7 +171,6 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     setImgError(false);
     setReaccion(null);
     setSugeridoAgregado(false);
-    setSalsaId(null);
   }, [abierto, item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!abierto || !item) return null;
@@ -195,12 +190,6 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
       };
     });
     setReaccion(REACCIONES[opcionId] ?? "¡Buena elección!");
-
-    // Si eligió una salsa, se sirve sobre la foto real (overlay animado).
-    if (grupo.id === "salsa") {
-      setSalsaId(opcionId);
-      setSalsaTrigger((n) => n + 1);
-    }
   };
 
   // Texto de la tarjeta inline (timing estricto):
@@ -243,12 +232,6 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
               </div>
             </>
           )}
-          {/* Salsa servida sobre la FOTO REAL — overlay transparente, la
-              fotografía de abajo nunca se altera ni se reemplaza. */}
-          {item.imagen_url && !imgError && (
-            <SalsaOverlay salsaId={salsaId} trigger={salsaTrigger} />
-          )}
-
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-black/20" />
 
           <div className="absolute left-1/2 top-2.5 -translate-x-1/2">
