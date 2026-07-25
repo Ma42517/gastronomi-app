@@ -20,6 +20,69 @@ interface DetallePlatilloProps {
 }
 
 /**
+ * ===== TÉRMINO DE COCCIÓN: LA FOTO REACCIONA AL TOQUE =====
+ *
+ * Metadatos visuales de cada término. Venían del configurador exclusivo del
+ * Ribeye; al unificar todo en este modal se portaron aquí para no perder la
+ * micro-interacción estrella: al elegir el término, la carne de la foto cambia
+ * de color en vivo.
+ *
+ * - `overlay`: capa de color + blend mode que se pinta sobre la imagen.
+ * - `glow`:    color del halo del pill y de la etiqueta flotante.
+ * - `punto`:   color del círculo que simula el interior del corte.
+ *
+ * El mapa se indexa por el id de la opción, así que cualquier grupo llamado
+ * "termino" en cualquier platillo hereda el efecto sin tocar este componente.
+ */
+const TERMINO_VISUAL: Record<
+  string,
+  { overlay: string; glow: string; punto: string; sub: string }
+> = {
+  rojo: {
+    overlay: "bg-red-600/50 mix-blend-color-burn",
+    glow: "#ef4444",
+    punto: "#b81f1f",
+    sub: "Rare",
+  },
+  medio: {
+    overlay: "bg-red-400/30 mix-blend-multiply",
+    glow: "#f87171",
+    punto: "#d24b3d",
+    sub: "Medium",
+  },
+  "tres-cuartos": {
+    overlay: "bg-orange-900/40 mix-blend-multiply",
+    glow: "#fca5a5",
+    punto: "#dda183",
+    sub: "Medium Well",
+  },
+  "bien-cocido": {
+    overlay: "bg-stone-800/60 mix-blend-multiply",
+    glow: "#b45309",
+    punto: "#8a5a3b",
+    sub: "Well Done",
+  },
+};
+
+/** Id del grupo que dispara el efecto sobre la foto. */
+const GRUPO_TERMINO = "termino";
+
+/**
+ * Máscara radial: el tono de cocción se aplica SOLO al centro de la foto (la
+ * carne), nunca a la tabla ni al fondo. Sin esto el efecto tiñe toda la imagen
+ * y parece un filtro de Instagram en vez de un cambio de cocción.
+ */
+const MASCARA_TERMINO =
+  "radial-gradient(ellipse at 50% 55%, black 15%, transparent 60%)";
+
+/** Respuesta háptica sutil al elegir (solo dispositivos compatibles). */
+function vibrar(ms = 8) {
+  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+    navigator.vibrate(ms);
+  }
+}
+
+/**
  * DETALLE DEL PLATILLO — filosofía "Fricción Cero" y "Cero Scroll".
  *
  * Todo cabe en una sola pantalla de móvil. Jerarquía estricta de arriba abajo:
@@ -171,7 +234,23 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
           ? actual.filter((x) => x !== opcionId)
           : [...actual, opcionId];
     setSelecciones({ ...selecciones, [grupo.id]: nuevas });
+
+    // El término cambia la foto: se acompaña con un pulso háptico para que el
+    // cambio visual se sienta físico.
+    if (grupo.id === GRUPO_TERMINO) vibrar();
   };
+
+  // --- Término elegido: alimenta la capa de color de la foto y la etiqueta ---
+  const terminoId = selecciones[GRUPO_TERMINO]?.[0] ?? null;
+  const terminoVisual = terminoId ? TERMINO_VISUAL[terminoId] : null;
+  const tieneGrupoTermino = (platillo.modifiers ?? []).some(
+    (g) => g.id === GRUPO_TERMINO,
+  );
+  const nombreTermino = terminoId
+    ? ((platillo.modifiers ?? [])
+        .find((g) => g.id === GRUPO_TERMINO)
+        ?.opciones.find((o) => o.id === terminoId)?.nombre ?? "")
+    : "";
 
   // ESTADO 2: la venta cruzada se desbloquea al completar los obligatorios.
   const mostrarBebidas =
@@ -222,7 +301,39 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
               </div>
             </>
           )}
+          {/* ===== CAPA DE TÉRMINO =====
+              Tiñe SOLO el centro de la foto (la carne) con el tono del término
+              elegido. `transition-colors duration-700` hace que el cambio entre
+              términos sea un fundido de color, no un salto. */}
+          {terminoVisual && (
+            <div
+              aria-hidden
+              className={`pointer-events-none absolute inset-0 transition-colors duration-700 ${terminoVisual.overlay}`}
+              style={{
+                WebkitMaskImage: MASCARA_TERMINO,
+                maskImage: MASCARA_TERMINO,
+              }}
+            />
+          )}
+
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-black/20" />
+
+          {/* Etiqueta flotante del término (o invitación a elegirlo). */}
+          {tieneGrupoTermino && (
+            <div className="absolute bottom-3 left-3">
+              <span
+                className="rounded-full border px-3 py-1 text-xs font-semibold text-white backdrop-blur-md transition-all duration-500"
+                style={{
+                  borderColor: `${terminoVisual?.glow ?? "#ffffff"}80`,
+                  background: `${terminoVisual?.glow ?? "#ffffff"}33`,
+                }}
+              >
+                {terminoVisual
+                  ? `${nombreTermino} · ${terminoVisual.sub}`
+                  : "Elige tu término 👇"}
+              </span>
+            </div>
+          )}
 
           <div className="absolute left-1/2 top-2.5 -translate-x-1/2">
             <span className="block h-1.5 w-12 rounded-full bg-white/60" />
@@ -403,6 +514,12 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
               <div className="flex flex-wrap gap-1.5">
                 {grupo.opciones.map((op) => {
                   const activa = (selecciones[grupo.id] ?? []).includes(op.id);
+                  // Los términos usan su propio color (rojo intenso -> café) en
+                  // lugar del color de marca, y muestran el punto de cocción.
+                  const visual =
+                    grupo.id === GRUPO_TERMINO ? TERMINO_VISUAL[op.id] : null;
+                  const acento = visual?.glow ?? brand;
+
                   return (
                     <button
                       key={op.id}
@@ -410,16 +527,32 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
                       onClick={() => toggle(grupo, op.id)}
                       role={grupo.tipo === "multi" ? "checkbox" : "radio"}
                       aria-checked={activa}
-                      className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-all duration-200"
+                      className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-all duration-300"
                       style={{
-                        borderColor: activa ? brand : "rgba(255,255,255,0.12)",
+                        borderColor: activa
+                          ? acento
+                          : "rgba(255,255,255,0.12)",
                         background: activa
-                          ? `color-mix(in srgb, ${brand} 22%, transparent)`
+                          ? visual
+                            ? `${acento}1f`
+                            : `color-mix(in srgb, ${brand} 22%, transparent)`
                           : "rgba(255,255,255,0.04)",
                         color: activa ? "#fff" : "rgba(255,255,255,0.7)",
+                        boxShadow: activa && visual
+                          ? `0 0 20px -4px ${acento}88`
+                          : "none",
                       }}
                     >
-                      {activa && <Check className="h-3 w-3" strokeWidth={3} />}
+                      {/* Punto que simula el interior del corte. */}
+                      {visual ? (
+                        <span
+                          aria-hidden
+                          className="h-3 w-3 shrink-0 rounded-full border border-black/20 transition-colors duration-300"
+                          style={{ background: visual.punto }}
+                        />
+                      ) : (
+                        activa && <Check className="h-3 w-3" strokeWidth={3} />
+                      )}
                       {op.nombre}
                       {op.precio_extra ? (
                         <span className="text-[11px] text-white/50">
