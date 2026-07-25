@@ -9,6 +9,7 @@ import { platilloVacio, useRestauranteStore } from "@/lib/restaurante-store";
 import { HidratarRestaurante } from "@/components/HidratarRestaurante";
 import { EstadoConexion } from "@/components/admin/EstadoConexion";
 import { SesionDueno } from "@/components/admin/SesionDueno";
+import { AccesoPlataforma } from "@/components/admin/AccesoPlataforma";
 import { ModalPlatillo } from "@/components/admin/ModalPlatillo";
 import { PanelRecompensas } from "@/components/admin/PanelRecompensas";
 import { Switch } from "@/components/admin/Switch";
@@ -80,6 +81,9 @@ export default function PanelAdmin() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Solo aparece si el servidor confirma que es super admin. */}
+            <AccesoPlataforma />
+
             {/* Identidad del dueño + salir (solo si hay sesión). */}
             <SesionDueno />
 

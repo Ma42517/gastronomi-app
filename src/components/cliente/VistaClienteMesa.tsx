@@ -30,6 +30,7 @@ import { BarraNavegacion, type TabActivo } from "./BarraNavegacion";
 import type { Modalidad } from "./SelectorModalidad";
 import { ModalPago } from "./ModalPago";
 import { ModalRegistroPremio } from "./ModalRegistroPremio";
+import { HidratarRestaurante } from "@/components/HidratarRestaurante";
 import { useNomAI } from "./NomAIContext";
 
 /** Categoría virtual (no existe en el menú) para filtrar los favoritos. */
@@ -41,13 +42,27 @@ const PREMIO_ID = "premio-lealtad";
 interface VistaClienteMesaProps {
   restaurante: RestauranteMock;
   numeroMesa: string;
+  /**
+   * Slug del restaurante tomado de la URL. Determina QUÉ restaurante se sirve;
+   * el prop `restaurante` queda solo como semilla mientras llega la base.
+   */
+  slug?: string;
 }
 
 export function VistaClienteMesa({
   restaurante,
   numeroMesa,
+  slug,
 }: VistaClienteMesaProps) {
-  const { tema, hero } = restaurante;
+  const { hero } = restaurante;
+
+  /**
+   * TEMA VIVO. Si la base ya respondió, manda su tema; si no, el del mock.
+   * Sin esto, un restaurante creado desde el panel de plataforma se vería con
+   * el nombre, el color y la portada de la Taquería El Primo.
+   */
+  const temaRemoto = useRestauranteStore((s) => s.tema);
+  const tema = temaRemoto ?? restaurante.tema;
 
   // MENÚ Y LEALTAD VIVOS: se leen del store, no del mock. Así lo que el dueño
   // guarda en el Panel Administrador (precio, foto, agotado, premio) aparece
@@ -385,6 +400,9 @@ export function VistaClienteMesa({
       style={estiloTema}
       className="relative mx-auto flex min-h-screen max-w-md flex-col bg-gray-50 shadow-2xl sm:border-x sm:border-gray-200"
     >
+      {/* Carga el restaurante de ESTA url (y los cambios del panel del dueño). */}
+      <HidratarRestaurante slug={slug} />
+
       {/* HEADER PREMIUM — imagen de portada + overlay */}
       <header className="relative h-52 w-full shrink-0 overflow-hidden">
         <div

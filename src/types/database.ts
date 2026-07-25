@@ -30,6 +30,16 @@ export type Restaurante = {
   iniciales: string | null;
 }
 
+/**
+ * Super administrador de la PLATAFORMA (panel /admin/dev). Nivel distinto a
+ * `RestauranteUsuario`: no administra un restaurante, sino todos.
+ */
+export type PlataformaAdmin = {
+  user_id: string;
+  nota: string | null;
+  created_at: string;
+};
+
 /** Vincula un usuario de Supabase Auth con el restaurante que administra. */
 export type RestauranteUsuario = {
   restaurante_id: string;
@@ -110,6 +120,13 @@ export type Database = {
         Update: Partial<Restaurante>;
         Relationships: [];
       };
+      plataforma_admins: {
+        Row: PlataformaAdmin;
+        Insert: Omit<PlataformaAdmin, "created_at"> &
+          Partial<Pick<PlataformaAdmin, "created_at">>;
+        Update: Partial<PlataformaAdmin>;
+        Relationships: [];
+      };
       restaurante_usuarios: {
         Row: RestauranteUsuario;
         Insert: Omit<RestauranteUsuario, "created_at"> &
@@ -151,7 +168,40 @@ export type Database = {
     // `Record<string, never>` NO satisface el GenericSchema de supabase-js y hace
     // que .select() infiera `never`. Esta es la forma que genera el CLI oficial.
     Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+    /**
+     * Funciones RPC. Deben declararse aquí para que `supabase.rpc(...)` tipe
+     * bien; con el mapa vacío, cualquier llamada se infiere como `never`.
+     * Las dos primeras solo tienen permiso de ejecución para `service_role`
+     * (ver migración 006): leen `auth.users` y expuestas serían un oráculo de
+     * enumeración de usuarios.
+     */
+    Functions: {
+      /** Resuelve un correo a su uuid de auth.users. */
+      usuario_id_por_correo: {
+        Args: { p_email: string };
+        Returns: string | null;
+      };
+      /** Dueños de un restaurante con su correo ya resuelto. */
+      duenos_de_restaurante: {
+        Args: { p_restaurante: string };
+        Returns: {
+          user_id: string;
+          email: string;
+          rol: string;
+          created_at: string;
+        }[];
+      };
+      /** ¿El usuario de la sesión es dueño de este restaurante? */
+      es_dueno: {
+        Args: { p_restaurante: string };
+        Returns: boolean;
+      };
+      /** Saldo de sellos de un comensal en un restaurante. */
+      saldo_sellos: {
+        Args: { p_restaurante: string; p_cliente: string };
+        Returns: number;
+      };
+    };
     Enums: {
       estado_sesion: EstadoSesion;
       estado_orden_item: EstadoOrdenItem;

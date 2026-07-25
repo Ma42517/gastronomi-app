@@ -9,6 +9,7 @@ import type {
   GrupoModificador,
   MenuItemMock,
   ProgramaLealtad,
+  TemaRestaurante,
 } from "@/lib/mock-data";
 
 /**
@@ -47,14 +48,21 @@ export type EstadoNube =
 interface RestauranteState {
   menu: MenuItemMock[];
   lealtad: LealtadEditable;
+  /**
+   * Tema del restaurante que se está sirviendo (nombre, color, portada).
+   * `null` mientras no llega de la base: la vista usa entonces el del mock.
+   */
+  tema: TemaRestaurante | null;
+  /** Slug servido actualmente. Evita mezclar el menú de dos restaurantes. */
+  slugActual: string | null;
 
   // --- Estado de la sincronización con Supabase ---
   estadoNube: EstadoNube;
   /** Último error de escritura, para mostrarlo en el panel. */
   errorNube: string | null;
 
-  /** Trae el menú desde Supabase y reemplaza el estado local. */
-  cargarDesdeNube: () => Promise<void>;
+  /** Trae un restaurante desde Supabase y reemplaza el estado local. */
+  cargarDesdeNube: (slug?: string) => Promise<void>;
   /** Sube el menú completo a Supabase (arranque en frío). */
   publicarEnNube: () => Promise<boolean>;
 
@@ -80,18 +88,20 @@ export const useRestauranteStore = create<RestauranteState>()(
   persist(
     (set, get) => ({
       ...ESTADO_INICIAL,
+      tema: null,
+      slugActual: null,
       estadoNube: supabaseConfigurado() ? "cargando" : "local",
       errorNube: null,
 
       // --- LECTURA ---------------------------------------------------------
-      cargarDesdeNube: async () => {
+      cargarDesdeNube: async (slug) => {
         if (!supabaseConfigurado()) {
           set({ estadoNube: "local" });
           return;
         }
 
         set({ estadoNube: "cargando", errorNube: null });
-        const remoto = await leerRestauranteRemoto();
+        const remoto = await leerRestauranteRemoto(slug);
 
         if (!remoto) {
           // Conectado pero sin datos (o error ya registrado en consola): se
@@ -102,6 +112,8 @@ export const useRestauranteStore = create<RestauranteState>()(
 
         set({
           menu: remoto.menu,
+          tema: remoto.tema,
+          slugActual: slug ?? null,
           // El progreso de sellos del comensal es local; de la nube solo vienen
           // la meta y el premio.
           lealtad: {
@@ -184,7 +196,8 @@ export const useRestauranteStore = create<RestauranteState>()(
         if (!res.ok) set({ errorNube: res.error });
       },
 
-      restablecer: () => set({ ...ESTADO_INICIAL, errorNube: null }),
+      restablecer: () =>
+        set({ ...ESTADO_INICIAL, tema: null, slugActual: null, errorNube: null }),
     }),
     {
       name: "nom-restaurante",
@@ -196,7 +209,12 @@ export const useRestauranteStore = create<RestauranteState>()(
        *
        * Nunca se persisten las funciones ni el estado de conexión.
        */
-      partialize: (state) => ({ menu: state.menu, lealtad: state.lealtad }),
+      partialize: (state) => ({
+        menu: state.menu,
+        lealtad: state.lealtad,
+        tema: state.tema,
+        slugActual: state.slugActual,
+      }),
       skipHydration: true,
     },
   ),

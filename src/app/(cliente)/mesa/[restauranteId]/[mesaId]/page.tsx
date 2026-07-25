@@ -21,6 +21,12 @@ export default function Page({ params }: PageProps) {
   const restaurante = TAQUERIA_EL_PRIMO;
 
   return (
-    <VistaClienteMesa restaurante={restaurante} numeroMesa={params.mesaId} />
+    <VistaClienteMesa
+      restaurante={restaurante}
+      numeroMesa={params.mesaId}
+      // El slug de la URL decide qué restaurante se carga de Supabase; el mock
+      // solo sirve de semilla para el primer pintado.
+      slug={params.restauranteId}
+    />
   );
 }

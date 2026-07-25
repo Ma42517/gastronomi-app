@@ -1,4 +1,8 @@
-import type { GrupoModificador, MenuItemMock } from "@/lib/mock-data";
+import type {
+  GrupoModificador,
+  MenuItemMock,
+  TemaRestaurante,
+} from "@/lib/mock-data";
 import type { LealtadEditable } from "@/lib/restaurante-store";
 import type { MenuItem, Restaurante } from "@/types/database";
 
@@ -95,3 +99,45 @@ export function platilloAUpsert(item: MenuItemMock): PlatilloUpsert {
     modifiers: item.modifiers ?? null,
   };
 }
+
+
+/**
+ * Fila de `restaurantes` -> TEMA visual de la app.
+ *
+ * Es lo que hace posible el multi-restaurante: sin esto, un restaurante creado
+ * desde el panel de plataforma se vería con el nombre, el color y la portada de
+ * la Taquería El Primo, porque el tema venía del mock.
+ *
+ * Cada campo cae a un valor de respaldo razonable, porque en la base son
+ * opcionales y un `null` en `portada_url` dejaría el header sin imagen.
+ */
+export function filaATema(
+  row: RestauranteRow & {
+    eslogan?: string | null;
+    portada_url?: string | null;
+    color_primario?: string | null;
+    iniciales?: string | null;
+  },
+): TemaRestaurante {
+  return {
+    nombre_restaurante: row.nombre,
+    color_primario: row.color_primario || "#DC2626",
+    logo_url: row.logo_url ?? null,
+    // Iniciales derivadas del nombre si la fila no las trae.
+    iniciales:
+      row.iniciales ||
+      row.nombre
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((p) => p[0]?.toUpperCase() ?? "")
+        .join("") ||
+      "??",
+    eslogan: row.eslogan ?? undefined,
+    portada_url: row.portada_url || PORTADA_DE_RESPALDO,
+  };
+}
+
+/** Portada genérica de comida para restaurantes que aún no subieron la suya. */
+const PORTADA_DE_RESPALDO =
+  "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=1200&q=80";
