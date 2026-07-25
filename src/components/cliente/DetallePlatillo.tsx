@@ -15,8 +15,10 @@ import { useCartStore } from "@/lib/cart-store";
 import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
 import { obtenerMaridaje } from "@/lib/maridajes";
 import type { GrupoModificador, MenuItemMock } from "@/lib/mock-data";
+import { useCopiloto } from "@/lib/use-copiloto";
 import { useNomAI } from "./NomAIContext";
 import { BotonFavorito } from "./BotonFavorito";
+import { CopilotoAI } from "./CopilotoAI";
 import { SugerenciasBebida } from "./SugerenciasBebida";
 
 interface DetallePlatilloProps {
@@ -24,20 +26,6 @@ interface DetallePlatilloProps {
   item: MenuItemMock | null;
   onCerrar: () => void;
 }
-
-/** Descripciones de Ñom AI por opción (se muestran SOLO tras un clic real). */
-const REACCIONES: Record<string, string> = {
-  roja: "La salsa roja tiene poco picor pero mucho sabor. Ideal si prefieres disfrutar sin que pique de más.",
-  verde: "La salsa verde es fresca y con un picor equilibrado. ¡Combina con todo!",
-  habanero:
-    "La habanero es intensa y muy picante. Solo para valientes 🔥.",
-  "con-todo": "Con todo: cebolla, cilantro y su salsa. La experiencia completa.",
-  "sin-cebolla":
-    "Sin cebolla, para un sabor más limpio y directo. ¡Buena elección!",
-  chorizo: "Con chorizo extra: más sabor y un toque picosito.",
-  champinones: "Champiñones extra: un toque terroso y muy jugoso.",
-  doble: "¡Doble porción! Perfecto para compartir en grande.",
-};
 
 /**
  * Mensaje de la tarjeta tras agregar. Solo menciona un complemento cuando
@@ -72,9 +60,9 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   const [agregado, setAgregado] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [selecciones, setSelecciones] = useState<Record<string, string[]>>({});
-  // Tarjeta INLINE de Ñom AI (ya NO barra fija): reacción tras un clic real y,
-  // solo tras agregar, la sugerencia de complemento.
-  const [reaccion, setReaccion] = useState<string | null>(null);
+  // La reacción a cada opción ya NO vive aquí: la redacta el COPILOTO DE IA
+  // arriba, en el lugar de la descripción. Esta tarjeta queda dedicada al
+  // cross-selling posterior a agregar el platillo.
   const [sugeridoAgregado, setSugeridoAgregado] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   // Ancla de la tarjeta de Ñom AI: al agregar, la vista baja hasta aquí para
@@ -169,7 +157,6 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     setSelecciones(init);
     setAgregado(false);
     setImgError(false);
-    setReaccion(null);
     setSugeridoAgregado(false);
   }, [abierto, item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -186,11 +173,21 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     return () => window.clearTimeout(t);
   }, [agregado]);
 
+  // COPILOTO DE IA: escucha los grupos de modificadores y redacta el texto que
+  // sustituye a la descripción estática. Debe invocarse ANTES del early return
+  // para no romper el orden de hooks.
+  const { texto: textoCopiloto, pensando: copilotoPensando } = useCopiloto({
+    item,
+    selecciones,
+    activo: abierto && item !== null,
+  });
+
   if (!abierto || !item) return null;
 
   const brand = "var(--brand, #DC2626)";
 
-  // Solo con un clic REAL del usuario se describe la opción (nunca por default).
+  // Cada toque real actualiza `selecciones`, que es la fuente de verdad que
+  // escucha el copiloto para reescribir su texto en tiempo real.
   const toggle = (grupo: GrupoModificador, opcionId: string) => {
     // Se calcula el estado resultante para saber si con ESTE toque el cliente
     // completó el último modificador obligatorio pendiente ("One-Tap Add").
@@ -204,7 +201,6 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     const resultado = { ...selecciones, [grupo.id]: nuevasDelGrupo };
 
     setSelecciones(resultado);
-    setReaccion(REACCIONES[opcionId] ?? "¡Buena elección!");
 
     const completoTodo = gruposObligatorios.every(
       (g) => (resultado[g.id]?.length ?? 0) > 0,
@@ -221,12 +217,11 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
     }
   };
 
-  // Texto de la tarjeta inline (timing estricto):
-  //  - antes de agregar: contexto/reacción a la opción elegida (SIN extras).
-  //  - después de agregar: recomendación de complemento (con botón de acción).
-  const textoTarjeta = agregado
-    ? mensajeCrossSell
-    : reaccion ?? `¡Buena elección! ${item.descripcion}`;
+  // Texto de la tarjeta inline. Ya NO repite la reacción a los modificadores
+  // (eso lo hace el copiloto arriba): solo habla tras agregar, para el
+  // cross-selling. Antes de agregar la tarjeta se queda sin párrafo y muestra
+  // únicamente el candado de sugerencias y el acceso al chat.
+  const textoTarjeta = agregado ? mensajeCrossSell : null;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center">
@@ -290,9 +285,9 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
             <h2 className="text-2xl font-extrabold leading-tight">
               {item.nombre}
             </h2>
-            <p className="mt-1 text-sm leading-relaxed text-white/55">
-              {item.descripcion}
-            </p>
+            {/* COPILOTO DE IA — ocupa el lugar de la descripción estática.
+                El texto reacciona en vivo a cada modificador elegido. */}
+            <CopilotoAI texto={textoCopiloto} pensando={copilotoPensando} />
             <p className="mt-2 text-xl font-bold" style={{ color: brand }}>
               {formatCurrency(item.precio)}
             </p>
@@ -354,30 +349,39 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
             </div>
           ))}
 
-          {/* Botón principal (rojo) de agregar */}
-          <button
-            type="button"
-            onClick={agregar}
-            disabled={agregado || !item.disponible || faltanObligatorios}
-            className="flex w-full items-center justify-center gap-2 rounded-3xl px-6 py-4 text-base font-bold text-white shadow-lg transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-            style={{ background: agregado ? "#16a34a" : brand }}
-          >
-            {!item.disponible ? (
-              "No disponible"
-            ) : agregado ? (
-              <>
-                <Check className="h-5 w-5" strokeWidth={3} />
-                Añadido a la cuenta ✓
-              </>
-            ) : faltanObligatorios ? (
-              "Elige las opciones obligatorias"
-            ) : (
-              <>
-                <Plus className="h-5 w-5" strokeWidth={2.5} />
-                Agregar al carrito · {formatCurrency(item.precio)}
-              </>
-            )}
-          </button>
+          {/* ===== ACCIÓN DE AGREGAR =====
+              El botón grande SOLO existe cuando no hay ONE-TAP ADD posible.
+              Si el platillo tiene modificadores obligatorios, elegir el último
+              ya lo agrega solo: el botón sobraba (se pasaba la vida diciendo
+              "Elige las opciones obligatorias" y terminaba en "Añadido a la
+              cuenta", sin que nadie lo tocara nunca).
+              Se conserva para platillos SIN obligatorios (una torta, un
+              refresco), donde es la única forma de agregar. */}
+          {!item.disponible ? (
+            <div className="rounded-3xl border border-white/10 bg-white/5 px-6 py-4 text-center text-base font-bold text-white/50">
+              No disponible
+            </div>
+          ) : gruposObligatorios.length === 0 ? (
+            <button
+              type="button"
+              onClick={agregar}
+              disabled={agregado}
+              className="flex w-full items-center justify-center gap-2 rounded-3xl px-6 py-4 text-base font-bold text-white shadow-lg transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ background: agregado ? "#16a34a" : brand }}
+            >
+              {agregado ? (
+                <>
+                  <Check className="h-5 w-5" strokeWidth={3} />
+                  Añadido a la cuenta ✓
+                </>
+              ) : (
+                <>
+                  <Plus className="h-5 w-5" strokeWidth={2.5} />
+                  Agregar al carrito · {formatCurrency(item.precio)}
+                </>
+              )}
+            </button>
+          ) : null}
 
           {/* ===== Tarjeta Ñom AI INTEGRADA (estática, position: static) =====
               Va DEBAJO del botón de agregar; no es barra fija ni tiene chevron.
@@ -394,7 +398,11 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
               <Sparkles className="h-3.5 w-3.5" />
               Ñom AI
             </p>
-            <p className="text-sm leading-snug text-white/85">{textoTarjeta}</p>
+            {textoTarjeta && (
+              <p className="animate-fade-in text-sm leading-snug text-white/85">
+                {textoTarjeta}
+              </p>
+            )}
 
             {/* RETRASO ESTRATÉGICO: el cross-selling permanece bloqueado hasta
                 que el cliente completa los modificadores obligatorios. */}
