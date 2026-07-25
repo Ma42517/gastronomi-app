@@ -41,17 +41,29 @@ export function EstadoConexion() {
   const [diagnostico, setDiagnostico] = useState<Diagnostico | null>(null);
   const [diagnosticando, setDiagnosticando] = useState(false);
   const [fallo404, setFallo404] = useState(false);
+  /** Hora del diagnóstico: deja claro que es una foto y no el estado en vivo. */
+  const [momento, setMomento] = useState<string | null>(null);
 
   const publicar = async () => {
     setPublicando(true);
+    // El diagnóstico es una FOTO de un instante. Si se deja en pantalla después
+    // de publicar, sigue diciendo "0 platillos" aunque ya se hayan subido, y
+    // parece que la operación falló cuando en realidad funcionó.
+    setDiagnostico(null);
     await publicarEnNube();
     setPublicando(false);
+  };
+
+  const recargar = () => {
+    setDiagnostico(null);
+    void cargarDesdeNube();
   };
 
   const revisar = async () => {
     setDiagnosticando(true);
     setFallo404(false);
     setDiagnostico(null);
+    setMomento(null);
     try {
       const res = await fetch("/api/admin/diagnostico");
       if (res.status === 404) {
@@ -61,6 +73,13 @@ export function EstadoConexion() {
         return;
       }
       setDiagnostico((await res.json()) as Diagnostico);
+      setMomento(
+        new Date().toLocaleTimeString("es-MX", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+      );
     } catch {
       setFallo404(true);
     } finally {
@@ -127,7 +146,7 @@ export function EstadoConexion() {
 
             <button
               type="button"
-              onClick={() => void cargarDesdeNube()}
+              onClick={recargar}
               className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs font-bold text-white/50 transition hover:text-white/80"
               title="Vuelve a leer el menú desde la base de datos"
             >
@@ -196,13 +215,20 @@ export function EstadoConexion() {
       {/* --- Resultado del diagnóstico --- */}
       {diagnostico && (
         <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-          <p
-            className={`text-xs font-bold ${
-              diagnostico.listo ? "text-emerald-300" : "text-amber-300"
-            }`}
-          >
-            {diagnostico.resumen}
-          </p>
+          <div className="flex items-baseline justify-between gap-2">
+            <p
+              className={`text-xs font-bold ${
+                diagnostico.listo ? "text-emerald-300" : "text-amber-300"
+              }`}
+            >
+              {diagnostico.resumen}
+            </p>
+            {momento && (
+              <span className="shrink-0 text-[10px] text-white/30">
+                revisado {momento}
+              </span>
+            )}
+          </div>
 
           <ul className="space-y-1.5">
             {diagnostico.chequeos.map((c) => (
