@@ -33,9 +33,9 @@ export interface GrupoColumnas {
 
 /** Migración 010 — personalización del restaurante. */
 export const PERSONALIZACION: GrupoColumnas = {
-  campos: ["header_style", "menu_layout", "whatsapp_number", "instagram_url"],
+  campos: ["whatsapp_number", "instagram_url", "categorias"],
   aviso:
-    "Los datos generales se guardaron, pero la personalización (cabecera, disposición del menú, WhatsApp e Instagram) no: falta correr supabase/migrations/010_media_y_personalizacion.sql en el SQL Editor de Supabase.",
+    "Los datos generales se guardaron, pero las redes o las categorías no: falta correr supabase/migrations/010_media_y_personalizacion.sql y 011_categorias_del_restaurante.sql en el SQL Editor de Supabase.",
 };
 
 /**

@@ -19,13 +19,11 @@
  */
 
 /** Campos que puede tocar el dueño del restaurante. */
-export const CAMPOS_DUENO = ["nombre", "eslogan"] as const;
+export const CAMPOS_DUENO = ["nombre", "eslogan", "categorias"] as const;
 
 /** Campos reservados al super admin: afectan al diseño de la plataforma. */
 export const CAMPOS_PLATAFORMA = [
   "color_primario",
-  "header_style",
-  "menu_layout",
   "portada_url",
   "logo_url",
 ] as const;
@@ -34,12 +32,17 @@ export type CampoDueno = (typeof CAMPOS_DUENO)[number];
 export type CampoPlataforma = (typeof CAMPOS_PLATAFORMA)[number];
 export type CampoRestaurante = CampoDueno | CampoPlataforma;
 
+/**
+ * `categorias` es una lista y el resto son textos, de ahí el tipo ancho. Se
+ * comprueba campo por campo en `repartirCampos`: aceptar el valor equivocado en un
+ * `jsonb` guardaría basura que después rompería el menú del comensal.
+ */
 export type PayloadRestaurante = { slug?: string } & Partial<
-  Record<CampoRestaurante, string | null>
+  Record<CampoRestaurante, string | string[] | null>
 >;
 
 export type ResultadoReparto =
-  | { ok: true; cambios: Record<string, string | null> }
+  | { ok: true; cambios: Record<string, string | string[] | null> }
   | { ok: false; estado: 400 | 403; error: string };
 
 /**
@@ -56,14 +59,49 @@ export function repartirCampos(
   payload: PayloadRestaurante,
   esSuperAdmin: boolean,
 ): ResultadoReparto {
-  const cambios: Record<string, string | null> = {};
+  const cambios: Record<string, string | string[] | null> = {};
 
   // --- Campos del dueño ---
   for (const campo of CAMPOS_DUENO) {
     const valor = payload[campo];
     if (valor === undefined) continue;
 
-    if (campo === "nombre" && !valor?.trim()) {
+    // --- Lista de secciones del menú ---
+    if (campo === "categorias") {
+      if (!Array.isArray(valor)) {
+        return {
+          ok: false,
+          estado: 400,
+          error: "Las categorías deben venir como una lista de nombres.",
+        };
+      }
+
+      const limpias = valor
+        .filter((c): c is string => typeof c === "string")
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0 && c.length <= 40);
+
+      // Duplicados fuera, sin distinguir mayúsculas: dos secciones con el mismo
+      // título dejarían al comensal sin forma de saber cuál es cuál.
+      const vistas = new Set<string>();
+      cambios.categorias = limpias.filter((c) => {
+        const clave = c.toLowerCase();
+        if (vistas.has(clave)) return false;
+        vistas.add(clave);
+        return true;
+      });
+      continue;
+    }
+
+    if (typeof valor !== "string") {
+      return {
+        ok: false,
+        estado: 400,
+        error: `El campo ${campo} debe ser texto.`,
+      };
+    }
+
+    if (campo === "nombre" && !valor.trim()) {
       return {
         ok: false,
         estado: 400,
@@ -71,7 +109,7 @@ export function repartirCampos(
       };
     }
 
-    cambios[campo] = typeof valor === "string" ? valor.trim() || null : valor;
+    cambios[campo] = valor.trim() || null;
   }
 
   // --- Campos de plataforma ---
@@ -93,20 +131,14 @@ export function repartirCampos(
     // razonamiento a través del `filter`, así que se comprueba otra vez.
     if (valor === undefined) continue;
 
-    if (campo === "header_style" && !["solid", "glass"].includes(valor ?? "")) {
+    if (typeof valor !== "string" && valor !== null) {
       return {
         ok: false,
         estado: 400,
-        error: "El estilo de cabecera solo puede ser 'solid' o 'glass'.",
+        error: `El campo ${campo} debe ser texto.`,
       };
     }
-    if (campo === "menu_layout" && !["list", "grid"].includes(valor ?? "")) {
-      return {
-        ok: false,
-        estado: 400,
-        error: "La disposición del menú solo puede ser 'list' o 'grid'.",
-      };
-    }
+
     if (campo === "color_primario" && !/^#[0-9a-fA-F]{6}$/.test(valor ?? "")) {
       return {
         ok: false,

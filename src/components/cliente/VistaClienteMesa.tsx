@@ -20,9 +20,11 @@ import {
 import type { MenuItemMock, RestauranteMock } from "@/lib/mock-data";
 import { useCartStore } from "@/lib/cart-store";
 import {
+  categoriasVisibles,
   useRestauranteStore,
   type LealtadEditable,
 } from "@/lib/restaurante-store";
+import { usePopulares } from "@/lib/use-populares";
 import { TarjetaSellos } from "./TarjetaSellos";
 import { CategoriaPills } from "./CategoriaPills";
 import { SeccionPopulares } from "./SeccionPopulares";
@@ -47,6 +49,9 @@ import { useNomAI } from "./NomAIContext";
 
 /** Categoría virtual (no existe en el menú) para filtrar los favoritos. */
 const CATEGORIA_FAVORITOS = "❤️ Favoritos";
+
+/** Sección automática de los más pedidos. No es una categoría real del menú. */
+const CATEGORIA_POPULARES = "🔥 Más Populares";
 
 /** ID del ítem de premio canjeado (se agrega al carrito con precio $0.00). */
 const PREMIO_ID = "premio-lealtad";
@@ -118,28 +123,20 @@ export function VistaClienteMesa({
    * nueva en el panel, se añade al final en lugar de quedar invisible.
    * La categoría del platillo héroe se omite: ya tiene su tarjeta destacada.
    */
+  const categoriasGuardadas = useRestauranteStore((st) => st.categoriasGuardadas);
+
   const categorias = (() => {
     const categoriaHero = menu.find((m) => m.id === hero.item_id)?.categoria;
 
-    // Las secciones salen del MENÚ QUE SE ESTÁ SIRVIENDO, no del mock.
-    //
-    // Antes se partía de `restaurante.categorias` (siempre las de la Taquería
-    // El Primo, porque llega como prop desde la página) y se le añadían las
-    // nuevas. Resultado: cualquier restaurante mostraba "Tacos", "Tortas" y
-    // "Volcanes" aunque no vendiera nada de eso, con las secciones vacías.
-    const presentes = Array.from(new Set(menu.map((m) => m.categoria))).filter(
+    // La lista la decide el RESTAURANTE (columna `categorias`, migración 011)
+    // unida a las que ya usan sus platillos. Antes se partía del mock, así que
+    // cualquier restaurante mostraba "Tacos" y "Volcanes" aunque no los vendiera.
+    return categoriasVisibles({ categoriasGuardadas, menu }).filter(
       (c) =>
         c !== categoriaHero &&
         // "Postres" existe solo para el cross-sell del carrito.
         c !== "Postres",
     );
-
-    // Del mock se conserva únicamente el ORDEN preferido, que está pensado para
-    // que la carta se lea de salado a dulce. Las categorías que no existan en
-    // este restaurante simplemente no aparecen.
-    const ordenadas = restaurante.categorias.filter((c) => presentes.includes(c));
-    const resto = presentes.filter((c) => !ordenadas.includes(c));
-    return [...ordenadas, ...resto];
   })();
 
   const [categoriaActiva, setCategoriaActiva] = useState(categorias[0]);
@@ -207,8 +204,12 @@ export function VistaClienteMesa({
   // Postre sugerido para el cierre de venta.
   const postreSugerido =
     menu.find((m) => m.id === "p-flan" && m.disponible) ?? null;
-  // Platillos destacados para el carrusel "Populares".
-  const populares = menu.filter((m) => m.isPopular);
+  /**
+   * "Más Populares": los más PEDIDOS del restaurante, no los que alguien marcó.
+   * El hook cae a la marca manual mientras no haya pedidos, así que la sección
+   * nunca aparece vacía. No es editable: su valor está en que sale de datos.
+   */
+  const populares = usePopulares(slug, menu);
 
   // ¿El cliente ya está registrado? (deja de ser invitado en toda la UI)
   const estaRegistrado = clienteNombre.trim().length > 0;
@@ -227,7 +228,13 @@ export function VistaClienteMesa({
   })();
 
   // Categoría virtual de favoritos, primera en las pills.
-  const categoriasConFavoritos = [CATEGORIA_FAVORITOS, ...categorias];
+  // "Más Populares" va PRIMERO: es la sección que más ayuda a decidir a quien se
+  // sienta y no conoce la carta.
+  const categoriasConFavoritos = [
+    ...(populares.length > 0 ? [CATEGORIA_POPULARES] : []),
+    CATEGORIA_FAVORITOS,
+    ...categorias,
+  ];
   const modoFavoritos = categoriaActiva === CATEGORIA_FAVORITOS;
   const platillosFavoritos = menu.filter((m) => favoriteItems.includes(m.id));
 
@@ -477,6 +484,8 @@ export function VistaClienteMesa({
   const rolEdicion = useModoEdicion((e) => e.rol);
   const guardarTema = useRestauranteStore((s) => s.guardarTema);
   const renombrarCategoria = useRestauranteStore((s) => s.renombrarCategoria);
+  const crearCategoria = useRestauranteStore((s) => s.crearCategoria);
+  const eliminarCategoria = useRestauranteStore((s) => s.eliminarCategoria);
 
   useEffect(() => {
     // Sin `editable` se BORRA cualquier rastro de edición en lugar de limitarse a
@@ -497,6 +506,7 @@ export function VistaClienteMesa({
   const [editandoTexto, setEditandoTexto] = useState<
     | { campo: "nombre" | "eslogan" }
     | { campo: "categoria"; categoria: string }
+    | { campo: "categoria-nueva" }
     | null
   >(null);
 
@@ -509,7 +519,6 @@ export function VistaClienteMesa({
   } as CSSProperties;
 
   // --- Personalización que eligió el dueño (migración 010) ---
-  const esCabeceraCristal = tema.header_style === "glass";
   const hayRedes = Boolean(tema.whatsapp_number || tema.instagram_url);
 
   // ===== EDITOR EN VIVO =====
@@ -627,27 +636,15 @@ export function VistaClienteMesa({
               "linear-gradient(135deg, color-mix(in srgb, var(--brand) 75%, black), var(--brand))",
           }}
         />
-        {/* En modo cristal la foto baja al 70 % para que el color de marca de la
-            capa inferior se transparente por debajo. El color NO cambia: es el
-            mismo degradado de siempre, solo se deja ver. */}
         <div
-          className={`absolute inset-0 bg-cover bg-center ${
-            esCabeceraCristal ? "opacity-70" : ""
-          }`}
+          className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${tema.portada_url})` }}
           role="img"
           aria-label={`Portada de ${tema.nombre_restaurante}`}
         />
         {/* Velo más ligero que antes: ya no hay texto en la base de la foto que
-            necesite contraste, solo los badges de arriba.
-            El `backdrop-blur-md` va AQUÍ y no en la capa de la foto porque
-            `backdrop-filter` difumina lo que queda DETRÁS del elemento: puesto
-            sobre la propia imagen no haría nada. */}
-        <div
-          className={`absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-black/25 ${
-            esCabeceraCristal ? "backdrop-blur-md" : ""
-          }`}
-        />
+            necesite contraste, solo los badges de arriba. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-black/25" />
 
         {/* ===== NAVBAR SUPERIOR: mesa a la izquierda, perfil + CTA a la
              derecha. El CTA de registro late para ser lo primero que note el
@@ -877,6 +874,13 @@ export function VistaClienteMesa({
           categorias={categoriasConFavoritos}
           activa={categoriaActiva}
           onSelect={irACategoria}
+          // Crear secciones es de contenido, así que también puede el dueño del
+          // restaurante, no solo la plataforma.
+          onAnadirCategoria={
+            modoEdicion
+              ? () => setEditandoTexto({ campo: "categoria-nueva" })
+              : undefined
+          }
         />
 
         {buscando ? (
@@ -889,7 +893,6 @@ export function VistaClienteMesa({
             }))}
             tituloUnico={`Resultados para "${busqueda.trim()}"`}
             onVerDetalle={setDetalleItem}
-            layout={tema.menu_layout}
             vacio={
               <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-white/60 px-6 py-14 text-center">
                 <SearchX className="h-12 w-12 text-gray-300" strokeWidth={1.5} />
@@ -910,7 +913,6 @@ export function VistaClienteMesa({
             }))}
             tituloUnico="Tus favoritos"
             onVerDetalle={setDetalleItem}
-            layout={tema.menu_layout}
             vacio={
               <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-white/60 px-6 py-14 text-center">
                 <HeartCrack className="h-12 w-12 text-gray-300" strokeWidth={1.5} />
@@ -959,6 +961,7 @@ export function VistaClienteMesa({
             <SeccionPopulares
               items={populares}
               onVerDetalle={abrirDetalleOEditor}
+              id={anchorCategoria(CATEGORIA_POPULARES)}
             />
 
             {/* 4) Feed principal agrupado por categoría (scroll vertical) */}
@@ -966,8 +969,7 @@ export function VistaClienteMesa({
               categorias={categorias}
               menu={menu}
               onVerDetalle={abrirDetalleOEditor}
-              layout={tema.menu_layout}
-              onEditarPlatillo={setEditandoPlatillo}
+                onEditarPlatillo={setEditandoPlatillo}
               onEditarCategoria={(categoria) =>
                 setEditandoTexto({ campo: "categoria", categoria })
               }
@@ -1117,12 +1119,57 @@ export function VistaClienteMesa({
       {editandoTexto?.campo === "categoria" && (
         <ModalTexto
           abierto
-          titulo="Nombre de la categoría"
-          etiqueta="Categoría"
+          titulo="Sección del menú"
+          etiqueta="Nombre"
           valorInicial={editandoTexto.categoria}
           ayuda="Se aplica a todos los platillos de esta sección."
           onGuardar={async (valor) => {
             await renombrarCategoria(editandoTexto.categoria, valor);
+          }}
+          textoEliminar="Eliminar la sección"
+          onEliminar={async () => {
+            const cuantos = menu.filter(
+              (m) => m.categoria === editandoTexto.categoria,
+            ).length;
+
+            /*
+              CONFIRMACIÓN PROPORCIONAL AL DAÑO.
+              Borrar una sección se lleva sus platillos, y eso no se puede
+              deshacer. Se dice CUÁNTOS son, con su nombre, en lugar de un
+              "¿seguro?" genérico que se acepta por reflejo. Una sección vacía no
+              destruye nada, así que ahí no se pregunta.
+            */
+            if (cuantos > 0) {
+              const nombres = menu
+                .filter((m) => m.categoria === editandoTexto.categoria)
+                .map((m) => m.nombre)
+                .slice(0, 5)
+                .join(", ");
+
+              const seguro = window.confirm(
+                `Vas a borrar la sección "${editandoTexto.categoria}" y sus ${cuantos} platillo${cuantos === 1 ? "" : "s"}:\n\n${nombres}${cuantos > 5 ? "…" : ""}\n\nEsto no se puede deshacer. ¿Continuar?`,
+              );
+              if (!seguro) return "Cancelado: no se borró nada.";
+            }
+
+            await eliminarCategoria(editandoTexto.categoria);
+          }}
+          onCerrar={() => setEditandoTexto(null)}
+        />
+      )}
+
+      {editandoTexto?.campo === "categoria-nueva" && (
+        <ModalTexto
+          abierto
+          titulo="Nueva sección"
+          etiqueta="Nombre de la sección"
+          valorInicial=""
+          ayuda="Aparecerá vacía hasta que le añadas platillos, y solo tú la verás así."
+          onGuardar={async (valor) => {
+            // `crearCategoria` devuelve el motivo si no se pudo (nombre repetido,
+            // fallo de red), y el modal lo muestra sin cerrarse.
+            const fallo = await crearCategoria(valor);
+            if (fallo) return fallo;
           }}
           onCerrar={() => setEditandoTexto(null)}
         />

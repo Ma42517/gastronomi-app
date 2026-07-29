@@ -178,9 +178,26 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
 
   const agregarPlatillo = () => {
     addToCart({
-      id: platillo.id,
-      nombre: platillo.nombre,
-      precio: platillo.precio,
+      /*
+        El id lleva la CONFIGURACIÓN cuando hay opciones elegidas.
+
+        El carrito agrupa por id, así que sin esto una hamburguesa grande con
+        doble carne y otra mediana sin extras se fundirían en una sola línea de
+        dos unidades, al precio de la primera. Con la firma de las opciones cada
+        configuración es su propia línea, que es lo que necesita la cocina.
+
+        Sin opciones el id NO cambia, así que los platillos simples se siguen
+        agrupando exactamente como antes.
+      */
+      id:
+        etiquetasElegidas.length > 0
+          ? `${platillo.id}#${etiquetasElegidas.join("+")}`
+          : platillo.id,
+      nombre:
+        etiquetasElegidas.length > 0
+          ? `${platillo.nombre} (${etiquetasElegidas.join(", ")})`
+          : platillo.nombre,
+      precio: precioConOpciones,
       emoji: platillo.emoji,
     });
   };
@@ -273,8 +290,38 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   // bebida × cantidad), para que nadie confirme sin ver lo que va a pagar.
   const bebidaElegida =
     complementos.find((b) => b.id === selectedBeverageId) ?? null;
+  /**
+   * RECARGO DE LAS OPCIONES ELEGIDAS.
+   *
+   * ⚠️ ESTO FALTABA, Y ERA UN ERROR DE COBRO.
+   * El modal ya mostraba "+$30" junto a "Grande", pero ese importe no entraba en
+   * ninguna cuenta: el comensal veía el recargo, y el restaurante cobraba el
+   * precio base. Con variantes de tamaño y extras de carne o queso, eso es dinero
+   * perdido en cada orden.
+   */
+  const gruposDelPlatillo: GrupoModificador[] = platillo.modifiers ?? [];
+
+  const recargoOpciones = gruposDelPlatillo.reduce((suma, grupo) => {
+    const elegidas = selecciones[grupo.id] ?? [];
+    return (
+      suma +
+      grupo.opciones
+        .filter((op) => elegidas.includes(op.id))
+        .reduce((s, op) => s + (op.precio_extra ?? 0), 0)
+    );
+  }, 0);
+
+  /** Nombres de lo elegido, para que la cocina y el ticket sepan qué preparar. */
+  const etiquetasElegidas = gruposDelPlatillo.flatMap((grupo) =>
+    grupo.opciones
+      .filter((op) => (selecciones[grupo.id] ?? []).includes(op.id))
+      .map((op) => op.nombre),
+  );
+
+  const precioConOpciones = platillo.precio + recargoOpciones;
+
   const totalAAgregar =
-    platillo.precio + (bebidaElegida ? bebidaElegida.precio * beverageQty : 0);
+    precioConOpciones + (bebidaElegida ? bebidaElegida.precio * beverageQty : 0);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center">

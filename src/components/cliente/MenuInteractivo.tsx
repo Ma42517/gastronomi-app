@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import type { MenuItemMock } from "@/lib/mock-data";
-import type { DisposicionMenu } from "@/types/database";
 import { Editable } from "@/components/edicion/Editable";
 import { ProductCard } from "./ProductCard";
 
@@ -20,11 +19,6 @@ interface MenuInteractivoProps {
   /** Empty state a mostrar si no hay platillos que listar. */
   vacio?: ReactNode;
   /**
-   * Agrupación elegida por el dueño. Solo cambia CÓMO se reparten las tarjetas;
-   * la tarjeta en sí (`ProductCard`) es exactamente la misma en los dos casos.
-   */
-  layout?: DisposicionMenu;
-  /**
    * Editor en vivo. Si se pasan, cada tarjeta y cada título quedan envueltos en
    * `<Editable>`, que NO pinta nada mientras el modo edición esté apagado.
    *
@@ -36,37 +30,21 @@ interface MenuInteractivoProps {
 }
 
 /**
- * Clases del contenedor según la disposición.
+ * CUADRÍCULA FIJA DE DOS COLUMNAS.
  *
- * ⚠️ POR QUÉ 'grid' SON DOS COLUMNAS TAMBIÉN EN EL MÓVIL
- * Lo natural sería `grid-cols-1 md:grid-cols-2`, pero aquí sería un cambio de
- * diseño encubierto: este menú ya se pinta en dos columnas HOY, y vive dentro de
- * un marco de 448 px (`max-w-md`), muy por debajo del punto de corte `md`. Con
- * ese patrón, todos los restaurantes que hoy tienen cuadrícula pasarían a una
- * sola columna en el teléfono, que es el 95 % de las visitas.
- *
- * Así que 'grid' conserva lo que ya había y 'list' es la variante nueva.
+ * Antes era configurable por restaurante. Se fijó a propósito: es la disposición
+ * que soporta la multimedia de los platillos y la que hace que el comensal
+ * reconozca la aplicación en cualquier restaurante. Con dos variantes vivas, cada
+ * mejora del menú había que pensarla y probarla dos veces.
  */
-const CLASES_LAYOUT: Record<DisposicionMenu, string> = {
-  grid: "grid grid-cols-2 gap-4",
-  list: "grid grid-cols-1 gap-3",
-};
+const CLASES_CUADRICULA = "grid grid-cols-2 gap-4";
 
-/**
- * Feed principal AGRUPADO por categoría, en CUADRÍCULA DE 2 COLUMNAS (estilo
- * Rappi / Uber Eats). Cada categoría es una sección con su ancla (id) para que
- * las pills superiores puedan desplazar suavemente hasta ella.
- *
- * La tarjeta vive en `ProductCard` y es COMPARTIDA con el carrusel de
- * Populares: un solo diseño para todo el menú.
- */
 export function MenuInteractivo({
   categorias,
   menu,
   onVerDetalle,
   tituloUnico,
   vacio,
-  layout = "grid",
   onEditarPlatillo,
   onEditarCategoria,
 }: MenuInteractivoProps) {
@@ -104,8 +82,7 @@ export function MenuInteractivo({
               </h2>
             )}
 
-            {/* Cuadrícula de dos columnas o lista de una, según el restaurante */}
-            <div className={CLASES_LAYOUT[layout]}>
+            <div className={CLASES_CUADRICULA}>
               {items.map((item) =>
                 onEditarPlatillo ? (
                   <Editable

@@ -11,8 +11,12 @@ import { BUCKET_RESTAURANTE } from "@/lib/subir-media";
  * DISEÑO DEL RESTAURANTE — modal exclusivo del super admin.
  *
  * Se abre al pulsar la cabecera del menú en modo edición. Reúne lo que cambia el
- * ASPECTO y que por tanto no es del restaurantero: color de marca, estilo de
- * cabecera, disposición del menú, portada y logo.
+ * ASPECTO y que por tanto no es del restaurantero: color de marca, portada y logo.
+ *
+ * YA NO HAY ESTILO DE CABECERA NI DISPOSICIÓN DEL MENÚ. Se retiraron a propósito:
+ * el comensal tiene que reconocer la aplicación sin importar en qué restaurante
+ * entre, y mantener cuatro combinaciones visuales impide mejorar el diseño una vez
+ * para todos.
  *
  * El aspecto del modal es el de los demás formularios del panel (fondo #12121a,
  * bordes `white/10`, acento violeta) para que no parezca una pieza de otra app.
@@ -109,36 +113,6 @@ export function ModalDiseno({ abierto, tema, onCerrar }: ModalDisenoProps) {
             </p>
           </div>
 
-          {/* --- Estilo de cabecera --- */}
-          <Opciones
-            etiqueta="Cabecera"
-            valor={tema.header_style}
-            opciones={[
-              { id: "solid", texto: "Sólida", ayuda: "La foto se ve nítida." },
-              {
-                id: "glass",
-                texto: "Cristal",
-                ayuda: "La foto se difumina bajo un velo.",
-              },
-            ]}
-            onElegir={(v) =>
-              void aplicar({ header_style: v as TemaRestaurante["header_style"] })
-            }
-          />
-
-          {/* --- Disposición del menú --- */}
-          <Opciones
-            etiqueta="Platillos"
-            valor={tema.menu_layout}
-            opciones={[
-              { id: "grid", texto: "Dos columnas", ayuda: "Más carta a la vista." },
-              { id: "list", texto: "Una columna", ayuda: "Fotos más grandes." },
-            ]}
-            onElegir={(v) =>
-              void aplicar({ menu_layout: v as TemaRestaurante["menu_layout"] })
-            }
-          />
-
           {/* --- Portada --- */}
           <MediaUploader
             tipo="imagen"
@@ -187,46 +161,6 @@ export function ModalDiseno({ abierto, tema, onCerrar }: ModalDisenoProps) {
             Listo
           </button>
         </footer>
-      </div>
-    </div>
-  );
-}
-
-/** Selector de dos o más opciones excluyentes, con el aspecto de las pestañas. */
-function Opciones({
-  etiqueta,
-  valor,
-  opciones,
-  onElegir,
-}: {
-  etiqueta: string;
-  valor: string;
-  opciones: { id: string; texto: string; ayuda: string }[];
-  onElegir: (id: string) => void;
-}) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-white/50">
-        {etiqueta}
-      </label>
-      <div className="grid grid-cols-2 gap-2">
-        {opciones.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            onClick={() => onElegir(o.id)}
-            className={`rounded-xl border px-3 py-2.5 text-left transition ${
-              valor === o.id
-                ? "border-violet-400/50 bg-violet-500/20"
-                : "border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
-            }`}
-          >
-            <span className="block text-sm font-bold text-white">{o.texto}</span>
-            <span className="mt-0.5 block text-[11px] leading-snug text-white/40">
-              {o.ayuda}
-            </span>
-          </button>
-        ))}
       </div>
     </div>
   );

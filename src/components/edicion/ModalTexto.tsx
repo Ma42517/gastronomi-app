@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { Loader2, Trash2, X } from "lucide-react";
 
 /**
  * EDICIÓN DE UN TEXTO SUELTO — modal mínimo y reutilizable.
@@ -33,6 +33,13 @@ interface ModalTextoProps {
   onCerrar: () => void;
   /** Permite dejarlo vacío (el eslogan sí, el nombre no). */
   permitirVacio?: boolean;
+  /**
+   * Acción destructiva opcional (borrar la sección). Si se pasa, aparece un botón
+   * rojo. La CONFIRMACIÓN es responsabilidad de quien la pasa: solo él sabe qué se
+   * va a llevar por delante.
+   */
+  onEliminar?: () => Promise<string | void>;
+  textoEliminar?: string;
 }
 
 export function ModalTexto({
@@ -45,6 +52,8 @@ export function ModalTexto({
   onGuardar,
   onCerrar,
   permitirVacio = false,
+  onEliminar,
+  textoEliminar = "Eliminar",
 }: ModalTextoProps) {
   const [valor, setValor] = useState(valorInicial);
   const [guardando, setGuardando] = useState(false);
@@ -144,6 +153,28 @@ export function ModalTexto({
         </div>
 
         <footer className="flex items-center gap-3 border-t border-white/10 px-5 py-4">
+          {onEliminar && (
+            <button
+              type="button"
+              onClick={async () => {
+                setGuardando(true);
+                const fallo = await onEliminar();
+                setGuardando(false);
+                if (typeof fallo === "string") {
+                  setError(fallo);
+                  return;
+                }
+                onCerrar();
+              }}
+              disabled={guardando}
+              title={textoEliminar}
+              aria-label={textoEliminar}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-400 transition hover:bg-rose-500/25 disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onCerrar}

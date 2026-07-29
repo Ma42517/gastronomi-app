@@ -56,6 +56,14 @@ interface RestauranteState {
   tema: TemaRestaurante | null;
   /** Slug servido actualmente. Evita mezclar el menú de dos restaurantes. */
   slugActual: string | null;
+  /**
+   * Secciones que el dueño guardó explícitamente, en su orden (migración 011).
+   *
+   * NO es la lista que se pinta: esa sale de `categoriasVisibles`, que une esta
+   * con las que ya usan los platillos. Aquí solo vive lo que el dueño decidió,
+   * incluidas las categorías vacías que acaba de crear.
+   */
+  categoriasGuardadas: string[];
 
   // --- Estado de la sincronización con Supabase ---
   estadoNube: EstadoNube;
@@ -89,6 +97,15 @@ interface RestauranteState {
   guardarTema: (cambios: Partial<TemaRestaurante>) => Promise<boolean>;
   /** Renombra una categoría en todos los platillos que la usan. */
   renombrarCategoria: (anterior: string, nueva: string) => Promise<void>;
+  /** Añade una sección vacía al final del menú. */
+  crearCategoria: (nombre: string) => Promise<string | null>;
+  /**
+   * Borra una categoría Y TODOS SUS PLATILLOS.
+   *
+   * Devuelve cuántos platillos se llevó por delante, para poder confirmarlo en la
+   * interfaz. Quien llama debe haber avisado antes: esto no pregunta.
+   */
+  eliminarCategoria: (nombre: string) => Promise<number>;
   /** Devuelve el menú a los datos originales del mock. */
   restablecer: () => void;
 }
@@ -105,6 +122,7 @@ export const useRestauranteStore = create<RestauranteState>()(
       ...ESTADO_INICIAL,
       tema: null,
       slugActual: null,
+      categoriasGuardadas: [],
       estadoNube: supabaseConfigurado() ? "cargando" : "local",
       errorNube: null,
       avisoNube: null,
@@ -133,7 +151,12 @@ export const useRestauranteStore = create<RestauranteState>()(
         const cambioDeRestaurante = slug !== anterior;
 
         if (cambioDeRestaurante) {
-          set({ menu: [], tema: null, slugActual: slug ?? null });
+          set({
+            menu: [],
+            tema: null,
+            categoriasGuardadas: [],
+            slugActual: slug ?? null,
+          });
         }
 
         set({ estadoNube: "cargando", errorNube: null });
@@ -147,6 +170,7 @@ export const useRestauranteStore = create<RestauranteState>()(
           set({
             menu: [],
             tema: null,
+            categoriasGuardadas: [],
             slugActual: slug ?? null,
             estadoNube: "no-existe",
           });
@@ -172,6 +196,7 @@ export const useRestauranteStore = create<RestauranteState>()(
           // el hueco es exactamente el fallo que se está corrigiendo.
           menu: datos.menu,
           tema: datos.tema,
+          categoriasGuardadas: datos.categorias,
           slugActual: slug ?? null,
           // El progreso de sellos del comensal es local; de la nube solo vienen
           // la meta y el premio.
@@ -286,10 +311,6 @@ export const useRestauranteStore = create<RestauranteState>()(
         if (cambios.portada_url !== undefined)
           columnas.portada_url = cambios.portada_url || null;
         if (cambios.logo_url !== undefined) columnas.logo_url = cambios.logo_url;
-        if (cambios.header_style !== undefined)
-          columnas.header_style = cambios.header_style;
-        if (cambios.menu_layout !== undefined)
-          columnas.menu_layout = cambios.menu_layout;
 
         if (Object.keys(columnas).length === 0) return true;
 
@@ -311,6 +332,68 @@ export const useRestauranteStore = create<RestauranteState>()(
       },
 
       // --- CATEGORÍAS ------------------------------------------------------
+      crearCategoria: async (nombre) => {
+        const limpio = nombre.trim();
+        if (!limpio) return "El nombre no puede quedar vacío.";
+
+        // Se compara contra las VISIBLES, no solo contra las guardadas: si ya hay
+        // platillos en "Postres", crear otra "Postres" produciría dos secciones
+        // con el mismo título y ninguna forma de distinguirlas.
+        const yaExiste = categoriasVisibles(get()).some(
+          (c) => c.toLowerCase() === limpio.toLowerCase(),
+        );
+        if (yaExiste) return `Ya existe una sección llamada "${limpio}".`;
+
+        const nuevas = [...get().categoriasGuardadas, limpio];
+        set({ categoriasGuardadas: nuevas, errorNube: null, avisoNube: null });
+
+        const fallo = await guardarCategorias(nuevas, get, set);
+        if (fallo) {
+          // Se revierte: dejarla en pantalla haría creer que quedó guardada.
+          set({ categoriasGuardadas: get().categoriasGuardadas.filter((c) => c !== limpio) });
+          return fallo;
+        }
+        return null;
+      },
+
+      eliminarCategoria: async (nombre) => {
+        const afectados = get().menu.filter((m) => m.categoria === nombre);
+        const previas = get().categoriasGuardadas;
+
+        set({
+          categoriasGuardadas: previas.filter((c) => c !== nombre),
+          menu: get().menu.filter((m) => m.categoria !== nombre),
+          errorNube: null,
+        });
+
+        if (!supabaseConfigurado()) return afectados.length;
+
+        await guardarCategorias(
+          get().categoriasGuardadas,
+          get,
+          set,
+        );
+
+        // Los platillos se borran uno a uno: es la operación que expone la API, y
+        // van en paralelo porque son independientes entre sí.
+        const slug = get().slugActual;
+        const resultados = await Promise.all(
+          afectados.map((m) =>
+            escribirEnNube(
+              `/api/admin/menu?slug=${encodeURIComponent(m.id)}${
+                slug ? `&restaurante=${encodeURIComponent(slug)}` : ""
+              }`,
+              "DELETE",
+            ),
+          ),
+        );
+
+        const fallo = resultados.find((r) => !r.ok);
+        if (fallo && !fallo.ok) set({ errorNube: fallo.error });
+
+        return afectados.length;
+      },
+
       renombrarCategoria: async (anterior, nueva) => {
         const limpio = nueva.trim();
         if (!limpio || limpio === anterior) return;
@@ -321,10 +404,18 @@ export const useRestauranteStore = create<RestauranteState>()(
           menu: state.menu.map((m) =>
             m.categoria === anterior ? { ...m, categoria: limpio } : m,
           ),
+          // El nombre también cambia en la lista guardada, conservando su
+          // posición: si se quitara y se volviera a añadir, la sección saltaría
+          // al final del menú sin que nadie lo hubiera pedido.
+          categoriasGuardadas: state.categoriasGuardadas.map((c) =>
+            c === anterior ? limpio : c,
+          ),
           errorNube: null,
         }));
 
         if (!supabaseConfigurado()) return;
+
+        await guardarCategorias(get().categoriasGuardadas, get, set);
 
         // La categoría no es una tabla: vive como texto en cada platillo, así que
         // renombrarla son N escrituras. Van en paralelo porque son
@@ -347,6 +438,7 @@ export const useRestauranteStore = create<RestauranteState>()(
         set({
           ...ESTADO_INICIAL,
           tema: null,
+          categoriasGuardadas: [],
           slugActual: null,
           errorNube: null,
           avisoNube: null,
@@ -366,6 +458,7 @@ export const useRestauranteStore = create<RestauranteState>()(
         menu: state.menu,
         lealtad: state.lealtad,
         tema: state.tema,
+        categoriasGuardadas: state.categoriasGuardadas,
         slugActual: state.slugActual,
       }),
       skipHydration: true,
@@ -415,6 +508,54 @@ async function escribirEnNube(
         "Sin conexión con la base de datos. El cambio quedó solo en este dispositivo.",
     };
   }
+}
+
+/**
+ * CATEGORÍAS QUE SE PINTAN EN EL MENÚ.
+ *
+ * Une las que el dueño guardó con las que ya usan los platillos, en ese orden.
+ *
+ * ⚠️ POR QUÉ HAY QUE UNIRLAS
+ * Son dos fuentes que dicen cosas distintas y ninguna sobra. La lista guardada
+ * aporta el ORDEN y las secciones VACÍAS —una categoría recién creada no aparece
+ * en ningún platillo todavía—. Los platillos aportan las categorías de las cartas
+ * que ya existían antes de la migración 011, que nunca pasaron por esa lista. Si
+ * se usara solo una de las dos, o desaparecerían las vacías o desaparecería la
+ * carta entera de los restaurantes anteriores.
+ */
+export function categoriasVisibles(estado: {
+  categoriasGuardadas: string[];
+  menu: MenuItemMock[];
+}): string[] {
+  const guardadas = estado.categoriasGuardadas;
+  const enPlatillos = Array.from(
+    new Set(estado.menu.map((m) => m.categoria).filter(Boolean)),
+  );
+
+  // Las guardadas primero, en su orden; después las que solo viven en platillos.
+  return [...guardadas, ...enPlatillos.filter((c) => !guardadas.includes(c))];
+}
+
+/** Persiste la lista de categorías. Devuelve el mensaje de error, o null. */
+async function guardarCategorias(
+  categorias: string[],
+  get: () => RestauranteState,
+  set: Set,
+): Promise<string | null> {
+  if (!supabaseConfigurado()) return null;
+
+  const res = await escribirEnNube("/api/admin/restaurante", "PATCH", {
+    slug: get().slugActual,
+    categorias,
+  });
+
+  if (!res.ok) {
+    set({ errorNube: res.error });
+    return res.error;
+  }
+
+  set({ avisoNube: res.aviso ?? null });
+  return null;
 }
 
 /** Manda un platillo a Supabase (creación, edición o cambio de disponibilidad). */

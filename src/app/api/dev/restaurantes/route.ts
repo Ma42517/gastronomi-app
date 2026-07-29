@@ -36,8 +36,6 @@ interface RestaurantePayload {
   descripcion_recompensa?: string | null;
   imagen_premio?: string | null;
   // --- Personalización (migración 010) ---
-  header_style?: string;
-  menu_layout?: string;
   whatsapp_number?: string | null;
   instagram_url?: string | null;
 }
@@ -96,14 +94,6 @@ function validar(p: RestaurantePayload): string | null {
   if (p.color_primario && !/^#[0-9a-fA-F]{6}$/.test(p.color_primario)) {
     return "El color debe ir en formato hexadecimal, por ejemplo #DC2626.";
   }
-  // Se valida aquí además del `check` de Postgres para devolver un mensaje
-  // legible: el error de restricción de la base no le dice nada a nadie.
-  if (p.header_style && !["solid", "glass"].includes(p.header_style)) {
-    return "El estilo del encabezado solo puede ser 'solid' o 'glass'.";
-  }
-  if (p.menu_layout && !["list", "grid"].includes(p.menu_layout)) {
-    return "La disposición del menú solo puede ser 'list' o 'grid'.";
-  }
   return null;
 }
 
@@ -132,9 +122,6 @@ function aFila(p: RestaurantePayload) {
     sellos_para_recompensa: p.sellos_para_recompensa ?? 5,
     descripcion_recompensa: p.descripcion_recompensa?.trim() || "Premio sorpresa",
     imagen_premio: p.imagen_premio || null,
-    // Los valores por defecto reproducen el aspecto que el menú ya tenía.
-    header_style: p.header_style === "glass" ? "glass" : "solid",
-    menu_layout: p.menu_layout === "list" ? "list" : "grid",
     whatsapp_number: normalizarWhatsApp(p.whatsapp_number),
     instagram_url: normalizarInstagram(p.instagram_url),
   };

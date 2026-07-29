@@ -8,6 +8,8 @@ interface SeccionPopularesProps {
   items: MenuItemMock[];
   /** Abre el detalle/personalización del platillo. */
   onVerDetalle: (item: MenuItemMock) => void;
+  /** Ancla para que el pill de categorías pueda desplazarse hasta aquí. */
+  id?: string;
 }
 
 /**
@@ -18,13 +20,17 @@ interface SeccionPopularesProps {
  * `from-black/85`, más un badge "Popular" flotante. Eran los bloques oscuros
  * que seguían apareciendo en el menú y rompían el light mode.
  */
-export function SeccionPopulares({ items, onVerDetalle }: SeccionPopularesProps) {
+export function SeccionPopulares({
+  items,
+  onVerDetalle,
+  id,
+}: SeccionPopularesProps) {
   if (items.length === 0) return null;
 
   return (
-    <section>
+    <section id={id} className="scroll-mt-20">
       <h2 className="mb-3 flex items-center gap-1.5 text-lg font-extrabold text-zinc-950">
-        Populares
+        Más Populares
         <Flame className="h-5 w-5" style={{ color: "var(--brand)" }} />
       </h2>
 

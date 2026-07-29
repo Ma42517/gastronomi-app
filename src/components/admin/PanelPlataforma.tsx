@@ -17,13 +17,13 @@ import {
   Trash2,
   UserPlus,
   Users,
+  UtensilsCrossed,
   X,
 } from "lucide-react";
 import { Switch } from "./Switch";
 import { AjustesPlataforma } from "./AjustesPlataforma";
 import { MediaUploader } from "./MediaUploader";
 import { BUCKET_RESTAURANTE } from "@/lib/subir-media";
-import type { DisposicionMenu, EstiloEncabezado } from "@/types/database";
 
 /**
  * PANEL DE PLATAFORMA (cliente) — lista y edita todos los restaurantes.
@@ -50,8 +50,6 @@ interface Restaurante {
   sellos_para_recompensa: number;
   descripcion_recompensa: string | null;
   // --- Personalización (migración 010) ---
-  header_style: EstiloEncabezado;
-  menu_layout: DisposicionMenu;
   whatsapp_number: string | null;
   instagram_url: string | null;
   total_platillos: number;
@@ -74,9 +72,6 @@ const NUEVO: Partial<Restaurante> = {
   sellos_para_recompensa: 5,
   descripcion_recompensa: "Premio sorpresa",
   activo: true,
-  // Los valores que reproducen el aspecto actual del menú.
-  header_style: "solid",
-  menu_layout: "grid",
 };
 
 type Pestana = "restaurantes" | "ajustes";
@@ -99,6 +94,35 @@ export function PanelPlataforma() {
   const [slugActivo, setSlugActivo] = useState<string | null>(null);
   /** Slug en proceso de selección, para deshabilitar su botón. */
   const [seleccionando, setSeleccionando] = useState<string | null>(null);
+
+  const [sembrando, setSembrando] = useState(false);
+
+  /** Crea La Tasca Española con su carta completa. */
+  const sembrarTasca = async () => {
+    setSembrando(true);
+    setError(null);
+    setAviso(null);
+    try {
+      const res = await fetch("/api/dev/sembrar-tasca", { method: "POST" });
+      const datos = (await res.json()) as {
+        error?: string;
+        creado?: boolean;
+        platillos?: number;
+        avisos?: string[];
+      };
+      if (!res.ok) throw new Error(datos.error ?? `Error ${res.status}`);
+
+      setAviso(
+        `${datos.creado ? "Creada" : "Actualizada"} La Tasca Española con ${datos.platillos} platillos.` +
+          (datos.avisos?.length ? ` Aviso: ${datos.avisos.join(" ")}` : ""),
+      );
+      await cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo sembrar.");
+    } finally {
+      setSembrando(false);
+    }
+  };
 
   // Formulario: null = cerrado; objeto sin id = creación; con id = edición.
   const [form, setForm] = useState<Partial<Restaurante> | null>(null);
@@ -293,6 +317,23 @@ export function PanelPlataforma() {
         >
           <RefreshCw className="h-3.5 w-3.5" />
           Recargar
+        </button>
+
+        {/* Siembra el menú completo de La Tasca Española. Idempotente: volver a
+            pulsarlo deja la carta como estaba sin duplicar nada. */}
+        <button
+          type="button"
+          onClick={() => void sembrarTasca()}
+          disabled={sembrando}
+          className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-bold text-white/50 transition hover:text-white/80 disabled:opacity-50"
+          title="Crea el restaurante tasca-espanola con su menú completo"
+        >
+          {sembrando ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <UtensilsCrossed className="h-3.5 w-3.5" />
+          )}
+          Sembrar La Tasca
         </button>
 
         {lista && (
@@ -831,49 +872,6 @@ function ModalRestaurante({
               />
             </Campo>
 
-            {/* ===== ASPECTO DEL MENÚ ===== */}
-            <div className="space-y-3 border-t border-white/[0.07] pt-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-white/50">
-                Aspecto del menú
-              </p>
-
-              {/* Los dos interruptores usan el MISMO recuadro que "Visible" de
-                  la pestaña General, para que se lean como el mismo tipo de
-                  control y no como una sección aparte. */}
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-bold">
-                    Cabecera {form.header_style === "glass" ? "translúcida" : "sólida"}
-                  </p>
-                  <p className="text-xs leading-relaxed text-white/40">
-                    {form.header_style === "glass"
-                      ? "La foto de portada se ve difuminada bajo un velo de cristal."
-                      : "La foto de portada se ve nítida, como hasta ahora."}
-                  </p>
-                </div>
-                <Switch
-                  activo={form.header_style === "glass"}
-                  onCambiar={(v) => set("header_style", v ? "glass" : "solid")}
-                />
-              </div>
-
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-bold">
-                    Platillos en {form.menu_layout === "list" ? "una columna" : "dos columnas"}
-                  </p>
-                  <p className="text-xs leading-relaxed text-white/40">
-                    {form.menu_layout === "list"
-                      ? "Uno debajo de otro, más grandes. Útil con pocos platillos."
-                      : "Cuadrícula de dos, como hasta ahora. Se ve más carta de un vistazo."}
-                  </p>
-                </div>
-                <Switch
-                  activo={form.menu_layout === "list"}
-                  onCambiar={(v) => set("menu_layout", v ? "list" : "grid")}
-                />
-              </div>
-            </div>
           </>
           )}
         </div>

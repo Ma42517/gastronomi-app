@@ -29,21 +29,26 @@ export type Restaurante = {
   color_primario: string;
   iniciales: string | null;
   // --- Añadidas por supabase/migrations/010_media_y_personalizacion.sql ---
-  /** Aspecto del encabezado del menú. 'solid' es el comportamiento histórico. */
-  header_style: EstiloEncabezado;
-  /** Agrupación de los platillos. 'grid' (dos columnas) es lo que ya se veía. */
-  menu_layout: DisposicionMenu;
   whatsapp_number: string | null;
   instagram_url: string | null;
+  // --- Añadida por supabase/migrations/011_categorias_del_restaurante.sql ---
+  /** Secciones del menú en su orden. Ver `categoriasDeRestaurante`. */
+  categorias: unknown;
 }
 
 /**
- * Los dos valores están respaldados por una restricción `check` en Postgres, así
- * que el tipo no es una promesa del lado del cliente: la base rechaza cualquier
- * otro valor.
+ * ⚠️ `header_style` y `menu_layout` YA NO SE USAN.
+ *
+ * Existían para que cada restaurante eligiera cabecera de cristal y menú en una
+ * columna. Se retiraron a propósito: en una plataforma, el comensal debe
+ * reconocer la aplicación sin importar en qué restaurante entre — es lo que hacen
+ * Uber Eats y Rappi, y es lo que permite mejorar el diseño una vez para todos en
+ * lugar de mantener cuatro combinaciones.
+ *
+ * Las COLUMNAS se dejan en la base, sin leerlas. Borrarlas es irreversible y no
+ * estorban; si algún día se recupera la idea, el dato de quien ya la había
+ * configurado seguirá ahí.
  */
-export type EstiloEncabezado = "solid" | "glass";
-export type DisposicionMenu = "list" | "grid";
 
 /** Valoración del servicio que deja el comensal al pagar. Migración 008. */
 export type Calificacion = {

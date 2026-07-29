@@ -44,17 +44,10 @@ export const COLUMNAS_ESPERADAS: ColumnaEsperada[] = [
   },
   {
     tabla: "restaurantes",
-    columna: "header_style",
-    para: "la cabecera sólida o de cristal",
-    migracion: "010_media_y_personalizacion.sql",
-    definicion: "text not null default 'solid'",
-  },
-  {
-    tabla: "restaurantes",
-    columna: "menu_layout",
-    para: "el menú en una o dos columnas",
-    migracion: "010_media_y_personalizacion.sql",
-    definicion: "text not null default 'grid'",
+    columna: "categorias",
+    para: "las secciones del menú y su orden",
+    migracion: "011_categorias_del_restaurante.sql",
+    definicion: "jsonb not null default '[]'::jsonb",
   },
   {
     tabla: "restaurantes",

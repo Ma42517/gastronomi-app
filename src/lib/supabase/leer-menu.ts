@@ -24,6 +24,12 @@ export interface DatosRemotos {
   tema: TemaRestaurante;
   /** false si el dueño lo tiene oculto: se avisa en lugar de servir el menú. */
   activo: boolean;
+  /**
+   * Secciones del menú en su orden, tal como las guardó el dueño (migración 011).
+   * Puede incluir categorías VACÍAS: son las que acaba de crear y todavía no
+   * tienen platillos.
+   */
+  categorias: string[];
 }
 
 /**
@@ -61,6 +67,23 @@ export type ResultadoRemoto =
  * puede aparecer en el resultado porque nunca se pide. La RLS de Supabase añade
  * una segunda barrera del lado del servidor.
  */
+/**
+ * Lee la columna `categorias` con desconfianza.
+ *
+ * Es `jsonb`, así que puede contener cualquier cosa; y en una base que todavía no
+ * corrió la migración 011 no existe. Un valor inesperado no debe romper el menú
+ * del comensal, así que se filtra a textos no vacíos y, si no hay nada
+ * aprovechable, se devuelve una lista vacía: las categorías se deducirán de los
+ * platillos como siempre.
+ */
+function categoriasDeFila(fila: unknown): string[] {
+  const valor = (fila as { categorias?: unknown }).categorias;
+  if (!Array.isArray(valor)) return [];
+  return valor
+    .filter((c): c is string => typeof c === "string" && c.trim().length > 0)
+    .map((c) => c.trim());
+}
+
 export async function leerRestauranteRemoto(
   slug: string = RESTAURANTE_SLUG,
 ): Promise<ResultadoRemoto> {
@@ -102,6 +125,7 @@ export async function leerRestauranteRemoto(
         lealtad: filaALealtad(restaurante),
         tema: filaATema(restaurante),
         activo: restaurante.activo,
+        categorias: categoriasDeFila(restaurante),
       },
     };
   } catch (error) {
