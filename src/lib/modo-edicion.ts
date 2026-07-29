@@ -40,6 +40,15 @@ interface EstadoEdicion {
   cargarPermisos: (slug: string) => Promise<void>;
   alternarModoEdicion: () => void;
   salirDeEdicion: () => void;
+  /**
+   * Borra todo rastro de edición.
+   *
+   * Lo llama la vista del COMENSAL al montarse. El store es global y sobrevive a
+   * la navegación del lado del cliente, así que sin esto un dueño que pasara del
+   * editor al menú público seguiría viendo aros y lápices sobre una pantalla que
+   * debe ser idéntica a la que ve su cliente.
+   */
+  desactivar: () => void;
 }
 
 export const useModoEdicion = create<EstadoEdicion>()((set, get) => ({
@@ -88,6 +97,14 @@ export const useModoEdicion = create<EstadoEdicion>()((set, get) => ({
   },
 
   salirDeEdicion: () => set({ modoEdicion: false }),
+
+  desactivar: () =>
+    set({
+      modoEdicion: false,
+      rol: null,
+      email: null,
+      slugConsultado: null,
+    }),
 }));
 
 /**

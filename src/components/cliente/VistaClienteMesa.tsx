@@ -38,7 +38,6 @@ import { ModalRegistroPremio } from "./ModalRegistroPremio";
 import { HidratarRestaurante } from "@/components/HidratarRestaurante";
 import { useModoEdicion } from "@/lib/modo-edicion";
 import { Editable } from "@/components/edicion/Editable";
-import { BarraEdicion } from "@/components/edicion/BarraEdicion";
 import { ModalDiseno } from "@/components/edicion/ModalDiseno";
 import { ModalTexto } from "@/components/edicion/ModalTexto";
 import { ModalPlatillo } from "@/components/admin/ModalPlatillo";
@@ -60,12 +59,24 @@ interface VistaClienteMesaProps {
    * el prop `restaurante` queda solo como semilla mientras llega la base.
    */
   slug?: string;
+  /**
+   * MODO EDITOR. Solo lo activa el panel de administración (`/admin/editor`).
+   *
+   * ⚠️ LA RUTA PÚBLICA NUNCA LO PASA, Y ESO ES DELIBERADO
+   * El menú del comensal tiene que ser exactamente lo que ve un cliente, incluso
+   * cuando lo abre el dueño: si las guías de edición aparecieran ahí, "ver como
+   * cliente" dejaría de significar nada y el dueño no podría comprobar su propia
+   * carta. No basta con que el servidor conceda permiso; hace falta que la página
+   * PIDA ser editable.
+   */
+  editable?: boolean;
 }
 
 export function VistaClienteMesa({
   restaurante,
   numeroMesa,
   slug,
+  editable = false,
 }: VistaClienteMesaProps) {
   const { hero } = restaurante;
 
@@ -461,12 +472,22 @@ export function VistaClienteMesa({
   // un comensal la respuesta es "nada" y no se dibuja ni la barra flotante.
   const modoEdicion = useModoEdicion((e) => e.modoEdicion);
   const cargarPermisos = useModoEdicion((e) => e.cargarPermisos);
+  const desactivarEdicion = useModoEdicion((e) => e.desactivar);
+  const alternarModoEdicion = useModoEdicion((e) => e.alternarModoEdicion);
+  const rolEdicion = useModoEdicion((e) => e.rol);
   const guardarTema = useRestauranteStore((s) => s.guardarTema);
   const renombrarCategoria = useRestauranteStore((s) => s.renombrarCategoria);
 
   useEffect(() => {
+    // Sin `editable` se BORRA cualquier rastro de edición en lugar de limitarse a
+    // no pedir permisos: el store es global y sobrevive a la navegación, así que
+    // volver al menú público desde el editor dejaría los lápices puestos.
+    if (!editable) {
+      desactivarEdicion();
+      return;
+    }
     if (slug) void cargarPermisos(slug);
-  }, [slug, cargarPermisos]);
+  }, [editable, slug, cargarPermisos, desactivarEdicion]);
 
   /** Qué formulario contextual está abierto. */
   const [editandoPlatillo, setEditandoPlatillo] = useState<MenuItemMock | null>(
@@ -588,9 +609,6 @@ export function VistaClienteMesa({
     >
       {/* Carga el restaurante de ESTA url (y los cambios del panel del dueño). */}
       <HidratarRestaurante slug={slug} />
-
-      {/* Barra del modo edición. Se dibuja sola solo si hay permiso. */}
-      <BarraEdicion />
 
       {/* HEADER PREMIUM — imagen de portada + overlay.
           Envuelto a nivel `diseno`: el restaurantero NO ve aquí ningún lápiz,
@@ -1017,6 +1035,12 @@ export function VistaClienteMesa({
         brillarVIP={brillarVIP}
         busqueda={busqueda}
         onBuscar={setBusqueda}
+        // El interruptor del editor ocupa el hueco de Ñom AI en lugar de añadir
+        // una barra flotante que tapaba platillos. Solo si el servidor confirmó
+        // que esta persona puede editar este restaurante.
+        modoAdmin={editable && rolEdicion !== null}
+        modoEdicion={modoEdicion}
+        onAlternarEdicion={alternarModoEdicion}
       />
 
       {/* MODAL DE PAGO / SPLIT BILL */}

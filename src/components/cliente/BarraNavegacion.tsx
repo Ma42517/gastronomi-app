@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Gift, Home, Search, Sparkles, User, X } from "lucide-react";
+import { Eye, Gift, Home, Pencil, Search, Sparkles, User, X } from "lucide-react";
 import { NomAIBubble } from "./NomAIBubble";
 
 export type TabActivo = "home" | "vip" | "perfil";
@@ -18,6 +18,18 @@ interface BarraNavegacionProps {
   /** Texto de búsqueda global (controlado por el padre). */
   busqueda: string;
   onBuscar: (texto: string) => void;
+  /**
+   * MODO ADMINISTRACIÓN. Sustituye la píldora central de Ñom AI por el
+   * interruptor del editor.
+   *
+   * Ocupa el MISMO hueco a propósito: una barra flotante añadida encima tapaba
+   * platillos, y el asistente no tiene sentido para quien está editando la carta
+   * —no va a preguntarse a sí mismo qué le recomienda—. Así el editor no le quita
+   * ni un pixel al menú.
+   */
+  modoAdmin?: boolean;
+  modoEdicion?: boolean;
+  onAlternarEdicion?: () => void;
 }
 
 /**
@@ -38,6 +50,9 @@ export function BarraNavegacion({
   brillarVIP,
   busqueda,
   onBuscar,
+  modoAdmin = false,
+  modoEdicion = false,
+  onAlternarEdicion,
 }: BarraNavegacionProps) {
   const [buscando, setBuscando] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -126,25 +141,62 @@ export function BarraNavegacion({
         <Gift className="h-5 w-5" />
       </BotonCirculo>
 
-      {/* 3) Ñom AI — píldora expandida central (ancla de la viñeta) */}
+      {/* 3) Píldora central: Ñom AI para el comensal, editor para el dueño */}
       <div className="relative flex flex-1 justify-center">
-        {/* Viñeta proactiva: brota justo ARRIBA de esta píldora */}
-        <NomAIBubble onPagarOrden={onPagarOrden} enHome={tab === "home"} />
+        {modoAdmin ? (
+          /* --- INTERRUPTOR DEL EDITOR ---
+             Mismo tamaño y forma que la píldora de Ñom AI, así que la barra no
+             cambia de proporciones al entrar al panel. En oscuro cuando está
+             activo, igual que los demás botones de esta barra. */
+          <button
+            type="button"
+            onClick={onAlternarEdicion}
+            aria-pressed={modoEdicion}
+            data-boton-edicion
+            className={`flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 shadow-lg ring-1 ring-black/5 transition active:scale-95 ${
+              modoEdicion ? "bg-gray-900" : "bg-white"
+            }`}
+            aria-label={
+              modoEdicion ? "Salir del modo edición" : "Activar el modo edición"
+            }
+          >
+            {modoEdicion ? (
+              <Eye className="h-5 w-5 shrink-0 text-white" />
+            ) : (
+              <Pencil
+                className="h-5 w-5 shrink-0"
+                style={{ color: "var(--brand)" }}
+              />
+            )}
+            <span
+              className={`whitespace-nowrap text-sm font-bold ${
+                modoEdicion ? "text-white" : "text-gray-900"
+              }`}
+            >
+              {modoEdicion ? "Previsualizar" : "Editar"}
+            </span>
+          </button>
+        ) : (
+          <>
+            {/* Viñeta proactiva: brota justo ARRIBA de esta píldora */}
+            <NomAIBubble onPagarOrden={onPagarOrden} enHome={tab === "home"} />
 
-        <button
-          type="button"
-          onClick={onAbrirChat}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-5 py-3 shadow-lg ring-1 ring-black/5 transition active:scale-95"
-          aria-label="Abrir chat de Ñom AI"
-        >
-          <Sparkles
-            className="h-5 w-5 shrink-0"
-            style={{ color: "var(--brand)" }}
-          />
-          <span className="whitespace-nowrap text-sm font-bold text-gray-900">
-            Ñom AI
-          </span>
-        </button>
+            <button
+              type="button"
+              onClick={onAbrirChat}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-5 py-3 shadow-lg ring-1 ring-black/5 transition active:scale-95"
+              aria-label="Abrir chat de Ñom AI"
+            >
+              <Sparkles
+                className="h-5 w-5 shrink-0"
+                style={{ color: "var(--brand)" }}
+              />
+              <span className="whitespace-nowrap text-sm font-bold text-gray-900">
+                Ñom AI
+              </span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* 4) Lupa — pegada a Ñom AI: buscar y preguntar viven juntos */}

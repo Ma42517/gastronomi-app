@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Star,
   UtensilsCrossed,
+  Wand2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock } from "@/lib/mock-data";
@@ -97,6 +98,17 @@ export default function PanelAdmin() {
             {/* Qué restaurante se está editando. Con varios en la plataforma,
                 esto evita cambiar el menú del negocio equivocado. */}
             <RestauranteEnEdicion />
+
+            {/* Editor visual: la forma intuitiva de editar. No sustituye a estas
+                listas, que siguen siendo mejores para tareas repetitivas. */}
+            <Link
+              href="/admin/editor"
+              className="flex items-center gap-1.5 rounded-full bg-violet-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-violet-600/25 transition hover:bg-violet-500"
+              title="Editar el menú viendo el resultado"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              Editor visual
+            </Link>
 
             {/* Solo aparece si el servidor confirma que es super admin. */}
             <AccesoPlataforma />
