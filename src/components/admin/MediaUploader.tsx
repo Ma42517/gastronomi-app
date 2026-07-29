@@ -234,7 +234,11 @@ export function MediaUploader({
       liberarPrevia(blobUrl);
       setPreviaLocal(null);
       setError(res.error);
-      if (res.motivo === "sin-bucket") setPendiente(file);
+      // Se recuerda el archivo ante CUALQUIER fallo que no sea "faltan las
+      // llaves". Antes solo se guardaba para un motivo concreto, así que un error
+      // inesperado dejaba la pantalla sin ninguna salida: exactamente lo que pasó
+      // con "The related resource does not exist".
+      if (res.motivo !== "sin-configurar") setPendiente(file);
     } catch {
       liberarPrevia(blobUrl);
       setPreviaLocal(null);

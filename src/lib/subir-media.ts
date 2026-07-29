@@ -113,6 +113,20 @@ export async function subirMedia(
             ? "sin-bucket"
             : undefined;
 
+      // VÍA ALTERNA. Firmar la URL falló, pero puede que subir por el servidor
+      // sí funcione: usa la operación más simple de Storage y por tanto la que
+      // menos piezas necesita en orden. Solo para archivos pequeños, porque el
+      // cuerpo de una función de Vercel topa en ~4,5 MB.
+      //
+      // No se intenta cuando faltan las llaves: ahí no hay nada que reintentar.
+      if (motivo !== "sin-configurar" && file.size <= TOPE_POR_SERVIDOR) {
+        const porServidor = await subirPorServidor(file, bucket);
+        if (porServidor.ok) return porServidor;
+        // Si también falla, manda el mensaje de la vía alterna, que es el que
+        // trae el diagnóstico traducido.
+        return { ...porServidor, motivo };
+      }
+
       return {
         ok: false,
         error: permiso.error ?? `El servidor respondió ${res.status}.`,
@@ -129,6 +143,14 @@ export async function subirMedia(
       });
 
     if (error) {
+      // La URL estaba firmada pero el envío falló. Si el archivo es pequeño, se
+      // reintenta por el servidor: es una operación más simple y sobrevive a
+      // problemas de la firma.
+      if (file.size <= TOPE_POR_SERVIDOR) {
+        const porServidor = await subirPorServidor(file, bucket);
+        if (porServidor.ok) return porServidor;
+      }
+
       // Storage rechaza por tamaño o tipo según la configuración del bucket. Su
       // mensaje es correcto pero técnico, así que se traduce el caso frecuente.
       const crudo = error.message ?? "";
@@ -151,6 +173,41 @@ export async function subirMedia(
       ok: false,
       error: "Sin conexión con el almacenamiento. Revisa tu red e inténtalo otra vez.",
     };
+  }
+}
+
+/** Hasta aquí se puede subir por el servidor (límite de cuerpo de Vercel). */
+const TOPE_POR_SERVIDOR = 4 * 1024 * 1024;
+
+/**
+ * Sube el archivo A TRAVÉS del servidor, sin URL firmada.
+ *
+ * Es el plan B: más limitado —el archivo viaja por nuestra función y el cuerpo
+ * topa en ~4,5 MB— pero usa la operación más simple de Storage, así que funciona
+ * en situaciones donde firmar una URL no. Para una foto de platillo sobra.
+ */
+async function subirPorServidor(
+  file: File,
+  bucket: BucketMedia,
+): Promise<ResultadoSubida> {
+  try {
+    const cuerpo = new FormData();
+    cuerpo.append("archivo", file);
+    cuerpo.append("bucket", bucket);
+
+    const res = await fetch("/api/admin/subir", { method: "PUT", body: cuerpo });
+    const datos = (await res.json()) as { publicUrl?: string; error?: string };
+
+    if (!res.ok || !datos.publicUrl) {
+      return {
+        ok: false,
+        error: datos.error ?? `El servidor respondió ${res.status}.`,
+      };
+    }
+
+    return { ok: true, url: datos.publicUrl };
+  } catch {
+    return { ok: false, error: "Sin conexión con el servidor." };
   }
 }
 

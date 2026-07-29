@@ -7,6 +7,7 @@ import {
   esBucketInexistente,
   type BucketConocido,
 } from "@/lib/supabase/buckets";
+import { traducirFalloStorage } from "@/lib/supabase/mensajes-storage";
 
 /**
  * PERMISO DE SUBIDA A SUPABASE STORAGE — solo servidor.
@@ -62,24 +63,35 @@ interface Peticion {
   tipoMime?: string;
 }
 
-export async function POST(req: Request) {
-  // --- Autorización ---
-  // Primero como dueño del restaurante activo. Si eso falla (por ejemplo porque
-  // el restaurante todavía no existe, al crear el primero desde el panel de
-  // plataforma), se acepta al super admin. Un comensal con cuenta NO pasa por
-  // ninguna de las dos vías.
+/**
+ * Autorización compartida por las dos vías de subida.
+ *
+ * Primero como dueño del restaurante activo. Si eso falla (por ejemplo porque el
+ * restaurante todavía no existe, al crear el primero desde el panel de
+ * plataforma), se acepta al super admin. Un comensal con cuenta NO pasa por
+ * ninguna de las dos vías.
+ *
+ * Devuelve la carpeta donde guardar, que es el id del restaurante: así los
+ * archivos quedan agrupados por negocio en el panel de Storage.
+ */
+async function autorizarSubida(): Promise<
+  { carpeta: string } | { respuesta: Response }
+> {
   const auth = await verificarDueno();
-  let carpeta: string;
+  if (auth.ok) return { carpeta: auth.restauranteId };
 
-  if (auth.ok) {
-    carpeta = auth.restauranteId;
-  } else {
-    const plataforma = await verificarSuperAdmin();
-    // Se devuelve el error de `verificarDueno`, que es el más informativo de los
-    // dos ("inicia sesión", "no eres dueño de este restaurante"…).
-    if (!plataforma.ok) return auth.respuesta;
-    carpeta = "plataforma";
-  }
+  const plataforma = await verificarSuperAdmin();
+  // Se devuelve el error de `verificarDueno`, que es el más informativo de los
+  // dos ("inicia sesión", "no eres dueño de este restaurante"…).
+  if (!plataforma.ok) return { respuesta: auth.respuesta };
+
+  return { carpeta: "plataforma" };
+}
+
+export async function POST(req: Request) {
+  const auth = await autorizarSubida();
+  if ("respuesta" in auth) return auth.respuesta;
+  const carpeta = auth.carpeta;
 
   try {
     const { bucket, nombre, tipoMime } = (await req.json()) as Peticion;
@@ -110,41 +122,41 @@ export async function POST(req: Request) {
 
     let { data, error } = await firmar();
 
-    // AUTORREPARACIÓN: si el bucket no existe, se crea y se vuelve a intentar.
+    // ===== AUTORREPARACIÓN, SIN ADIVINAR POR EL TEXTO DEL ERROR =====
     //
-    // Antes esto terminaba en un mensaje que mandaba al dueño del restaurante al
-    // SQL Editor de Supabase. El bucket es una dependencia técnica nuestra y la
-    // llave de servicio puede crearlo, así que hacerlo aquí es lo correcto.
-    if (error && esBucketInexistente(error)) {
+    // Aquí antes se leía el mensaje de Storage buscando la palabra "bucket" para
+    // decidir si crearlo. Fue un error de método y falló en cuanto Storage
+    // respondió con otra redacción: ante "The related resource does not exist"
+    // —un 404 genérico— la creación no se intentaba siquiera, y el dueño recibía
+    // un mensaje en inglés sin ninguna salida.
+    //
+    // Ahora no se interpreta nada: si firmar falla POR CUALQUIER MOTIVO, se
+    // asegura el bucket y se reintenta una vez. Crear un bucket que ya existe es
+    // idempotente y cuesta una llamada, así que el precio de intentarlo de más es
+    // irrelevante comparado con el de no intentarlo cuando hacía falta.
+    if (error) {
+      const detalleOriginal = mensajeDeError(error);
       const creado = await asegurarBucket(supabase, bucket as BucketConocido);
 
-      if (!creado.ok) {
+      if (creado.ok) ({ data, error } = await firmar());
+
+      if (error || !data) {
+        const detalle = error ? mensajeDeError(error) : detalleOriginal;
+
         return Response.json(
           {
-            error: `El almacenamiento no está preparado y no se pudo crear solo. Motivo: ${creado.error}`,
-            // Permite a la interfaz ofrecer el botón de "preparar" en lugar de
-            // dejar al dueño en un callejón sin salida.
+            error: traducirFalloStorage(detalle, bucket as string, creado.ok),
+            // Siempre `sinStorage`: la interfaz debe poder ofrecer la reparación
+            // manual y la subida por el servidor, en lugar de dejar un mensaje
+            // muerto en pantalla.
             sinStorage: true,
+            detalle,
           },
           { status: 503 },
         );
       }
-
-      ({ data, error } = await firmar());
-
-      // Se creó el bucket y AUN ASÍ no se pudo firmar: no es "falta el bucket",
-      // es otra cosa, y decir lo contrario mandaría a buscar donde no está.
-      if (error) {
-        return Response.json(
-          {
-            error: `El bucket "${bucket}" quedó creado, pero Storage sigue rechazando la subida: ${mensajeDeError(error)}`,
-          },
-          { status: 502 },
-        );
-      }
     }
 
-    if (error) throw error;
     if (!data) throw new Error("Storage no devolvió la URL firmada.");
 
     // La URL pública se calcula aquí para que el navegador no tenga que
@@ -189,6 +201,96 @@ export async function POST(req: Request) {
     return Response.json({ error: mensaje }, { status: 500 });
   }
 }
+
+/**
+ * SUBIDA DIRECTA POR EL SERVIDOR — PUT /api/admin/subir (multipart)
+ *
+ * Vía alterna para cuando la URL firmada no funciona. El archivo SÍ pasa por
+ * aquí, así que está limitada por el tope de cuerpo de las funciones de Vercel
+ * (~4,5 MB): sirve para fotos y GIF pequeños, no para un video.
+ *
+ * POR QUÉ EXISTE, SI YA HAY UNA VÍA MEJOR
+ * Porque la mejor no siempre funciona. Firmar una URL de subida depende de piezas
+ * del proyecto de Supabase que pueden estar en un estado inesperado, y cuando eso
+ * pasa el dueño se queda sin poder subir ni una foto. Este camino usa la
+ * operación más simple que existe —`upload`— y por tanto la que menos cosas puede
+ * romper. Es un plan B honesto: más limitado, pero disponible.
+ */
+export async function PUT(req: Request) {
+  const auth = await autorizarSubida();
+  if ("respuesta" in auth) return auth.respuesta;
+
+  try {
+    const formulario = await req.formData();
+    const archivo = formulario.get("archivo");
+    const bucket = String(formulario.get("bucket") ?? "");
+
+    if (!(archivo instanceof File)) {
+      return Response.json({ error: "Falta el archivo." }, { status: 400 });
+    }
+    if (!BUCKETS.includes(bucket as Bucket)) {
+      return Response.json({ error: "Bucket no permitido." }, { status: 400 });
+    }
+
+    const extension = EXTENSIONES[archivo.type];
+    if (!extension) {
+      return Response.json(
+        { error: `Formato no admitido (${archivo.type || "desconocido"}).` },
+        { status: 400 },
+      );
+    }
+
+    if (archivo.size > TOPE_DIRECTO) {
+      return Response.json(
+        {
+          error: `Por esta vía el máximo es ${(TOPE_DIRECTO / 1024 / 1024).toFixed(1)} MB y el archivo pesa ${(archivo.size / 1024 / 1024).toFixed(1)} MB.`,
+        },
+        { status: 413 },
+      );
+    }
+
+    const supabase = createAdminClient();
+    const ruta = `${auth.carpeta}/${nombreSeguro(archivo.name)}-${Date.now()}.${extension}`;
+
+    const subir = () =>
+      supabase.storage
+        .from(bucket as Bucket)
+        .upload(ruta, archivo, { contentType: archivo.type, upsert: true });
+
+    let { error } = await subir();
+
+    // Mismo criterio que arriba: ante cualquier fallo se asegura el bucket y se
+    // reintenta, sin interpretar el texto del error.
+    if (error) {
+      const creado = await asegurarBucket(supabase, bucket as BucketConocido);
+      if (creado.ok) ({ error } = await subir());
+
+      if (error) {
+        const detalle = mensajeDeError(error);
+        return Response.json(
+          {
+            error: traducirFalloStorage(detalle, bucket, creado.ok),
+            detalle,
+          },
+          { status: 503 },
+        );
+      }
+    }
+
+    const { data: publico } = supabase.storage
+      .from(bucket as Bucket)
+      .getPublicUrl(ruta);
+
+    return Response.json({ publicUrl: publico.publicUrl, path: ruta });
+  } catch (error) {
+    const mensaje = mensajeDeError(error);
+    console.error("[admin/subir] PUT:", mensaje);
+    return Response.json({ error: mensaje }, { status: 500 });
+  }
+}
+
+/** Tope de la subida por servidor, por debajo del límite de Vercel. */
+const TOPE_DIRECTO = 4 * 1024 * 1024;
 
 /**
  * Deja el nombre del archivo en algo seguro para una URL.
