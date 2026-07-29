@@ -8,6 +8,7 @@ import {
   ExternalLink,
   LayoutDashboard,
   Loader2,
+  Palette,
   Pencil,
   Plus,
   RefreshCw,
@@ -20,6 +21,9 @@ import {
 } from "lucide-react";
 import { Switch } from "./Switch";
 import { AjustesPlataforma } from "./AjustesPlataforma";
+import { MediaUploader } from "./MediaUploader";
+import { BUCKET_RESTAURANTE } from "@/lib/subir-media";
+import type { DisposicionMenu, EstiloEncabezado } from "@/types/database";
 
 /**
  * PANEL DE PLATAFORMA (cliente) — lista y edita todos los restaurantes.
@@ -45,6 +49,11 @@ interface Restaurante {
   activo: boolean;
   sellos_para_recompensa: number;
   descripcion_recompensa: string | null;
+  // --- Personalización (migración 010) ---
+  header_style: EstiloEncabezado;
+  menu_layout: DisposicionMenu;
+  whatsapp_number: string | null;
+  instagram_url: string | null;
   total_platillos: number;
   total_agotados: number;
   total_duenos: number;
@@ -65,6 +74,9 @@ const NUEVO: Partial<Restaurante> = {
   sellos_para_recompensa: 5,
   descripcion_recompensa: "Premio sorpresa",
   activo: true,
+  // Los valores que reproducen el aspecto actual del menú.
+  header_style: "solid",
+  menu_layout: "grid",
 };
 
 type Pestana = "restaurantes" | "ajustes";
@@ -569,6 +581,20 @@ function ModalRestaurante({
   const set = <K extends keyof Restaurante>(k: K, v: Restaurante[K]) =>
     setForm({ ...form, [k]: v });
 
+  /**
+   * El formulario se partió en dos pestañas porque ya no cabía: con la
+   * personalización añadida, de un tirón obligaba a desplazarse por más de una
+   * pantalla y media, y los campos que de verdad se tocan a diario (nombre,
+   * precio del premio, visibilidad) quedaban enterrados entre ajustes que se
+   * configuran una vez y no se vuelven a mirar.
+   *
+   * Se reutiliza `BotonPestana`, el mismo control que ya separa "Restaurantes"
+   * de "Ajustes de la app": una pestaña debe verse igual en toda la aplicación.
+   */
+  const [pestana, setPestana] = useState<"general" | "personalizacion">(
+    "general",
+  );
+
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center">
       <button
@@ -593,7 +619,28 @@ function ModalRestaurante({
           </button>
         </header>
 
+        {/* Pestañas del formulario. Van fuera del área desplazable para seguir
+            visibles al bajar por una lista larga de campos. */}
+        <nav className="flex gap-2 border-b border-white/10 px-5 py-3">
+          <BotonPestana
+            activa={pestana === "general"}
+            onClick={() => setPestana("general")}
+            icono={<Store className="h-3.5 w-3.5" />}
+          >
+            General
+          </BotonPestana>
+          <BotonPestana
+            activa={pestana === "personalizacion"}
+            onClick={() => setPestana("personalizacion")}
+            icono={<Palette className="h-3.5 w-3.5" />}
+          >
+            Personalización
+          </BotonPestana>
+        </nav>
+
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+          {pestana === "general" && (
+          <>
           <Campo etiqueta="Nombre">
             <input
               type="text"
@@ -659,15 +706,14 @@ function ModalRestaurante({
             </Campo>
           </div>
 
-          <Campo etiqueta="Foto de portada (URL)">
-            <input
-              type="url"
-              value={form.portada_url ?? ""}
-              onChange={(e) => set("portada_url", e.target.value)}
-              placeholder="https://…"
-              className={inputCls}
-            />
-          </Campo>
+          <MediaUploader
+            tipo="imagen"
+            bucket={BUCKET_RESTAURANTE}
+            etiqueta="Foto de portada"
+            valor={form.portada_url ?? undefined}
+            onCambiar={(url) => set("portada_url", url ?? null)}
+            ayuda="Se ve a lo ancho en la cabecera del menú, así que conviene una foto horizontal."
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <Campo etiqueta="Visitas para el premio">
@@ -735,6 +781,83 @@ function ModalRestaurante({
               onCambiar={(v) => set("activo", v)}
             />
           </div>
+          </>
+          )}
+
+          {pestana === "personalizacion" && (
+          <>
+            {/* ===== REDES ===== */}
+            <Campo
+              etiqueta="WhatsApp"
+              ayuda="Con clave de país y sin signos. Se guarda limpio: 52 55 1234-5678 queda como 525512345678."
+            >
+              <input
+                type="tel"
+                value={form.whatsapp_number ?? ""}
+                onChange={(e) => set("whatsapp_number", e.target.value)}
+                placeholder="5215512345678"
+                className={`${inputCls} font-mono`}
+              />
+            </Campo>
+
+            <Campo
+              etiqueta="Instagram"
+              ayuda="Vale el usuario o la dirección completa; se normaliza al guardar."
+            >
+              <input
+                type="text"
+                value={form.instagram_url ?? ""}
+                onChange={(e) => set("instagram_url", e.target.value)}
+                placeholder="@mitaqueria"
+                className={inputCls}
+              />
+            </Campo>
+
+            {/* ===== ASPECTO DEL MENÚ ===== */}
+            <div className="space-y-3 border-t border-white/[0.07] pt-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-white/50">
+                Aspecto del menú
+              </p>
+
+              {/* Los dos interruptores usan el MISMO recuadro que "Visible" de
+                  la pestaña General, para que se lean como el mismo tipo de
+                  control y no como una sección aparte. */}
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold">
+                    Cabecera {form.header_style === "glass" ? "translúcida" : "sólida"}
+                  </p>
+                  <p className="text-xs leading-relaxed text-white/40">
+                    {form.header_style === "glass"
+                      ? "La foto de portada se ve difuminada bajo un velo de cristal."
+                      : "La foto de portada se ve nítida, como hasta ahora."}
+                  </p>
+                </div>
+                <Switch
+                  activo={form.header_style === "glass"}
+                  onCambiar={(v) => set("header_style", v ? "glass" : "solid")}
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold">
+                    Platillos en {form.menu_layout === "list" ? "una columna" : "dos columnas"}
+                  </p>
+                  <p className="text-xs leading-relaxed text-white/40">
+                    {form.menu_layout === "list"
+                      ? "Uno debajo de otro, más grandes. Útil con pocos platillos."
+                      : "Cuadrícula de dos, como hasta ahora. Se ve más carta de un vistazo."}
+                  </p>
+                </div>
+                <Switch
+                  activo={form.menu_layout === "list"}
+                  onCambiar={(v) => set("menu_layout", v ? "list" : "grid")}
+                />
+              </div>
+            </div>
+          </>
+          )}
         </div>
 
         <footer className="flex items-center gap-3 border-t border-white/10 px-5 py-4">

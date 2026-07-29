@@ -34,6 +34,35 @@ interface RestaurantePayload {
   sellos_para_recompensa?: number;
   descripcion_recompensa?: string | null;
   imagen_premio?: string | null;
+  // --- Personalización (migración 010) ---
+  header_style?: string;
+  menu_layout?: string;
+  whatsapp_number?: string | null;
+  instagram_url?: string | null;
+}
+
+/**
+ * WhatsApp exige el número en formato internacional y SIN signos: el enlace
+ * `wa.me/+52 55 1234 5678` no abre nada. Se limpia aquí en lugar de exigirle al
+ * dueño que lo teclee perfecto.
+ */
+function normalizarWhatsApp(valor: string | null | undefined): string | null {
+  const digitos = (valor ?? "").replace(/\D/g, "");
+  return digitos.length > 0 ? digitos : null;
+}
+
+/**
+ * Se acepta lo que la gente pega de verdad —`@mitaqueria`, `instagram.com/x`, la
+ * URL completa— y se guarda siempre como URL absoluta, que es lo que necesita el
+ * `href` del enlace.
+ */
+function normalizarInstagram(valor: string | null | undefined): string | null {
+  const bruto = (valor ?? "").trim();
+  if (!bruto) return null;
+  if (/^https?:\/\//i.test(bruto)) return bruto;
+
+  const usuario = bruto.replace(/^@/, "").replace(/^instagram\.com\//i, "");
+  return usuario ? `https://instagram.com/${usuario}` : null;
 }
 
 /**
@@ -66,6 +95,14 @@ function validar(p: RestaurantePayload): string | null {
   if (p.color_primario && !/^#[0-9a-fA-F]{6}$/.test(p.color_primario)) {
     return "El color debe ir en formato hexadecimal, por ejemplo #DC2626.";
   }
+  // Se valida aquí además del `check` de Postgres para devolver un mensaje
+  // legible: el error de restricción de la base no le dice nada a nadie.
+  if (p.header_style && !["solid", "glass"].includes(p.header_style)) {
+    return "El estilo del encabezado solo puede ser 'solid' o 'glass'.";
+  }
+  if (p.menu_layout && !["list", "grid"].includes(p.menu_layout)) {
+    return "La disposición del menú solo puede ser 'list' o 'grid'.";
+  }
   return null;
 }
 
@@ -94,6 +131,11 @@ function aFila(p: RestaurantePayload) {
     sellos_para_recompensa: p.sellos_para_recompensa ?? 5,
     descripcion_recompensa: p.descripcion_recompensa?.trim() || "Premio sorpresa",
     imagen_premio: p.imagen_premio || null,
+    // Los valores por defecto reproducen el aspecto que el menú ya tenía.
+    header_style: p.header_style === "glass" ? "glass" : "solid",
+    menu_layout: p.menu_layout === "list" ? "list" : "grid",
+    whatsapp_number: normalizarWhatsApp(p.whatsapp_number),
+    instagram_url: normalizarInstagram(p.instagram_url),
   };
 }
 

@@ -8,8 +8,8 @@ import {
   nuevoIdPlatillo,
   useRestauranteStore,
 } from "@/lib/restaurante-store";
-import { CampoImagen } from "./CampoImagen";
-import { CampoVideo } from "./CampoVideo";
+import { MediaUploader } from "./MediaUploader";
+import { BUCKET_PLATILLOS } from "@/lib/subir-media";
 import { Switch } from "./Switch";
 
 interface ModalPlatilloProps {
@@ -150,20 +150,39 @@ export function ModalPlatillo({
 
         {/* Cuerpo */}
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
-          {/* 1) Fotografía */}
-          <CampoImagen
-            valor={borrador.imagen_url}
-            emoji={borrador.emoji}
-            onCambiar={(img) => set("imagen_url", img)}
-          />
+          {/* 1) MULTIMEDIA — foto y video en un solo bloque.
+                 Antes eran dos campos con aspecto distinto: uno subía archivos y
+                 el otro pedía una URL pegada a mano. Ahora los dos son el mismo
+                 componente, así que se leen como lo que son: las dos caras de la
+                 misma decisión. El recuadro que los agrupa usa el fondo y el
+                 borde que ya emplea el resto del modal. */}
+          <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.02] p-3.5">
+            <MediaUploader
+              tipo="imagen"
+              bucket={BUCKET_PLATILLOS}
+              etiqueta="Fotografía"
+              valor={borrador.imagen_url}
+              emoji={borrador.emoji}
+              onCambiar={(img) => set("imagen_url", img)}
+            />
 
-          {/* 1b) Video (opcional). Va justo debajo de la foto porque son el
-                 mismo bloque visual: el video manda y la foto es su respaldo. */}
-          <CampoVideo
-            valor={borrador.video_url}
-            poster={borrador.imagen_url}
-            onCambiar={(video) => set("video_url", video)}
-          />
+            <MediaUploader
+              tipo="video"
+              bucket={BUCKET_PLATILLOS}
+              etiqueta="Video del platillo"
+              opcional
+              valor={borrador.video_url}
+              poster={borrador.imagen_url}
+              onCambiar={(video) => set("video_url", video)}
+              ayuda="Un video corto (3-6 s) en bucle y sin sonido."
+            />
+
+            <p className="border-t border-white/[0.07] pt-3 text-[11px] leading-relaxed text-white/35">
+              En el menú manda el <strong className="text-white/50">video</strong>
+              ; la foto es su portada mientras carga y su respaldo si falla o si
+              el cliente tiene el ahorro de datos activado.
+            </p>
+          </div>
 
           {/* 2) Nombre */}
           <Campo etiqueta="Nombre del platillo">

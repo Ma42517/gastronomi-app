@@ -123,12 +123,24 @@ export function filaATema(
     portada_url?: string | null;
     color_primario?: string | null;
     iniciales?: string | null;
+    header_style?: string | null;
+    menu_layout?: string | null;
+    whatsapp_number?: string | null;
+    instagram_url?: string | null;
   },
 ): TemaRestaurante {
   return {
     nombre_restaurante: row.nombre,
     color_primario: row.color_primario || "#DC2626",
     logo_url: row.logo_url ?? null,
+    // ESTE es el único punto donde se decide el respaldo de la personalización.
+    // Se comprueba el valor en lugar de confiar en la columna porque una base
+    // que todavía no corrió la migración 010 devuelve `undefined`, y un
+    // `header_style` indefinido dejaría el encabezado sin clases.
+    header_style: row.header_style === "glass" ? "glass" : "solid",
+    menu_layout: row.menu_layout === "list" ? "list" : "grid",
+    whatsapp_number: row.whatsapp_number?.trim() || undefined,
+    instagram_url: row.instagram_url?.trim() || undefined,
     // Iniciales derivadas del nombre si la fila no las trae.
     iniciales:
       row.iniciales ||

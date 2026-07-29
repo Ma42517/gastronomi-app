@@ -7,7 +7,9 @@ import {
   Compass,
   Gift,
   HeartCrack,
+  Instagram,
   MapPin,
+  MessageCircle,
   SearchX,
   Sparkles,
   Store,
@@ -456,6 +458,10 @@ export function VistaClienteMesa({
     fontFamily: pilaDeFuente(plataforma.fuente),
   } as CSSProperties;
 
+  // --- Personalización que eligió el dueño (migración 010) ---
+  const esCabeceraCristal = tema.header_style === "glass";
+  const hayRedes = Boolean(tema.whatsapp_number || tema.instagram_url);
+
   // ===== EL SLUG DE LA URL NO ES DE NINGÚN RESTAURANTE =====
   // Antes este caso terminaba mostrando la carta y la marca de la Taquería El
   // Primo, porque al no haber datos remotos se caía al mock. Un comensal podía
@@ -557,15 +563,27 @@ export function VistaClienteMesa({
               "linear-gradient(135deg, color-mix(in srgb, var(--brand) 75%, black), var(--brand))",
           }}
         />
+        {/* En modo cristal la foto baja al 70 % para que el color de marca de la
+            capa inferior se transparente por debajo. El color NO cambia: es el
+            mismo degradado de siempre, solo se deja ver. */}
         <div
-          className="absolute inset-0 bg-cover bg-center"
+          className={`absolute inset-0 bg-cover bg-center ${
+            esCabeceraCristal ? "opacity-70" : ""
+          }`}
           style={{ backgroundImage: `url(${tema.portada_url})` }}
           role="img"
           aria-label={`Portada de ${tema.nombre_restaurante}`}
         />
         {/* Velo más ligero que antes: ya no hay texto en la base de la foto que
-            necesite contraste, solo los badges de arriba. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-black/25" />
+            necesite contraste, solo los badges de arriba.
+            El `backdrop-blur-md` va AQUÍ y no en la capa de la foto porque
+            `backdrop-filter` difumina lo que queda DETRÁS del elemento: puesto
+            sobre la propia imagen no haría nada. */}
+        <div
+          className={`absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-black/25 ${
+            esCabeceraCristal ? "backdrop-blur-md" : ""
+          }`}
+        />
 
         {/* ===== NAVBAR SUPERIOR: mesa a la izquierda, perfil + CTA a la
              derecha. El CTA de registro late para ser lo primero que note el
@@ -789,6 +807,7 @@ export function VistaClienteMesa({
             }))}
             tituloUnico={`Resultados para "${busqueda.trim()}"`}
             onVerDetalle={setDetalleItem}
+            layout={tema.menu_layout}
             vacio={
               <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-white/60 px-6 py-14 text-center">
                 <SearchX className="h-12 w-12 text-gray-300" strokeWidth={1.5} />
@@ -809,6 +828,7 @@ export function VistaClienteMesa({
             }))}
             tituloUnico="Tus favoritos"
             onVerDetalle={setDetalleItem}
+            layout={tema.menu_layout}
             vacio={
               <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-white/60 px-6 py-14 text-center">
                 <HeartCrack className="h-12 w-12 text-gray-300" strokeWidth={1.5} />
@@ -856,10 +876,49 @@ export function VistaClienteMesa({
               categorias={categorias}
               menu={menu}
               onVerDetalle={setDetalleItem}
+              layout={tema.menu_layout}
             />
           </>
         )}
           </>
+        )}
+
+        {/* ===== REDES DEL RESTAURANTE =====
+            Al pie del contenido y no como botón flotante: abajo ya vive la barra
+            de navegación, y un botón flotante más competiría con "Pagar" por el
+            mismo pulgar. Solo aparece si el dueño llenó algún dato.
+            El color es `var(--brand)`, el mismo del tema, sobre las tarjetas
+            blancas que ya se usan en toda la vista. */}
+        {hayRedes && (
+          <div className="flex items-center justify-center gap-3 pt-4">
+            {tema.whatsapp_number && (
+              <a
+                href={`https://wa.me/${tema.whatsapp_number}`}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`Escribir a ${tema.nombre_restaurante} por WhatsApp`}
+                title="WhatsApp"
+                className="grid h-10 w-10 place-items-center rounded-full bg-white shadow-sm ring-1 ring-gray-100 transition hover:shadow-md active:scale-95"
+                style={{ color: "var(--brand)" }}
+              >
+                <MessageCircle className="h-[18px] w-[18px]" />
+              </a>
+            )}
+
+            {tema.instagram_url && (
+              <a
+                href={tema.instagram_url}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`Ver ${tema.nombre_restaurante} en Instagram`}
+                title="Instagram"
+                className="grid h-10 w-10 place-items-center rounded-full bg-white shadow-sm ring-1 ring-gray-100 transition hover:shadow-md active:scale-95"
+                style={{ color: "var(--brand)" }}
+              >
+                <Instagram className="h-[18px] w-[18px]" />
+              </a>
+            )}
+          </div>
         )}
       </main>
 

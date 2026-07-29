@@ -7,6 +7,8 @@
  * sirve para cualquier restaurante cambiando solo estos datos.
  */
 
+import type { DisposicionMenu, EstiloEncabezado } from "@/types/database";
+
 // ---------------------------------------------------------------------------
 // Tipos de UI (mock). Cuando conectemos Supabase se mapearán desde src/types.
 // ---------------------------------------------------------------------------
@@ -20,6 +22,17 @@ export interface TemaRestaurante {
   eslogan?: string;
   /** Imagen de portada del header (con gradiente de respaldo si no carga). */
   portada_url: string;
+  // --- Personalización que elige el dueño (migración 010) ---
+  /**
+   * Obligatorios y no opcionales a propósito: si pudieran faltar, cada
+   * componente tendría que decidir su propio valor de respaldo y antes o después
+   * dos pantallas discreparían. El respaldo se aplica UNA vez, al traducir la
+   * fila de la base (`filaATema`).
+   */
+  header_style: EstiloEncabezado;
+  menu_layout: DisposicionMenu;
+  whatsapp_number?: string;
+  instagram_url?: string;
 }
 
 /** Sugerencia de maridaje generada por "Ñom AI". */
@@ -259,6 +272,9 @@ export const TAQUERIA_EL_PRIMO: RestauranteMock = {
     eslogan: "Los tacos que unen a la familia",
     portada_url:
       "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=1200&q=80",
+    // Los valores que reproducen el aspecto que el menú ya tenía.
+    header_style: "solid",
+    menu_layout: "grid",
   },
   lealtad: {
     sellos_actuales: 3,
