@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import type { GrupoModificador, MenuItemMock } from "@/lib/mock-data";
+import { opcionesATexto, textoAOpciones } from "@/lib/opciones-texto";
 import {
   grupoVacio,
   nuevoIdPlatillo,
@@ -60,29 +61,6 @@ export function ModalPlatillo({
 
   const actualizarGrupo = (i: number, cambios: Partial<GrupoModificador>) =>
     setGrupos(grupos.map((g, idx) => (idx === i ? { ...g, ...cambios } : g)));
-
-  /**
-   * Las opciones se editan como texto separado por comas: para 3-4 salsas es
-   * mucho más rápido que una lista con un input por opción. Los ids se derivan
-   * del nombre, así que se conservan al reordenar.
-   */
-  const opcionesATexto = (g: GrupoModificador) =>
-    g.opciones.map((o) => o.nombre).join(", ");
-
-  const textoAOpciones = (texto: string) =>
-    texto
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean)
-      .map((nombre) => ({
-        id: nombre
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, ""),
-        nombre,
-      }));
 
   // --- Guardado ----------------------------------------------------------
   const guardar = () => {
@@ -291,15 +269,20 @@ export function ModalPlatillo({
 
                     <input
                       type="text"
-                      value={opcionesATexto(g)}
+                      value={opcionesATexto(g.opciones)}
                       onChange={(e) =>
                         actualizarGrupo(i, {
                           opciones: textoAOpciones(e.target.value),
                         })
                       }
-                      placeholder="Opciones separadas por coma: Roja, Verde, Habanero"
+                      placeholder="Separadas por coma: Mediano, Grande +$30"
                       className={inputCls}
                     />
+                    <p className="px-1 text-[11px] leading-snug text-white/35">
+                      Para cobrar más por una opción, escribe el recargo después
+                      del nombre: <span className="text-white/60">Grande +$30</span>.
+                      Sin recargo, se cobra el precio del platillo.
+                    </p>
 
                     <div className="flex flex-wrap items-center gap-4">
                       <Switch
