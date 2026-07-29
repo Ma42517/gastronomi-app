@@ -2,12 +2,16 @@
 
 import { useEffect } from "react";
 import { useRestauranteStore } from "@/lib/restaurante-store";
+import { slugActivoCliente } from "@/lib/restaurante-activo";
 
 interface Props {
   /**
    * Slug del restaurante a cargar, tomado de la URL (`/mesa/<slug>/<mesa>`).
-   * Si se omite, se usa el configurado por defecto — es lo que hace el panel
-   * del dueño, que administra un solo restaurante.
+   *
+   * Si se omite —lo hace el panel de administración— se usa el restaurante
+   * SELECCIONADO: la cookie que fija el super admin desde /admin/dev, con la
+   * variable de entorno como respaldo. Antes aquí no se pasaba nada y el panel
+   * quedaba atado al restaurante compilado en el despliegue.
    */
   slug?: string;
 }
@@ -27,7 +31,9 @@ interface Props {
 export function HidratarRestaurante({ slug }: Props) {
   useEffect(() => {
     void useRestauranteStore.persist.rehydrate();
-    void useRestauranteStore.getState().cargarDesdeNube(slug);
+    // La cookie se lee aquí y no en el render: en el servidor no existe, y
+    // usarla arriba produciría dos árboles distintos y un error de hidratación.
+    void useRestauranteStore.getState().cargarDesdeNube(slug ?? slugActivoCliente());
     // `slug` en las dependencias: si se navega de un restaurante a otro, hay
     // que volver a pedir el menú en lugar de quedarse con el anterior.
   }, [slug]);

@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Check,
   ExternalLink,
+  LayoutDashboard,
   Loader2,
   Pencil,
   Plus,
@@ -68,10 +70,16 @@ const NUEVO: Partial<Restaurante> = {
 type Pestana = "restaurantes" | "ajustes";
 
 export function PanelPlataforma() {
+  const router = useRouter();
   const [pestana, setPestana] = useState<Pestana>("restaurantes");
   const [lista, setLista] = useState<Restaurante[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+
+  /** Slug que el Panel Administrador está editando ahora mismo. */
+  const [slugActivo, setSlugActivo] = useState<string | null>(null);
+  /** Slug en proceso de selección, para deshabilitar su botón. */
+  const [seleccionando, setSeleccionando] = useState<string | null>(null);
 
   // Formulario: null = cerrado; objeto sin id = creación; con id = edición.
   const [form, setForm] = useState<Partial<Restaurante> | null>(null);
@@ -101,6 +109,61 @@ export function PanelPlataforma() {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  // Se pregunta al servidor cuál está seleccionado en lugar de leer la cookie
+  // aquí: el servidor es quien decide el respaldo cuando no hay ninguna elegida
+  // (la variable de entorno), y duplicar esa regla en el navegador la dejaría
+  // desincronizada en cuanto cambiara.
+  useEffect(() => {
+    let cancelado = false;
+
+    void fetch("/api/dev/restaurante-activo")
+      .then((r) => r.json() as Promise<{ slug?: string }>)
+      .then((d) => {
+        if (!cancelado && d.slug) setSlugActivo(d.slug);
+      })
+      .catch(() => {
+        // Si falla, simplemente no se marca ninguna tarjeta como activa.
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  /**
+   * Fija el restaurante que administrará el panel y lleva allí.
+   *
+   * La cookie la escribe el SERVIDOR y no el navegador: así la misma petición
+   * que la crea puede comprobar antes que el restaurante exista de verdad, y se
+   * evita que el panel acabe apuntando a un identificador inventado.
+   */
+  const seleccionar = async (r: Restaurante) => {
+    setSeleccionando(r.slug);
+    setError(null);
+    try {
+      const res = await fetch("/api/dev/restaurante-activo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: r.slug }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
+
+      setSlugActivo(r.slug);
+      // `refresh()` antes de navegar: /admin y las rutas de escritura leen la
+      // cookie en el servidor, y sin esto Next.js podría servir el panel desde
+      // su caché del enrutador, todavía apuntando al restaurante anterior.
+      router.refresh();
+      router.push("/admin");
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "No se pudo seleccionar el restaurante.",
+      );
+    } finally {
+      setSeleccionando(null);
+    }
+  };
 
   const guardar = async () => {
     if (!form) return;
@@ -237,10 +300,18 @@ export function PanelPlataforma() {
         </div>
       ) : (
         <ul className="grid gap-3 lg:grid-cols-2">
-          {(lista ?? []).map((r) => (
+          {(lista ?? []).map((r) => {
+            const enElPanel = r.slug === slugActivo;
+            return (
             <li
               key={r.id}
-              className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl transition hover:border-white/20"
+              // El activo se resalta con borde y halo: al cambiar de restaurante
+              // hay que poder ver de un vistazo sobre cuál se está trabajando.
+              className={`space-y-3 rounded-2xl border bg-white/[0.04] p-4 backdrop-blur-xl transition ${
+                enElPanel
+                  ? "border-sky-400/50 shadow-[0_0_28px_-6px_rgba(56,189,248,0.45)]"
+                  : "border-white/10 hover:border-white/20"
+              }`}
             >
               <div className="flex items-start gap-3">
                 {/* Identidad visual: el color de marca de cada restaurante */}
@@ -262,6 +333,12 @@ export function PanelPlataforma() {
                     </p>
                   )}
                 </div>
+
+                {enElPanel && (
+                  <span className="shrink-0 rounded-full bg-sky-500/15 px-2 py-1 text-[10px] font-bold uppercase text-sky-300">
+                    En el panel
+                  </span>
+                )}
 
                 {!r.activo && (
                   <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-1 text-[10px] font-bold uppercase text-amber-300">
@@ -300,6 +377,28 @@ export function PanelPlataforma() {
                 />
 
                 <div className="ml-auto flex flex-wrap items-center gap-2">
+                  {/* La acción principal: pasar a editar el menú de ESTE
+                      restaurante. Deja de ser "el restaurante del despliegue" y
+                      pasa a ser el que se elija aquí. */}
+                  <button
+                    type="button"
+                    onClick={() => void seleccionar(r)}
+                    disabled={seleccionando !== null}
+                    className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+                      enElPanel
+                        ? "border border-sky-400/40 bg-sky-500/15 text-sky-200 hover:bg-sky-500/25"
+                        : "bg-sky-600 text-white shadow-lg shadow-sky-600/25 hover:bg-sky-500"
+                    }`}
+                    title={`Administrar el menú de ${r.nombre}`}
+                  >
+                    {seleccionando === r.slug ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <LayoutDashboard className="h-3.5 w-3.5" />
+                    )}
+                    {enElPanel ? "Ir al panel" : "Administrar"}
+                  </button>
+
                   <a
                     href={`/mesa/${r.slug}/1`}
                     target="_blank"
@@ -340,7 +439,8 @@ export function PanelPlataforma() {
                 </div>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 

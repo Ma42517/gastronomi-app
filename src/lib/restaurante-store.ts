@@ -100,13 +100,32 @@ export const useRestauranteStore = create<RestauranteState>()(
           return;
         }
 
+        // CAMBIO DE RESTAURANTE: la caché de localStorage pertenece a OTRO
+        // negocio, así que se descarta antes de pedir el nuevo menú.
+        //
+        // No es cosmético. Sin esto, el panel pintaría los platillos del
+        // restaurante anterior durante el viaje de red, y quien pulsara "Editar"
+        // en ese instante guardaría un platillo ajeno DENTRO del restaurante
+        // recién seleccionado. Se compara contra `slugActual` y solo se limpia
+        // cuando de verdad cambia: en la carga normal (mismo slug, o el primero
+        // de la sesión) se conserva la caché y el menú aparece al instante.
+        const anterior = get().slugActual;
+        if (slug && anterior && slug !== anterior) {
+          set({ menu: [], tema: null, slugActual: slug });
+        }
+
         set({ estadoNube: "cargando", errorNube: null });
         const remoto = await leerRestauranteRemoto(slug);
 
         if (!remoto) {
           // Conectado pero sin datos (o error ya registrado en consola): se
           // conserva el menú local para no dejar al cliente con la carta vacía.
-          set({ estadoNube: "sin-sembrar" });
+          //
+          // `slugActual` se anota igualmente: es la marca de "a qué restaurante
+          // pertenece lo que hay en memoria". Sin ella, un restaurante todavía
+          // sin sembrar no dejaría rastro y el siguiente cambio no detectaría
+          // que hubo un salto, saltándose la limpieza de la caché.
+          set({ estadoNube: "sin-sembrar", slugActual: slug ?? anterior ?? null });
           return;
         }
 

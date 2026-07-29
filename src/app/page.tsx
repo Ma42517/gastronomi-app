@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Pacifico } from "next/font/google";
-import { LayoutDashboard, Smartphone, Store } from "lucide-react";
+import { LayoutDashboard, Smartphone, Store, Terminal } from "lucide-react";
 
 const pacifico = Pacifico({
   weight: "400",
@@ -37,6 +37,17 @@ const VISTAS = [
     href: "/admin",
     icon: LayoutDashboard,
     accent: "139, 92, 246", // violet
+  },
+  {
+    titulo: "Aplicación",
+    descripcion:
+      "Todos los restaurantes: crear, editar y elegir cuál administrar.",
+    etiqueta: "Súper Admin",
+    // El gestor de la plataforma ya vive aquí; esta tarjeta solo le da una
+    // puerta visible en la portada.
+    href: "/admin/dev",
+    icon: Terminal,
+    accent: "56, 189, 248", // sky
   },
 ];
 
@@ -131,14 +142,17 @@ export default function Home() {
         Escanea. Ordena. Paga. Así de fácil.
       </p>
 
-      {/* --- Menú de las 3 vistas (glassmorphism) --- */}
+      {/* --- Menú de las 4 vistas (glassmorphism) --- */}
       <section
-        className={`relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 pb-16 pt-56 transition-opacity duration-500 ${
+        className={`relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 pb-16 pt-56 transition-opacity duration-500 ${
           mostrarMenu ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         aria-hidden={!mostrarMenu}
       >
-        <div className="grid gap-5 sm:grid-cols-3">
+        {/* Cuatro accesos: en móvil una columna, en tablet dos y en escritorio
+            las cuatro en fila. Con `sm:grid-cols-4` las tarjetas quedarían
+            demasiado estrechas para su texto en pantallas medianas. */}
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {VISTAS.map((vista, i) => {
             const Icon = vista.icon;
             return (

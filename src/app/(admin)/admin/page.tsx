@@ -14,10 +14,12 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock } from "@/lib/mock-data";
 import { platilloVacio, useRestauranteStore } from "@/lib/restaurante-store";
+import { useSlugActivo } from "@/lib/use-slug-activo";
 import { HidratarRestaurante } from "@/components/HidratarRestaurante";
 import { EstadoConexion } from "@/components/admin/EstadoConexion";
 import { SesionDueno } from "@/components/admin/SesionDueno";
 import { AccesoPlataforma } from "@/components/admin/AccesoPlataforma";
+import { RestauranteEnEdicion } from "@/components/admin/RestauranteEnEdicion";
 import { ModalPlatillo } from "@/components/admin/ModalPlatillo";
 import { PanelRecompensas } from "@/components/admin/PanelRecompensas";
 import { PanelCalificaciones } from "@/components/admin/PanelCalificaciones";
@@ -42,6 +44,7 @@ const TAB_CALIFICACIONES = "Calificaciones";
 
 export default function PanelAdmin() {
   const menu = useRestauranteStore((s) => s.menu);
+  const slugActivo = useSlugActivo();
   const alternarDisponibilidad = useRestauranteStore(
     (s) => s.alternarDisponibilidad,
   );
@@ -91,14 +94,21 @@ export default function PanelAdmin() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Qué restaurante se está editando. Con varios en la plataforma,
+                esto evita cambiar el menú del negocio equivocado. */}
+            <RestauranteEnEdicion />
+
             {/* Solo aparece si el servidor confirma que es super admin. */}
             <AccesoPlataforma />
 
             {/* Identidad del dueño + salir (solo si hay sesión). */}
             <SesionDueno />
 
+            {/* Apunta al restaurante que se está editando, no a uno fijo: con
+                varios en la plataforma, un enlace clavado a "el-primo" llevaría
+                a comprobar el menú de otro negocio. */}
             <Link
-              href="/mesa/el-primo/4"
+              href={`/mesa/${slugActivo}/4`}
               className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-bold text-white/80 backdrop-blur-xl transition hover:bg-white/[0.12]"
             >
               Ver como cliente →

@@ -1,12 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  RESTAURANTE_SLUG,
-  servicioConfigurado,
-  supabaseConfigurado,
-} from "@/lib/supabase/config";
+import { servicioConfigurado, supabaseConfigurado } from "@/lib/supabase/config";
 import { mensajeDeError } from "@/lib/supabase/errores";
 import { verificarSuperAdmin } from "@/lib/dev-auth";
+import { slugActivoServidor } from "@/lib/restaurante-activo-servidor";
 
 /**
  * GUARDIA DE AUTORIZACIÓN DEL PANEL — solo servidor.
@@ -113,12 +110,17 @@ export async function verificarDueno(
     }
 
     // --- 2. ¿Es dueño de ESTE restaurante? ---
+    // "Este" ya no es una constante de compilación: sale de la cookie de
+    // selección del super admin, con la variable de entorno como respaldo. La
+    // cookie elige el objetivo; la comprobación de propiedad de más abajo es la
+    // que decide si se puede tocar. Ver `lib/restaurante-activo.ts`.
+    const slug = slugActivoServidor();
     const admin = createAdminClient();
 
     const { data: restaurante, error: errorRest } = await admin
       .from("restaurantes")
       .select("id")
-      .eq("slug", RESTAURANTE_SLUG)
+      .eq("slug", slug)
       .maybeSingle();
 
     if (errorRest) throw errorRest;
@@ -135,7 +137,7 @@ export async function verificarDueno(
       }
       return denegar(
         404,
-        `No existe el restaurante "${RESTAURANTE_SLUG}". Publícalo primero desde el panel.`,
+        `No existe el restaurante "${slug}". Publícalo primero desde el panel.`,
       );
     }
 

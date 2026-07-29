@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verificarDueno } from "@/lib/admin-auth";
-import { RESTAURANTE_SLUG } from "@/lib/supabase/config";
+import { slugActivoServidor } from "@/lib/restaurante-activo-servidor";
 import { platilloAUpsert } from "@/lib/restaurante-repo";
 import { mensajeDeError } from "@/lib/supabase/errores";
 import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
@@ -42,32 +42,71 @@ export async function POST(req: Request) {
     }
 
     const supabase = createAdminClient();
-    const tema = TAQUERIA_EL_PRIMO.tema;
+    const slug = slugActivoServidor();
 
-    // 1) Restaurante (crear o actualizar su configuración).
-    const { data: restaurante, error: errorRest } = await supabase
+    // 1) Restaurante. Se distingue CREAR de ACTUALIZAR a propósito.
+    //
+    //    Antes esto era un upsert único que escribía siempre el nombre, el
+    //    eslogan y el color del mock. Con un solo restaurante daba igual; con
+    //    varios era destructivo: un super admin que creara "Mariscos Pepe" y
+    //    pulsara "Publicar" lo vería renombrado a "Taquería El Primo", porque el
+    //    upsert pisaba su identidad con la plantilla.
+    //
+    //    Ahora los datos del mock solo sirven de punto de partida cuando el
+    //    restaurante NO existe. Si ya existe, se respeta su identidad y solo se
+    //    actualiza lo que el panel edita de verdad: la recompensa.
+    let restauranteId: string;
+
+    const { data: existente, error: errorBusca } = await supabase
       .from("restaurantes")
-      .upsert(
-        {
-          slug: RESTAURANTE_SLUG,
-          nombre: tema.nombre_restaurante,
-          eslogan: tema.eslogan,
-          logo_url: tema.logo_url,
-          portada_url: tema.portada_url,
-          color_primario: tema.color_primario,
-          iniciales: tema.iniciales,
-          moneda: "MXN",
-          activo: true,
-          sellos_para_recompensa: lealtad.sellos_para_recompensa,
-          descripcion_recompensa: lealtad.descripcion_recompensa,
-          imagen_premio: lealtad.imagen_premio ?? null,
-        } as never,
-        { onConflict: "slug" },
-      )
       .select("id")
-      .single();
+      .eq("slug", slug)
+      .maybeSingle();
 
-    if (errorRest) throw errorRest;
+    if (errorBusca) throw errorBusca;
+
+    const premio = {
+      sellos_para_recompensa: lealtad.sellos_para_recompensa,
+      descripcion_recompensa: lealtad.descripcion_recompensa,
+      imagen_premio: lealtad.imagen_premio ?? null,
+    };
+
+    if (existente) {
+      restauranteId = (existente as { id: string }).id;
+
+      const { error: errorPremio } = await supabase
+        .from("restaurantes")
+        .update(premio as never)
+        .eq("id", restauranteId);
+
+      if (errorPremio) throw errorPremio;
+    } else {
+      const tema = TAQUERIA_EL_PRIMO.tema;
+
+      const { data: creado, error: errorRest } = await supabase
+        .from("restaurantes")
+        .insert(
+          {
+            slug,
+            nombre: tema.nombre_restaurante,
+            eslogan: tema.eslogan,
+            logo_url: tema.logo_url,
+            portada_url: tema.portada_url,
+            color_primario: tema.color_primario,
+            iniciales: tema.iniciales,
+            moneda: "MXN",
+            activo: true,
+            ...premio,
+          } as never,
+        )
+        .select("id")
+        .single();
+
+      if (errorRest) throw errorRest;
+      restauranteId = (creado as { id: string }).id;
+    }
+
+    const restaurante = { id: restauranteId };
 
     // 1b) AUTO-REGISTRO DEL PRIMER DUEÑO.
     //     Si el restaurante acababa de no existir (`restauranteId === null`), la
