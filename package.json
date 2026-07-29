@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit && tsc --noEmit -p scripts/tsconfig.json",
+    "sql:tasca": "node --experimental-strip-types scripts/generar-sql-tasca.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^1.2.19",

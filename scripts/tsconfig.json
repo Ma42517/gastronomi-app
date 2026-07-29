@@ -1,0 +1,13 @@
+{
+  "//": "Los scripts se ejecutan con `node --experimental-strip-types`, que exige la extensión .ts en el import. La app se compila con Next, que no la admite: por eso el permiso vive aquí y no en el tsconfig raíz, que excluye esta carpeta. Comprobar con: npx tsc --noEmit -p scripts/tsconfig.json",
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "jsx": "preserve",
+    "types": ["node"]
+  },
+  "include": ["**/*.ts"],
+  "//exclude": "Se redefine porque el del padre excluye justo esta carpeta.",
+  "exclude": ["../node_modules"]
+}
