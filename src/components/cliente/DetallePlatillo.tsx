@@ -299,6 +299,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
             nombre={platillo.nombre}
             imagenUrl={platillo.imagen_url}
             videoUrl={platillo.video_url}
+            mediaType={platillo.media_type}
             brand={brand}
             className="animate-live-photo absolute inset-0 h-full w-full object-cover"
           />

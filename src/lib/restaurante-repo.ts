@@ -4,7 +4,7 @@ import type {
   TemaRestaurante,
 } from "@/lib/mock-data";
 import type { LealtadEditable } from "@/lib/restaurante-store";
-import type { MenuItem, Restaurante } from "@/types/database";
+import type { MenuItem, Restaurante, TipoMedia } from "@/types/database";
 
 /**
  * REPOSITORIO DEL RESTAURANTE — traducción entre Postgres y el dominio de la app.
@@ -27,6 +27,7 @@ export type MenuItemRow = MenuItem & {
   modifiers: GrupoModificador[] | null;
   is_popular: boolean | null;
   video_url: string | null;
+  media_type: TipoMedia | null;
 };
 
 /** Fila de `restaurantes` con las columnas que añade la migración 001. */
@@ -53,6 +54,7 @@ export function filaAPlatillo(row: MenuItemRow): MenuItemMock {
     disponible: row.disponible,
     imagen_url: row.imagen_url ?? undefined,
     video_url: row.video_url ?? undefined,
+    media_type: row.media_type ?? undefined,
     isPopular: row.is_popular ?? undefined,
     modifiers: row.modifiers ?? undefined,
   };
@@ -84,6 +86,7 @@ export interface PlatilloUpsert {
   disponible: boolean;
   imagen_url: string | null;
   video_url: string | null;
+  media_type: TipoMedia | null;
   is_popular: boolean;
   modifiers: GrupoModificador[] | null;
 }
@@ -101,6 +104,9 @@ export function platilloAUpsert(item: MenuItemMock): PlatilloUpsert {
     // `null` y no `undefined`: un undefined haría que el upsert OMITIERA la
     // columna, y borrar un video dejándolo vacío no surtiría efecto.
     video_url: item.video_url ?? null,
+    // Sin multimedia no hay tipo que guardar: dejarlo puesto describiría algo
+    // que ya no está.
+    media_type: item.video_url ? (item.media_type ?? "media_url") : null,
     is_popular: item.isPopular ?? false,
     modifiers: item.modifiers ?? null,
   };

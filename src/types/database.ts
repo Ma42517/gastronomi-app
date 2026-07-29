@@ -127,7 +127,28 @@ export type MenuItem = {
    * imagen sigue siendo el poster y el respaldo si el video no carga.
    */
   video_url: string | null;
+  // --- Añadida por supabase/migrations/010_media_y_personalizacion.sql ---
+  /**
+   * Cómo hay que PINTAR `video_url`. Sin esto no se puede saber si el enlace es
+   * un video o un GIF, y la etiqueta HTML no es la misma.
+   * `null` en los platillos anteriores a esta columna: se deducen igual que antes.
+   */
+  media_type: TipoMedia | null;
 }
+
+/**
+ * Origen de la multimedia del platillo.
+ *
+ * ⚠️ NOTA DE DISEÑO
+ * Estos tres valores mezclan dos cosas distintas: de dónde viene el archivo
+ * (subido o enlazado) y qué ES (video o imagen). Para pintarlo solo importa lo
+ * segundo, así que `media_url` obliga a deducir el tipo de la extensión del
+ * enlace. Un par de campos separados —origen y tipo— sería más limpio; se
+ * conserva esta forma porque es la acordada y porque la deducción tiene un
+ * respaldo real en `MediaPlatillo` (si falla como video, se reintenta como
+ * imagen).
+ */
+export type TipoMedia = "video_file" | "gif_file" | "media_url";
 
 export type SesionMesa = {
   id: string;

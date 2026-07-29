@@ -2,6 +2,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { verificarDueno } from "@/lib/admin-auth";
 import { verificarSuperAdmin } from "@/lib/dev-auth";
 import { mensajeDeError } from "@/lib/supabase/errores";
+import {
+  asegurarBucket,
+  esBucketInexistente,
+  type BucketConocido,
+} from "@/lib/supabase/buckets";
 
 /**
  * PERMISO DE SUBIDA A SUPABASE STORAGE — solo servidor.
@@ -100,11 +105,33 @@ export async function POST(req: Request) {
     const supabase = createAdminClient();
     const ruta = `${carpeta}/${nombreSeguro(nombre)}-${Date.now()}.${extension}`;
 
-    const { data, error } = await supabase.storage
-      .from(bucket as Bucket)
-      .createSignedUploadUrl(ruta);
+    const firmar = () =>
+      supabase.storage.from(bucket as Bucket).createSignedUploadUrl(ruta);
+
+    let { data, error } = await firmar();
+
+    // AUTORREPARACIÓN: si el bucket no existe, se crea y se vuelve a intentar.
+    //
+    // Antes esto terminaba en un mensaje que mandaba al dueño del restaurante al
+    // SQL Editor de Supabase. El bucket es una dependencia técnica nuestra y la
+    // llave de servicio puede crearlo, así que hacerlo aquí es lo correcto.
+    if (error && esBucketInexistente(error)) {
+      const creado = await asegurarBucket(supabase, bucket as BucketConocido);
+
+      if (!creado.ok) {
+        return Response.json(
+          {
+            error: `No existe el bucket "${bucket}" y no se pudo crear automáticamente (${creado.error}). Corre supabase/migrations/010_media_y_personalizacion.sql en el SQL Editor de Supabase.`,
+          },
+          { status: 503 },
+        );
+      }
+
+      ({ data, error } = await firmar());
+    }
 
     if (error) throw error;
+    if (!data) throw new Error("Storage no devolvió la URL firmada.");
 
     // La URL pública se calcula aquí para que el navegador no tenga que
     // construirla a mano: si el proyecto cambia de dominio, este es el único

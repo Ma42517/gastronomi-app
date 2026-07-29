@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   Film,
@@ -17,6 +17,7 @@ import {
   subirMedia,
   type BucketMedia,
 } from "@/lib/subir-media";
+import { puedeReproducirse } from "@/lib/verificar-media";
 
 /**
  * SUBIDA DE MULTIMEDIA CON ARRASTRAR Y SOLTAR.
@@ -51,6 +52,16 @@ interface MediaUploaderProps {
   /** Emoji de respaldo cuando todavía no hay imagen (platillos). */
   emoji?: string;
   ayuda?: string;
+  /**
+   * Restringe los tipos MIME por encima de lo que permite `tipo`. Lo usa el
+   * modo GIF, que es una imagen pero NO admite JPG ni PNG: un PNG estático en el
+   * lugar del video dejaría la tarjeta sin movimiento y sin explicación.
+   */
+  tiposAceptados?: string[];
+  /** Oculta el campo de enlace manual (lo aporta el selector de pestañas). */
+  sinEnlaceManual?: boolean;
+  /** Texto de la invitación a soltar, cuando "imagen"/"video" no describe bien. */
+  descripcion?: string;
 }
 
 /** Extensiones que un `<video>` de HTML5 reproduce de forma fiable. */
@@ -69,6 +80,9 @@ export function MediaUploader({
   poster,
   emoji = "🍽️",
   ayuda,
+  tiposAceptados,
+  sinEnlaceManual = false,
+  descripcion,
 }: MediaUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(false);
@@ -77,6 +91,26 @@ export function MediaUploader({
   const [arrastrando, setArrastrando] = useState(false);
   const [mostrarUrl, setMostrarUrl] = useState(false);
   const [errorCarga, setErrorCarga] = useState(false);
+
+  /**
+   * Vista previa del archivo LOCAL, antes de que exista en Storage.
+   *
+   * Se pinta desde un `blob:` de `URL.createObjectURL`, así que aparece al
+   * instante y sin gastar red. Cumple dos funciones: el dueño ve de inmediato lo
+   * que eligió, y si el archivo está dañado se nota antes de subir nada.
+   */
+  const [previaLocal, setPreviaLocal] = useState<string | null>(null);
+  const [verificando, setVerificando] = useState(false);
+
+  /**
+   * Los `blob:` hay que revocarlos a mano: el navegador los mantiene vivos —con
+   * su memoria— hasta que se cierra la pestaña. Sin esto, probar diez videos en
+   * una sesión de edición deja diez archivos retenidos.
+   */
+  const liberarPrevia = (url: string | null) => {
+    if (url) URL.revokeObjectURL(url);
+  };
+  useEffect(() => () => liberarPrevia(previaLocal), [previaLocal]);
 
   /**
    * Contador de eventos de arrastre.
@@ -88,7 +122,15 @@ export function MediaUploader({
   const profundidad = useRef(0);
 
   const esImagen = tipo === "imagen";
-  const aceptados = esImagen ? IMAGENES_OK : VIDEOS_OK;
+  const aceptados = tiposAceptados ?? (esImagen ? IMAGENES_OK : VIDEOS_OK);
+
+  /**
+   * Qué se pinta en la miniatura. La previa local tiene prioridad sobre el valor
+   * guardado: mientras sube, lo que el dueño acaba de elegir es más informativo
+   * que lo que había antes.
+   */
+  const mostrado = previaLocal ?? valor;
+  const esPrevia = previaLocal !== null;
 
   const procesar = async (file: File | undefined) => {
     if (!file) return;
@@ -100,19 +142,49 @@ export function MediaUploader({
     // hueco de la foto debe saber por qué no funcionó.
     if (!aceptados.includes(file.type)) {
       setError(
-        esImagen
-          ? `Eso no es una imagen admitida (${file.type || "tipo desconocido"}). Usa JPG, PNG, WebP o GIF.`
-          : `Eso no es un video admitido (${file.type || "tipo desconocido"}). Usa MP4, WebM o MOV.`,
+        `Formato no admitido aquí (${file.type || "tipo desconocido"}). Se aceptan: ${aceptados
+          .map((t) => t.split("/")[1].toUpperCase())
+          .join(", ")}.`,
       );
       return;
     }
 
+    // --- 1) VISTA PREVIA INMEDIATA Y VERIFICACIÓN LOCAL ---
+    // Se comprueba que el navegador pueda reproducirlo ANTES de subir. Un archivo
+    // dañado o con un códec exótico se detecta aquí, sin gastar la subida ni
+    // dejar basura en el almacenamiento.
+    liberarPrevia(previaLocal);
+    const blobUrl = URL.createObjectURL(file);
+    setPreviaLocal(blobUrl);
+    setVerificando(true);
+
+    const reproducible = await puedeReproducirse(
+      blobUrl,
+      esImagen ? "imagen" : "video",
+    );
+    setVerificando(false);
+
+    if (!reproducible) {
+      liberarPrevia(blobUrl);
+      setPreviaLocal(null);
+      setError(
+        esImagen
+          ? "El archivo no se pudo abrir como imagen. Puede estar dañado o no ser realmente una imagen."
+          : "El archivo no se pudo reproducir. Puede estar dañado o usar un códec que el navegador no entiende (prueba a exportarlo como MP4 H.264).",
+      );
+      return;
+    }
+
+    // --- 2) SUBIDA ---
     setSubiendo(true);
     try {
       const res = await subirMedia(file, bucket);
 
       if (res.ok) {
         onCambiar(res.url);
+        // Ya hay URL definitiva: la previa local sobra y su memoria se devuelve.
+        liberarPrevia(blobUrl);
+        setPreviaLocal(null);
         return;
       }
 
@@ -121,16 +193,24 @@ export function MediaUploader({
       // como antes: el dueño puede seguir trabajando. Con un video no se hace lo
       // mismo a propósito — meter megabytes en una columna de texto haría que
       // cada lectura del menú los arrastrase, que es justo lo que se evitó.
-      if (res.sinStorage && esImagen) {
+      if (res.sinStorage && esImagen && file.type !== "image/gif") {
         onCambiar(await archivoAImagen(file));
+        liberarPrevia(blobUrl);
+        setPreviaLocal(null);
         setAviso(
-          "El almacenamiento no está instalado, así que la foto se guardó comprimida en la base de datos. Corre la migración 010 para subirlas como archivo.",
+          "El almacenamiento no está disponible, así que la foto se guardó comprimida en la base de datos.",
         );
         return;
       }
 
+      // Sin respaldo posible: se descarta la previa para no aparentar que quedó
+      // guardado algo que no se subió.
+      liberarPrevia(blobUrl);
+      setPreviaLocal(null);
       setError(res.error);
     } catch {
+      liberarPrevia(blobUrl);
+      setPreviaLocal(null);
       setError("No se pudo procesar el archivo. Intenta con otro.");
     } finally {
       setSubiendo(false);
@@ -199,14 +279,14 @@ export function MediaUploader({
             : "border-white/20 bg-white/[0.04]"
         }`}
       >
-        {valor ? (
+        {mostrado ? (
           /* --- CON CONTENIDO: miniatura + acciones --- */
           <div className="flex items-stretch gap-3 p-3">
             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black">
               {esImagen ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={valor}
+                  src={mostrado}
                   alt="Vista previa"
                   onError={() => setErrorCarga(true)}
                   className="h-full w-full object-cover"
@@ -214,8 +294,8 @@ export function MediaUploader({
               ) : (
                 /* eslint-disable-next-line jsx-a11y/media-has-caption */
                 <video
-                  key={valor}
-                  src={valor}
+                  key={mostrado}
+                  src={mostrado}
                   poster={poster}
                   autoPlay
                   loop
@@ -224,6 +304,15 @@ export function MediaUploader({
                   onError={() => setErrorCarga(true)}
                   className="h-full w-full object-cover"
                 />
+              )}
+
+              {/* Distingue lo que ya está guardado de lo que solo se está
+                  viendo en local, para que nadie cierre el modal creyendo que
+                  la subida terminó. */}
+              {esPrevia && (
+                <span className="absolute inset-x-0 bottom-0 bg-black/70 py-0.5 text-center text-[9px] font-bold uppercase tracking-wide text-white/70">
+                  sin subir
+                </span>
               )}
             </div>
 
@@ -279,30 +368,32 @@ export function MediaUploader({
               )}
             </span>
             <span className="text-sm font-semibold text-white/80">
-              Arrastra {esImagen ? "una imagen" : "un video"} o toca para elegir
+              Arrastra {descripcion ?? (esImagen ? "una imagen" : "un video")} o
+              toca para elegir
             </span>
             <span className="text-[11px] text-white/35">
-              {esImagen
-                ? "JPG, PNG, WebP o GIF · hasta 25 MB"
-                : "MP4, WebM o MOV · hasta 50 MB"}
+              {aceptados.map((t) => t.split("/")[1].toUpperCase()).join(", ")} ·
+              hasta {bucket === "dish-media" ? "50" : "25"} MB
             </span>
           </button>
         )}
 
         {/* Emoji de respaldo del platillo, para que el hueco no se vea muerto */}
-        {!valor && esImagen && emoji && (
+        {!mostrado && esImagen && emoji && (
           <span className="pointer-events-none absolute right-3 top-3 text-2xl opacity-30">
             {emoji}
           </span>
         )}
 
-        {/* --- Indicador de carga: cubre el área entera --- */}
-        {subiendo && (
+        {/* --- Indicador de carga: cubre el área entera ---
+            Se distinguen las dos fases porque tardan cosas distintas y el dueño
+            merece saber si está esperando a su disco o a la red. */}
+        {(verificando || subiendo) && (
           <div className="absolute inset-0 grid place-items-center gap-2 bg-black/70">
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="h-6 w-6 animate-spin text-violet-300" />
               <p className="text-xs font-semibold text-white/70">
-                Subiendo{esImagen ? " la imagen" : " el video"}…
+                {verificando ? "Comprobando el archivo…" : "Subiendo…"}
               </p>
             </div>
           </div>
@@ -310,7 +401,7 @@ export function MediaUploader({
       </div>
 
       {/* ===== ENLACE MANUAL (plegado) ===== */}
-      {!valor && (
+      {!sinEnlaceManual && !valor && (
         <button
           type="button"
           onClick={() => setMostrarUrl((v) => !v)}
@@ -321,7 +412,7 @@ export function MediaUploader({
         </button>
       )}
 
-      {mostrarUrl && (
+      {!sinEnlaceManual && mostrarUrl && (
         <input
           type="url"
           value={valor ?? ""}

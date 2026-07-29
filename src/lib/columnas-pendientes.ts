@@ -38,11 +38,17 @@ export const PERSONALIZACION: GrupoColumnas = {
     "Los datos generales se guardaron, pero la personalización (cabecera, disposición del menú, WhatsApp e Instagram) no: falta correr supabase/migrations/010_media_y_personalizacion.sql en el SQL Editor de Supabase.",
 };
 
-/** Migración 009 — video por platillo. */
-export const VIDEO_PLATILLO: GrupoColumnas = {
-  campos: ["video_url"],
+/**
+ * Multimedia del platillo: `video_url` (migración 009) y `media_type` (010).
+ *
+ * Van juntas porque describen la misma cosa y se escriben en la misma operación:
+ * si falta cualquiera de las dos, lo que no se puede guardar es la multimedia
+ * completa, no media.
+ */
+export const MEDIA_PLATILLO: GrupoColumnas = {
+  campos: ["video_url", "media_type"],
   aviso:
-    "El platillo se guardó, pero su video no: falta correr supabase/migrations/009_video_platillos.sql en el SQL Editor de Supabase.",
+    "El platillo se guardó, pero su video o GIF no: falta correr supabase/migrations/009_video_platillos.sql y 010_media_y_personalizacion.sql en el SQL Editor de Supabase.",
 };
 
 /**

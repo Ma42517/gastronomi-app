@@ -7,7 +7,11 @@
  * sirve para cualquier restaurante cambiando solo estos datos.
  */
 
-import type { DisposicionMenu, EstiloEncabezado } from "@/types/database";
+import type {
+  DisposicionMenu,
+  EstiloEncabezado,
+  TipoMedia,
+} from "@/types/database";
 
 // ---------------------------------------------------------------------------
 // Tipos de UI (mock). Cuando conectemos Supabase se mapearán desde src/types.
@@ -85,6 +89,11 @@ export interface MenuItemMock {
    * foto; la foto se conserva como `poster` y como respaldo si el video falla.
    */
   video_url?: string;
+  /**
+   * Cómo pintar `video_url`: archivo de video, GIF o enlace externo. Si falta,
+   * se deduce (compatibilidad con los platillos anteriores a la migración 010).
+   */
+  media_type?: TipoMedia;
   /** Si es true, aparece en el carrusel "Populares" del home. */
   isPopular?: boolean;
   /** Complementos configurables del platillo (salsas, preparación, extras…). */

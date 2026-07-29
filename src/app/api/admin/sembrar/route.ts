@@ -3,7 +3,7 @@ import { verificarDueno } from "@/lib/admin-auth";
 import { slugActivoServidor } from "@/lib/restaurante-activo-servidor";
 import { platilloAUpsert } from "@/lib/restaurante-repo";
 import { mensajeDeError } from "@/lib/supabase/errores";
-import { VIDEO_PLATILLO, guardarTolerando } from "@/lib/columnas-pendientes";
+import { MEDIA_PLATILLO, guardarTolerando } from "@/lib/columnas-pendientes";
 import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
 import type { MenuItemMock } from "@/lib/mock-data";
 import type { LealtadEditable } from "@/lib/restaurante-store";
@@ -148,7 +148,7 @@ export async function POST(req: Request) {
     // Igual que al guardar un platillo suelto: si falta la migración 009, se
     // publica el menú sin los videos en lugar de no publicar nada.
     const { error: errorMenu, aviso } = await guardarTolerando(
-      VIDEO_PLATILLO,
+      MEDIA_PLATILLO,
       (lote) =>
         supabase
           .from("menu_items")

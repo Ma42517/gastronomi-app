@@ -4,7 +4,7 @@ import { verificarSuperAdmin } from "@/lib/dev-auth";
 import { bloqueado, leerConfigServidor } from "@/lib/candados";
 import { platilloAUpsert } from "@/lib/restaurante-repo";
 import { mensajeDeError } from "@/lib/supabase/errores";
-import { VIDEO_PLATILLO, guardarTolerando } from "@/lib/columnas-pendientes";
+import { MEDIA_PLATILLO, guardarTolerando } from "@/lib/columnas-pendientes";
 import type { MenuItemMock } from "@/lib/mock-data";
 
 /**
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
     // rechazaría TODO el platillo. Se guarda sin el video y se avisa, en lugar de
     // impedir editar el menú por una columna que quizá ni se está usando.
     const { error, aviso } = await guardarTolerando(
-      VIDEO_PLATILLO,
+      MEDIA_PLATILLO,
       (fila) =>
         supabase.from("menu_items").upsert(
           fila as never,

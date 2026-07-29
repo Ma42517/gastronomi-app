@@ -9,6 +9,7 @@ import {
   useRestauranteStore,
 } from "@/lib/restaurante-store";
 import { MediaUploader } from "./MediaUploader";
+import { SelectorMedia } from "./SelectorMedia";
 import { BUCKET_PLATILLOS } from "@/lib/subir-media";
 import { Switch } from "./Switch";
 
@@ -166,21 +167,24 @@ export function ModalPlatillo({
               onCambiar={(img) => set("imagen_url", img)}
             />
 
-            <MediaUploader
-              tipo="video"
-              bucket={BUCKET_PLATILLOS}
-              etiqueta="Video del platillo"
-              opcional
+            <SelectorMedia
               valor={borrador.video_url}
+              mediaType={borrador.media_type}
               poster={borrador.imagen_url}
-              onCambiar={(video) => set("video_url", video)}
-              ayuda="Un video corto (3-6 s) en bucle y sin sonido."
+              onCambiar={({ url, mediaType }) =>
+                // Los dos campos se mueven juntos: un tipo sin enlace, o un
+                // enlace sin tipo, describirían un estado que no existe.
+                setBorrador((b) =>
+                  b ? { ...b, video_url: url, media_type: mediaType } : b,
+                )
+              }
             />
 
             <p className="border-t border-white/[0.07] pt-3 text-[11px] leading-relaxed text-white/35">
-              En el menú manda el <strong className="text-white/50">video</strong>
-              ; la foto es su portada mientras carga y su respaldo si falla o si
-              el cliente tiene el ahorro de datos activado.
+              En el menú manda la{" "}
+              <strong className="text-white/50">multimedia</strong>; la foto es su
+              portada mientras carga y su respaldo si falla o si el cliente tiene
+              el ahorro de datos activado.
             </p>
           </div>
 

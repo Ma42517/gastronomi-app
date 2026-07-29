@@ -2,11 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { UtensilsCrossed } from "lucide-react";
+import type { TipoMedia } from "@/types/database";
+import { claseDeMedia } from "@/lib/media-tipo";
 
 interface MediaPlatilloProps {
   nombre: string;
   imagenUrl?: string;
   videoUrl?: string;
+  /**
+   * Cómo hay que pintar `videoUrl`. Si falta, se deduce de la extensión: los
+   * platillos guardados antes de que existiera esta columna siguen funcionando.
+   */
+  mediaType?: TipoMedia;
   /** Clases del elemento visual. Las MISMAS para video, imagen y respaldo. */
   className?: string;
   /** Color de marca, para el degradado del respaldo. */
@@ -39,12 +46,19 @@ export function MediaPlatillo({
   nombre,
   imagenUrl,
   videoUrl,
+  mediaType,
   className = "",
   brand = "var(--brand, #DC2626)",
   tamanoIcono = "h-16 w-16",
 }: MediaPlatilloProps) {
   const [videoFallo, setVideoFallo] = useState(false);
   const [imagenFallo, setImagenFallo] = useState(false);
+  /**
+   * El media se pidió como video pero falló, y su enlace podría ser en realidad
+   * una imagen (un GIF servido por un CDN sin extensión, por ejemplo). Antes de
+   * rendirse a la foto se reintenta con `<img>`.
+   */
+  const [reintentarComoImagen, setReintentarComoImagen] = useState(false);
   /**
    * Se respeta el ahorro de datos del sistema: reproducir video en bucle con
    * "Data Saver" activado es justo lo que el usuario pidió evitar.
@@ -64,13 +78,31 @@ export function MediaPlatillo({
   useEffect(() => {
     setVideoFallo(false);
     setImagenFallo(false);
+    setReintentarComoImagen(false);
   }, [videoUrl, imagenUrl]);
 
-  const mostrarVideo = Boolean(videoUrl) && !videoFallo && !ahorroDatos;
-  const mostrarImagen = !mostrarVideo && Boolean(imagenUrl) && !imagenFallo;
+  /**
+   * Con qué etiqueta toca pintar el media: `<video>` o `<img>`.
+   *
+   * Un GIF en un `<video>` no se ve, y un MP4 en un `<img>` tampoco: es la misma
+   * columna con dos contenidos posibles, así que hay que decidirlo antes.
+   */
+  const clase = claseDeMedia(videoUrl, mediaType);
 
-  // --- 1) VIDEO ---
-  if (mostrarVideo) {
+  const mostrarMedia = Boolean(videoUrl) && !ahorroDatos;
+  const mostrarComoVideo =
+    mostrarMedia && clase === "video" && !videoFallo && !reintentarComoImagen;
+  const mostrarComoImagenMedia =
+    mostrarMedia && (clase === "imagen" || reintentarComoImagen) && !videoFallo;
+
+  const mostrarFoto =
+    !mostrarComoVideo &&
+    !mostrarComoImagenMedia &&
+    Boolean(imagenUrl) &&
+    !imagenFallo;
+
+  // --- 1) MEDIA COMO VIDEO ---
+  if (mostrarComoVideo) {
     return (
       // eslint-disable-next-line jsx-a11y/media-has-caption
       <video
@@ -86,14 +118,31 @@ export function MediaPlatillo({
         playsInline
         preload="metadata"
         aria-label={nombre}
+        // Antes de caer a la foto se prueba como imagen: el enlace puede ser un
+        // GIF que la extensión no delataba.
+        onError={() => setReintentarComoImagen(true)}
+        className={className}
+      />
+    );
+  }
+
+  // --- 2) MEDIA COMO IMAGEN (GIF) ---
+  if (mostrarComoImagenMedia) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        key={videoUrl}
+        src={videoUrl}
+        alt={nombre}
+        // Si tampoco sirve como imagen, ahora sí toca la foto del platillo.
         onError={() => setVideoFallo(true)}
         className={className}
       />
     );
   }
 
-  // --- 2) IMAGEN ---
-  if (mostrarImagen) {
+  // --- 3) FOTO DEL PLATILLO ---
+  if (mostrarFoto) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -105,7 +154,7 @@ export function MediaPlatillo({
     );
   }
 
-  // --- 3) RESPALDO ---
+  // --- 4) RESPALDO ---
   return (
     <div className={`relative ${className}`}>
       <div
