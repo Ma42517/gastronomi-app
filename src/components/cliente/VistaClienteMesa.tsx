@@ -36,6 +36,12 @@ import type { Modalidad } from "./SelectorModalidad";
 import { ModalPago } from "./ModalPago";
 import { ModalRegistroPremio } from "./ModalRegistroPremio";
 import { HidratarRestaurante } from "@/components/HidratarRestaurante";
+import { useModoEdicion } from "@/lib/modo-edicion";
+import { Editable } from "@/components/edicion/Editable";
+import { BarraEdicion } from "@/components/edicion/BarraEdicion";
+import { ModalDiseno } from "@/components/edicion/ModalDiseno";
+import { ModalTexto } from "@/components/edicion/ModalTexto";
+import { ModalPlatillo } from "@/components/admin/ModalPlatillo";
 import { useConfigPlataforma } from "@/lib/use-config-plataforma";
 import { pilaDeFuente } from "@/lib/config-plataforma";
 import { useNomAI } from "./NomAIContext";
@@ -450,6 +456,29 @@ export function VistaClienteMesa({
   // Ajustes globales que decide el dueño de la APP (no el del restaurante).
   const plataforma = useConfigPlataforma();
 
+  // ===== PERMISOS DEL EDITOR EN VIVO =====
+  // Se pregunta al servidor qué puede editar quien está viendo esta página. Para
+  // un comensal la respuesta es "nada" y no se dibuja ni la barra flotante.
+  const modoEdicion = useModoEdicion((e) => e.modoEdicion);
+  const cargarPermisos = useModoEdicion((e) => e.cargarPermisos);
+  const guardarTema = useRestauranteStore((s) => s.guardarTema);
+  const renombrarCategoria = useRestauranteStore((s) => s.renombrarCategoria);
+
+  useEffect(() => {
+    if (slug) void cargarPermisos(slug);
+  }, [slug, cargarPermisos]);
+
+  /** Qué formulario contextual está abierto. */
+  const [editandoPlatillo, setEditandoPlatillo] = useState<MenuItemMock | null>(
+    null,
+  );
+  const [disenoAbierto, setDisenoAbierto] = useState(false);
+  const [editandoTexto, setEditandoTexto] = useState<
+    | { campo: "nombre" | "eslogan" }
+    | { campo: "categoria"; categoria: string }
+    | null
+  >(null);
+
   // Inyección del tema: --brand alimenta a todos los componentes hijos, y
   // `fontFamily` aplica la tipografía elegida en el panel de plataforma a todo
   // el árbol de la vista del cliente.
@@ -461,6 +490,12 @@ export function VistaClienteMesa({
   // --- Personalización que eligió el dueño (migración 010) ---
   const esCabeceraCristal = tema.header_style === "glass";
   const hayRedes = Boolean(tema.whatsapp_number || tema.instagram_url);
+
+  // ===== EDITOR EN VIVO =====
+  // En modo edición, pulsar un platillo NO lo añade al carrito: abre su
+  // formulario. Es el mismo `onVerDetalle` de siempre, con otro destino.
+  const abrirDetalleOEditor = (item: MenuItemMock) =>
+    modoEdicion ? setEditandoPlatillo(item) : setDetalleItem(item);
 
   // ===== EL SLUG DE LA URL NO ES DE NINGÚN RESTAURANTE =====
   // Antes este caso terminaba mostrando la carta y la marca de la Taquería El
@@ -554,7 +589,18 @@ export function VistaClienteMesa({
       {/* Carga el restaurante de ESTA url (y los cambios del panel del dueño). */}
       <HidratarRestaurante slug={slug} />
 
-      {/* HEADER PREMIUM — imagen de portada + overlay */}
+      {/* Barra del modo edición. Se dibuja sola solo si hay permiso. */}
+      <BarraEdicion />
+
+      {/* HEADER PREMIUM — imagen de portada + overlay.
+          Envuelto a nivel `diseno`: el restaurantero NO ve aquí ningún lápiz,
+          porque el color, la portada y el estilo de cabecera son de plataforma. */}
+      <Editable
+        nivel="diseno"
+        onEditar={() => setDisenoAbierto(true)}
+        etiqueta="Editar el diseño del menú (cabecera, colores, portada)"
+        className="shrink-0"
+      >
       <header className="relative h-52 w-full shrink-0 overflow-hidden">
         <div
           className="absolute inset-0"
@@ -628,6 +674,7 @@ export function VistaClienteMesa({
         {/* El logo y el nombre del restaurante ya NO van sobre la foto: se
             movieron al área clara de abajo para poder pintarlos en negro. */}
       </header>
+      </Editable>
 
       {/* CONTENIDO */}
       <main className="relative z-10 -mt-4 flex-1 space-y-5 rounded-t-3xl bg-gray-50 px-5 pb-32 pt-2">
@@ -670,12 +717,29 @@ export function VistaClienteMesa({
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xl font-extrabold leading-tight text-zinc-950">
-              {tema.nombre_restaurante}
-            </h1>
-            {tema.eslogan && (
-              <p className="truncate text-xs text-gray-500">{tema.eslogan}</p>
-            )}
+            {/* Nombre y eslogan: nivel contenido, así que el restaurantero
+                también los puede cambiar. */}
+            <Editable
+              onEditar={() => setEditandoTexto({ campo: "nombre" })}
+              etiqueta="Editar el nombre del restaurante"
+              className="inline-block max-w-full"
+            >
+              <h1 className="truncate text-xl font-extrabold leading-tight text-zinc-950">
+                {tema.nombre_restaurante}
+              </h1>
+            </Editable>
+
+            <Editable
+              onEditar={() => setEditandoTexto({ campo: "eslogan" })}
+              etiqueta="Editar el eslogan"
+              className="mt-0.5 inline-block max-w-full"
+            >
+              <p className="truncate text-xs text-gray-500">
+                {/* En modo edición se muestra un texto guía si está vacío: sin
+                    él no habría nada que pulsar para escribirlo por primera vez. */}
+                {tema.eslogan || (modoEdicion ? "Añade un eslogan…" : "")}
+              </p>
+            </Editable>
           </div>
         </div>
 
@@ -861,22 +925,34 @@ export function VistaClienteMesa({
                 término y guarnición), así el botón de confirmación es el
                 componente estandarizado. */}
             {heroItem && (
-              <PlatilloHeroCard
-                item={heroItem}
-                etiqueta={hero.etiqueta}
-                onPersonalizar={() => setDetalleItem(heroItem)}
-              />
+              <Editable
+                onEditar={() => setEditandoPlatillo(heroItem)}
+                etiqueta={`Editar ${heroItem.nombre}`}
+              >
+                <PlatilloHeroCard
+                  item={heroItem}
+                  etiqueta={hero.etiqueta}
+                  onPersonalizar={() => abrirDetalleOEditor(heroItem)}
+                />
+              </Editable>
             )}
 
             {/* 2) Carrusel horizontal "Populares" */}
-            <SeccionPopulares items={populares} onVerDetalle={setDetalleItem} />
+            <SeccionPopulares
+              items={populares}
+              onVerDetalle={abrirDetalleOEditor}
+            />
 
             {/* 4) Feed principal agrupado por categoría (scroll vertical) */}
             <MenuInteractivo
               categorias={categorias}
               menu={menu}
-              onVerDetalle={setDetalleItem}
+              onVerDetalle={abrirDetalleOEditor}
               layout={tema.menu_layout}
+              onEditarPlatillo={setEditandoPlatillo}
+              onEditarCategoria={(categoria) =>
+                setEditandoTexto({ campo: "categoria", categoria })
+              }
             />
           </>
         )}
@@ -962,6 +1038,71 @@ export function VistaClienteMesa({
         item={detalleItem}
         onCerrar={() => setDetalleItem(null)}
       />
+
+      {/* ===== FORMULARIOS DEL EDITOR EN VIVO =====
+          Son los MISMOS componentes del panel de administración. Reutilizarlos
+          evita que existan dos formularios para editar un platillo, que es la
+          forma más segura de que uno de los dos se quede atrás.
+
+          El guardado es optimista en el store, así que al cerrar el formulario el
+          menú de detrás ya muestra el cambio: no hay que recargar la página. */}
+      <ModalPlatillo
+        abierto={editandoPlatillo !== null}
+        platillo={editandoPlatillo}
+        onCerrar={() => setEditandoPlatillo(null)}
+      />
+
+      <ModalDiseno
+        abierto={disenoAbierto}
+        tema={tema}
+        onCerrar={() => setDisenoAbierto(false)}
+      />
+
+      {editandoTexto?.campo === "nombre" && (
+        <ModalTexto
+          abierto
+          titulo="Nombre del restaurante"
+          etiqueta="Nombre"
+          valorInicial={tema.nombre_restaurante}
+          ayuda="Se ve en la cabecera del menú y en el directorio de restaurantes."
+          onGuardar={async (valor) => {
+            const ok = await guardarTema({ nombre_restaurante: valor });
+            if (!ok) return "No se pudo guardar. Revisa el aviso del panel.";
+          }}
+          onCerrar={() => setEditandoTexto(null)}
+        />
+      )}
+
+      {editandoTexto?.campo === "eslogan" && (
+        <ModalTexto
+          abierto
+          titulo="Eslogan"
+          etiqueta="Frase corta"
+          valorInicial={tema.eslogan ?? ""}
+          lineas={2}
+          permitirVacio
+          ayuda="Aparece bajo el nombre. Déjalo vacío para no mostrar ninguno."
+          onGuardar={async (valor) => {
+            const ok = await guardarTema({ eslogan: valor });
+            if (!ok) return "No se pudo guardar. Revisa el aviso del panel.";
+          }}
+          onCerrar={() => setEditandoTexto(null)}
+        />
+      )}
+
+      {editandoTexto?.campo === "categoria" && (
+        <ModalTexto
+          abierto
+          titulo="Nombre de la categoría"
+          etiqueta="Categoría"
+          valorInicial={editandoTexto.categoria}
+          ayuda="Se aplica a todos los platillos de esta sección."
+          onGuardar={async (valor) => {
+            await renombrarCategoria(editandoTexto.categoria, valor);
+          }}
+          onCerrar={() => setEditandoTexto(null)}
+        />
+      )}
 
       {/* DRAWER DEL CARRITO — independiente del chat. La sugerencia de postre es
           un banner ANTES de pagar; el botón de pago va directo al checkout. */}

@@ -59,6 +59,22 @@ function denegar(
 
 export interface OpcionesAuth {
   /**
+   * Restaurante sobre el que se quiere actuar. Si falta, se usa el activo
+   * (cookie de selección o variable de entorno).
+   *
+   * ⚠️ POR QUÉ HACE FALTA PODER DECIRLO EXPLÍCITAMENTE
+   * El editor en vivo escribe desde `/mesa/<slug>`, donde el restaurante lo
+   * decide la URL. Sin este parámetro, un cambio hecho sobre el menú de "Tasca
+   * Española" se guardaría en el restaurante que apuntara la cookie —que puede
+   * ser otro completamente— y el dueño vería su edición desaparecer mientras
+   * modificaba en silencio un negocio ajeno.
+   *
+   * Pasar el slug NO relaja nada: la comprobación de propiedad de más abajo se
+   * hace contra ESE restaurante, así que pedir uno del que no se es dueño
+   * devuelve 403.
+   */
+  slug?: string;
+  /**
    * Permite continuar si el restaurante AÚN NO EXISTE en la base de datos.
    *
    * Resuelve un bloqueo mutuo del arranque en frío: "Publicar en Supabase" es lo
@@ -78,9 +94,9 @@ export interface OpcionesAuth {
  * Sin ellas, las rutas normales tendrían que comprobar un `null` que por
  * construcción nunca les llega.
  */
-export async function verificarDueno(): Promise<
-  DuenoConRestaurante | AccesoDenegado
->;
+export async function verificarDueno(
+  opciones?: Omit<OpcionesAuth, "permitirSinRestaurante">,
+): Promise<DuenoConRestaurante | AccesoDenegado>;
 export async function verificarDueno(
   opciones: OpcionesAuth,
 ): Promise<ResultadoAuth>;
@@ -114,7 +130,7 @@ export async function verificarDueno(
     // selección del super admin, con la variable de entorno como respaldo. La
     // cookie elige el objetivo; la comprobación de propiedad de más abajo es la
     // que decide si se puede tocar. Ver `lib/restaurante-activo.ts`.
-    const slug = slugActivoServidor();
+    const slug = opciones.slug?.trim() || slugActivoServidor();
     const admin = createAdminClient();
 
     const { data: restaurante, error: errorRest } = await admin

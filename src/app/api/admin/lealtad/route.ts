@@ -18,11 +18,16 @@ import type { LealtadEditable } from "@/lib/restaurante-store";
 export const dynamic = "force-dynamic";
 
 export async function PUT(req: Request) {
-  const auth = await verificarDueno();
-  if (!auth.ok) return auth.respuesta;
-
   try {
-    const { lealtad } = (await req.json()) as { lealtad: LealtadEditable };
+    // El cuerpo se lee antes de autorizar: trae el restaurante objetivo, que
+    // desde el editor en vivo es el de la URL y no el de la cookie.
+    const { lealtad, restauranteSlug } = (await req.json()) as {
+      lealtad: LealtadEditable;
+      restauranteSlug?: string;
+    };
+
+    const auth = await verificarDueno({ slug: restauranteSlug });
+    if (!auth.ok) return auth.respuesta;
 
     const sellos = Number(lealtad?.sellos_para_recompensa);
     if (!Number.isInteger(sellos) || sellos < 1) {

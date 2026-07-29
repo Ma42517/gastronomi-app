@@ -27,11 +27,18 @@ import type { MenuItemMock } from "@/lib/mock-data";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const auth = await verificarDueno();
-  if (!auth.ok) return auth.respuesta;
-
   try {
-    const { platillo } = (await req.json()) as { platillo: MenuItemMock };
+    // El cuerpo se lee ANTES de autorizar porque trae el restaurante objetivo:
+    // el editor en vivo escribe desde /mesa/<slug>, no desde el restaurante que
+    // apunte la cookie de selección. `restauranteSlug` y no `slug` a propósito,
+    // porque en esta ruta `slug` ya identifica al PLATILLO.
+    const { platillo, restauranteSlug } = (await req.json()) as {
+      platillo: MenuItemMock;
+      restauranteSlug?: string;
+    };
+
+    const auth = await verificarDueno({ slug: restauranteSlug });
+    if (!auth.ok) return auth.respuesta;
 
     if (!platillo?.id || !platillo.nombre?.trim()) {
       return Response.json(
@@ -101,11 +108,16 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const auth = await verificarDueno();
+  const params = new URL(req.url).searchParams;
+  // `restaurante` identifica el negocio y `slug` el platillo: en esta ruta
+  // conviven dos slugs y confundirlos borraría del sitio equivocado.
+  const auth = await verificarDueno({
+    slug: params.get("restaurante") ?? undefined,
+  });
   if (!auth.ok) return auth.respuesta;
 
   try {
-    const slug = new URL(req.url).searchParams.get("slug");
+    const slug = params.get("slug");
     if (!slug) {
       return Response.json({ error: "Falta el parámetro slug." }, { status: 400 });
     }

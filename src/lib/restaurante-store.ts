@@ -82,6 +82,13 @@ interface RestauranteState {
   alternarDisponibilidad: (id: string) => Promise<void>;
   /** Guarda la configuración del premio. */
   guardarLealtad: (lealtad: LealtadEditable) => Promise<void>;
+  /**
+   * Guarda cambios del tema del restaurante (nombre, eslogan, color, portada,
+   * cabecera, disposición). Optimista: la vista se actualiza al instante.
+   */
+  guardarTema: (cambios: Partial<TemaRestaurante>) => Promise<boolean>;
+  /** Renombra una categoría en todos los platillos que la usan. */
+  renombrarCategoria: (anterior: string, nueva: string) => Promise<void>;
   /** Devuelve el menú a los datos originales del mock. */
   restablecer: () => void;
 }
@@ -209,10 +216,11 @@ export const useRestauranteStore = create<RestauranteState>()(
             errorNube: null,
           };
         });
-        await sincronizarPlatillo(platillo, set);
+        await sincronizarPlatillo(platillo, set, get().slugActual);
       },
 
       eliminarPlatillo: async (id) => {
+        const slug = get().slugActual;
         set((state) => ({
           menu: state.menu.filter((m) => m.id !== id),
           errorNube: null,
@@ -220,7 +228,9 @@ export const useRestauranteStore = create<RestauranteState>()(
 
         if (!supabaseConfigurado()) return;
         const res = await escribirEnNube(
-          `/api/admin/menu?slug=${encodeURIComponent(id)}`,
+          `/api/admin/menu?slug=${encodeURIComponent(id)}${
+            slug ? `&restaurante=${encodeURIComponent(slug)}` : ""
+          }`,
           "DELETE",
         );
         if (!res.ok) set({ errorNube: res.error });
@@ -235,7 +245,7 @@ export const useRestauranteStore = create<RestauranteState>()(
           menu: state.menu.map((m) => (m.id === id ? nuevo : m)),
           errorNube: null,
         }));
-        await sincronizarPlatillo(nuevo, set);
+        await sincronizarPlatillo(nuevo, set, get().slugActual);
       },
 
       guardarLealtad: async (lealtad) => {
@@ -244,9 +254,93 @@ export const useRestauranteStore = create<RestauranteState>()(
         if (!supabaseConfigurado()) return;
         const res = await escribirEnNube("/api/admin/lealtad", "PUT", {
           lealtad,
+          restauranteSlug: get().slugActual,
         });
         if (!res.ok) set({ errorNube: res.error });
         else set({ avisoNube: res.aviso ?? null });
+      },
+
+      // --- TEMA DEL RESTAURANTE (editor en vivo) ---------------------------
+      guardarTema: async (cambios) => {
+        // El tema puede ser null si no hay Supabase: se parte del mock para que
+        // el editor también funcione en modo demostración.
+        const base = get().tema ?? TAQUERIA_EL_PRIMO.tema;
+        const nuevo = { ...base, ...cambios };
+
+        // Optimista: primero se ve, luego se manda. El editor en vivo pierde su
+        // razón de ser si hay que esperar a la red para ver el resultado.
+        set({ tema: nuevo, errorNube: null, avisoNube: null });
+
+        if (!supabaseConfigurado()) return true;
+
+        // Del tema de la app a las columnas de la tabla. Solo se mandan los
+        // campos que de verdad cambiaron: así el servidor puede repartir
+        // permisos por campo y el dueño no recibe un 403 por reenviarse un color
+        // que no tocó.
+        const columnas: Record<string, string | null> = {};
+        if (cambios.nombre_restaurante !== undefined)
+          columnas.nombre = cambios.nombre_restaurante;
+        if (cambios.eslogan !== undefined) columnas.eslogan = cambios.eslogan ?? null;
+        if (cambios.color_primario !== undefined)
+          columnas.color_primario = cambios.color_primario;
+        if (cambios.portada_url !== undefined)
+          columnas.portada_url = cambios.portada_url || null;
+        if (cambios.logo_url !== undefined) columnas.logo_url = cambios.logo_url;
+        if (cambios.header_style !== undefined)
+          columnas.header_style = cambios.header_style;
+        if (cambios.menu_layout !== undefined)
+          columnas.menu_layout = cambios.menu_layout;
+
+        if (Object.keys(columnas).length === 0) return true;
+
+        const res = await escribirEnNube("/api/admin/restaurante", "PATCH", {
+          slug: get().slugActual,
+          ...columnas,
+        });
+
+        if (!res.ok) {
+          // Se revierte: dejar en pantalla un cambio que el servidor rechazó
+          // haría creer que se guardó, y el siguiente refresco lo desharía sin
+          // explicación.
+          set({ tema: base, errorNube: res.error });
+          return false;
+        }
+
+        set({ avisoNube: res.aviso ?? null });
+        return true;
+      },
+
+      // --- CATEGORÍAS ------------------------------------------------------
+      renombrarCategoria: async (anterior, nueva) => {
+        const limpio = nueva.trim();
+        if (!limpio || limpio === anterior) return;
+
+        const afectados = get().menu.filter((m) => m.categoria === anterior);
+
+        set((state) => ({
+          menu: state.menu.map((m) =>
+            m.categoria === anterior ? { ...m, categoria: limpio } : m,
+          ),
+          errorNube: null,
+        }));
+
+        if (!supabaseConfigurado()) return;
+
+        // La categoría no es una tabla: vive como texto en cada platillo, así que
+        // renombrarla son N escrituras. Van en paralelo porque son
+        // independientes; con las decenas de platillos de una carta real el coste
+        // es irrelevante y evita una espera secuencial larga.
+        const resultados = await Promise.all(
+          afectados.map((m) =>
+            escribirEnNube("/api/admin/menu", "POST", {
+              platillo: { ...m, categoria: limpio },
+              restauranteSlug: get().slugActual,
+            }),
+          ),
+        );
+
+        const fallo = resultados.find((r) => !r.ok);
+        if (fallo && !fallo.ok) set({ errorNube: fallo.error });
       },
 
       restablecer: () =>
@@ -289,7 +383,7 @@ type Set = (parcial: Partial<RestauranteState>) => void;
 /** Llama a una ruta /api/admin/* y normaliza el error para la interfaz. */
 async function escribirEnNube(
   url: string,
-  method: "POST" | "PUT" | "DELETE",
+  method: "POST" | "PUT" | "PATCH" | "DELETE",
   cuerpo?: unknown,
 ): Promise<Resultado> {
   try {
@@ -324,9 +418,19 @@ async function escribirEnNube(
 }
 
 /** Manda un platillo a Supabase (creación, edición o cambio de disponibilidad). */
-async function sincronizarPlatillo(platillo: MenuItemMock, set: Set) {
+async function sincronizarPlatillo(
+  platillo: MenuItemMock,
+  set: Set,
+  restauranteSlug: string | null,
+) {
   if (!supabaseConfigurado()) return;
-  const res = await escribirEnNube("/api/admin/menu", "POST", { platillo });
+  const res = await escribirEnNube("/api/admin/menu", "POST", {
+    platillo,
+    // A QUÉ restaurante pertenece este platillo. Sin esto el servidor usaría el
+    // restaurante "activo" de la cookie, que al editar desde /mesa/<slug> puede
+    // ser otro: el cambio se guardaría en el negocio equivocado.
+    restauranteSlug,
+  });
   if (!res.ok) {
     set({ errorNube: res.error });
     return;
