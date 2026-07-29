@@ -106,6 +106,12 @@ export type MenuItem = {
   /** Grupos de modificadores (jsonb). Su forma la define la app. */
   modifiers: unknown | null;
   is_popular: boolean;
+  // --- Añadida por supabase/migrations/009_video_platillos.sql ---
+  /**
+   * Video corto del platillo. Opcional y COMPLEMENTARIO a `imagen_url`: la
+   * imagen sigue siendo el poster y el respaldo si el video no carga.
+   */
+  video_url: string | null;
 }
 
 export type SesionMesa = {

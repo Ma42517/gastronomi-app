@@ -9,6 +9,7 @@ import {
   useRestauranteStore,
 } from "@/lib/restaurante-store";
 import { CampoImagen } from "./CampoImagen";
+import { CampoVideo } from "./CampoVideo";
 import { Switch } from "./Switch";
 
 interface ModalPlatilloProps {
@@ -104,6 +105,9 @@ export function ModalPlatillo({
       ...borrador,
       id: esNuevo ? nuevoIdPlatillo(borrador.nombre) : borrador.id,
       nombre: borrador.nombre.trim(),
+      // Una cadena vacía se normaliza a undefined para que el repositorio la
+      // guarde como null y el video quede efectivamente borrado.
+      video_url: borrador.video_url?.trim() || undefined,
       descripcion: borrador.descripcion.trim(),
       precio: Number(borrador.precio),
     });
@@ -151,6 +155,14 @@ export function ModalPlatillo({
             valor={borrador.imagen_url}
             emoji={borrador.emoji}
             onCambiar={(img) => set("imagen_url", img)}
+          />
+
+          {/* 1b) Video (opcional). Va justo debajo de la foto porque son el
+                 mismo bloque visual: el video manda y la foto es su respaldo. */}
+          <CampoVideo
+            valor={borrador.video_url}
+            poster={borrador.imagen_url}
+            onCambiar={(video) => set("video_url", video)}
           />
 
           {/* 2) Nombre */}

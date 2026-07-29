@@ -26,6 +26,7 @@ export type MenuItemRow = MenuItem & {
   emoji: string | null;
   modifiers: GrupoModificador[] | null;
   is_popular: boolean | null;
+  video_url: string | null;
 };
 
 /** Fila de `restaurantes` con las columnas que añade la migración 001. */
@@ -51,6 +52,7 @@ export function filaAPlatillo(row: MenuItemRow): MenuItemMock {
     emoji: row.emoji ?? "🍽️",
     disponible: row.disponible,
     imagen_url: row.imagen_url ?? undefined,
+    video_url: row.video_url ?? undefined,
     isPopular: row.is_popular ?? undefined,
     modifiers: row.modifiers ?? undefined,
   };
@@ -81,6 +83,7 @@ export interface PlatilloUpsert {
   emoji: string;
   disponible: boolean;
   imagen_url: string | null;
+  video_url: string | null;
   is_popular: boolean;
   modifiers: GrupoModificador[] | null;
 }
@@ -95,6 +98,9 @@ export function platilloAUpsert(item: MenuItemMock): PlatilloUpsert {
     emoji: item.emoji,
     disponible: item.disponible,
     imagen_url: item.imagen_url ?? null,
+    // `null` y no `undefined`: un undefined haría que el upsert OMITIERA la
+    // columna, y borrar un video dejándolo vacío no surtiría efecto.
+    video_url: item.video_url ?? null,
     is_popular: item.isPopular ?? false,
     modifiers: item.modifiers ?? null,
   };

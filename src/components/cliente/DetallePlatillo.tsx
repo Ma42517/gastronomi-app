@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Minus, Plus, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
+import { Check, Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
 import { obtenerMaridaje } from "@/lib/maridajes";
@@ -12,6 +12,7 @@ import { useRestauranteStore } from "@/lib/restaurante-store";
 import { useNomAI } from "./NomAIContext";
 import { BotonFavorito } from "./BotonFavorito";
 import { CopilotoAI } from "./CopilotoAI";
+import { MediaPlatillo } from "./MediaPlatillo";
 
 interface DetallePlatilloProps {
   abierto: boolean;
@@ -104,7 +105,7 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
   const addToCart = useCartStore((s) => s.addToCart);
   const { abrirCarrito } = useNomAI();
 
-  const [imgError, setImgError] = useState(false);
+  // El fallo de carga del media ya lo gestiona <MediaPlatillo> internamente.
   const [selecciones, setSelecciones] = useState<Record<string, string[]>>({});
   const [toast, setToast] = useState<string | null>(null);
   // --- VENTA CRUZADA CON STEPPER ---
@@ -131,7 +132,8 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
       init[g.id] = [];
     });
     setSelecciones(init);
-    setImgError(false);
+    // Ya no hay que reiniciar el fallo de la imagen aquí: <MediaPlatillo> lo
+    // hace solo cuando cambian su videoUrl o imagenUrl.
     setSelectedBeverageId(null);
     setBeverageQty(1);
   }, [abierto, item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -291,27 +293,15 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
              original. El resto del layout sigue compactado, así que el total
              continúa entrando en una pantalla sin scroll. ===== */}
         <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-zinc-900">
-          {platillo.imagen_url && !imgError ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={platillo.imagen_url}
-              alt={platillo.nombre}
-              onError={() => setImgError(true)}
-              className="animate-live-photo absolute inset-0 h-full w-full object-cover"
-            />
-          ) : (
-            <>
-              <div
-                className="absolute inset-0"
-                style={{
-                  background: `radial-gradient(circle at 50% 40%, color-mix(in srgb, ${brand} 32%, #18181b), #0a0a0a 78%)`,
-                }}
-              />
-              <div className="absolute inset-0 grid place-items-center">
-                <UtensilsCrossed className="h-16 w-16 text-white/25" />
-              </div>
-            </>
-          )}
+          {/* Video si el platillo tiene uno, foto si no. Las clases son las
+              mismas en ambos casos, así que el 16:9 y los bordes no cambian. */}
+          <MediaPlatillo
+            nombre={platillo.nombre}
+            imagenUrl={platillo.imagen_url}
+            videoUrl={platillo.video_url}
+            brand={brand}
+            className="animate-live-photo absolute inset-0 h-full w-full object-cover"
+          />
           {/* ===== CAPA DE TÉRMINO =====
               Tiñe SOLO el centro de la foto (la carne) con el tono del término
               elegido. `transition-colors duration-700` hace que el cambio entre

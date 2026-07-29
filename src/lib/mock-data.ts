@@ -67,6 +67,11 @@ export interface MenuItemMock {
   disponible: boolean;
   /** Foto real del platillo (con placeholder de respaldo si falla). */
   imagen_url?: string;
+  /**
+   * Video corto del platillo (opcional). Si existe, se reproduce en lugar de la
+   * foto; la foto se conserva como `poster` y como respaldo si el video falla.
+   */
+  video_url?: string;
   /** Si es true, aparece en el carrusel "Populares" del home. */
   isPopular?: boolean;
   /** Complementos configurables del platillo (salsas, preparación, extras…). */
