@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useRestauranteStore } from "@/lib/restaurante-store";
 import { useSlugActivo } from "@/lib/use-slug-activo";
+import { AvisoEsquema } from "./AvisoEsquema";
 
 /**
  * INDICADOR DE CONEXIÓN CON SUPABASE.
@@ -30,14 +31,6 @@ interface Diagnostico {
   listo: boolean;
   resumen: string;
   chequeos: { paso: string; ok: boolean; detalle: string; que_hacer?: string }[];
-}
-
-/** Respuesta de /api/admin/esquema. */
-interface Esquema {
-  listo: boolean;
-  resumen: string;
-  sql: string;
-  faltantes: { tabla: string; columna: string; para: string; migracion: string }[];
 }
 
 export function EstadoConexion() {
@@ -56,34 +49,6 @@ export function EstadoConexion() {
   const [fallo404, setFallo404] = useState(false);
   /** Hora del diagnóstico: deja claro que es una foto y no el estado en vivo. */
   const [momento, setMomento] = useState<string | null>(null);
-
-  /** Qué columnas le faltan a la base, y el SQL que las crea. */
-  const [esquema, setEsquema] = useState<Esquema | null>(null);
-  const [revisandoEsquema, setRevisandoEsquema] = useState(false);
-  const [copiado, setCopiado] = useState(false);
-
-  const revisarEsquema = async () => {
-    setRevisandoEsquema(true);
-    try {
-      const res = await fetch("/api/admin/esquema");
-      const datos = (await res.json()) as Esquema & { error?: string };
-
-      setEsquema(
-        datos.error
-          ? { listo: false, sql: "", resumen: datos.error, faltantes: [] }
-          : datos,
-      );
-    } catch {
-      setEsquema({
-        listo: false,
-        sql: "",
-        resumen: "No se pudo consultar la base de datos.",
-        faltantes: [],
-      });
-    } finally {
-      setRevisandoEsquema(false);
-    }
-  };
 
   const publicar = async () => {
     setPublicando(true);
@@ -251,91 +216,11 @@ export function EstadoConexion() {
         </p>
       )}
 
-      {error && (
-        <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-medium leading-relaxed text-rose-300">
-          {error}
-        </p>
-      )}
-
-      {/* Ámbar y no rojo: el cambio SÍ se guardó, pero incompleto. */}
-      {aviso && (
-        <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
-          <p className="flex gap-2 text-xs font-medium leading-relaxed text-amber-300">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            {aviso}
-          </p>
-
-          {/* SALIDA CONCRETA, EN LUGAR DE "corre dos archivos SQL".
-              Pregunta a la base qué columnas faltan de verdad y entrega solo ese
-              SQL. Decirle a alguien que abra dos migraciones del repositorio y
-              adivine qué parte ya está aplicada es trasladarle el trabajo. */}
-          {!esquema && (
-            <button
-              type="button"
-              onClick={() => void revisarEsquema()}
-              disabled={revisandoEsquema}
-              className="flex items-center gap-1.5 rounded-full border border-amber-400/30 px-3 py-1.5 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-50"
-            >
-              {revisandoEsquema ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Wrench className="h-3.5 w-3.5" />
-              )}
-              Ver qué falta exactamente
-            </button>
-          )}
-
-          {esquema && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-amber-200">
-                {esquema.resumen}
-              </p>
-
-              {esquema.sql && (
-                <>
-                  <p className="text-[11px] leading-relaxed text-amber-300/80">
-                    Pega esto en <strong>Supabase &gt; SQL Editor</strong> y pulsa
-                    Run. Es lo único que falta, y se puede correr dos veces sin
-                    romper nada.
-                  </p>
-
-                  <pre className="max-h-40 overflow-auto rounded-lg bg-black/50 p-3 text-[11px] leading-relaxed text-white/80">
-                    {esquema.sql}
-                  </pre>
-
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(esquema.sql);
-                        setCopiado(true);
-                        window.setTimeout(() => setCopiado(false), 2000);
-                      }}
-                      className="flex items-center gap-1.5 rounded-full bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-100 transition hover:bg-amber-500/30"
-                    >
-                      {copiado ? (
-                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                      {copiado ? "Copiado" : "Copiar el SQL"}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => void revisarEsquema()}
-                      className="flex items-center gap-1.5 rounded-full border border-amber-400/30 px-3 py-1.5 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                      Ya lo corrí, comprobar
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Errores y avisos de guardado, con la solución cuando falta una
+          columna. Extraído a su propio componente porque el editor visual
+          necesita exactamente lo mismo: allí un guardado incompleto no dejaba
+          ningún rastro. */}
+      <AvisoEsquema />
 
       {/* --- Despliegue incompleto ---
           El panel que ves en el navegador es más nuevo que el servidor. */}

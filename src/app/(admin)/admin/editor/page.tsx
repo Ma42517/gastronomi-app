@@ -6,6 +6,7 @@ import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
 import { useSlugActivo } from "@/lib/use-slug-activo";
 import { VistaClienteMesa } from "@/components/cliente/VistaClienteMesa";
 import { NomAIProvider } from "@/components/cliente/NomAIContext";
+import { AvisoEsquema } from "@/components/admin/AvisoEsquema";
 
 /**
  * EDITOR VISUAL DEL MENÚ — /admin/editor
@@ -70,6 +71,15 @@ export default function PaginaEditor() {
             Ver como cliente
           </a>
         </header>
+
+        {/* ¿SE GUARDÓ DE VERDAD?
+            Las escrituras son optimistas: el cambio aparece en pantalla antes de
+            que la base lo confirme. Sin este aviso, un guardado que falla —o que
+            se guarda a medias porque falta una columna— era invisible aquí, y el
+            dueño se iba convencido de haberlo dejado hecho. */}
+        <div className="mx-auto max-w-3xl px-5 pb-2 text-white">
+          <AvisoEsquema />
+        </div>
 
         {/* El menú real, sin ninguna copia: el mismo componente del comensal. */}
         <div className="pb-10">
