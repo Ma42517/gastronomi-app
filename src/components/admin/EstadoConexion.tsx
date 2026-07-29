@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useRestauranteStore } from "@/lib/restaurante-store";
+import { useSlugActivo } from "@/lib/use-slug-activo";
 
 /**
  * INDICADOR DE CONEXIÓN CON SUPABASE.
@@ -30,6 +31,7 @@ interface Diagnostico {
 }
 
 export function EstadoConexion() {
+  const slugActivo = useSlugActivo();
   const estado = useRestauranteStore((s) => s.estadoNube);
   const error = useRestauranteStore((s) => s.errorNube);
   const publicarEnNube = useRestauranteStore((s) => s.publicarEnNube);
@@ -56,7 +58,10 @@ export function EstadoConexion() {
 
   const recargar = () => {
     setDiagnostico(null);
-    void cargarDesdeNube();
+    // Con el slug explícito: sin él se leería el de la variable de entorno y
+    // "Recargar" traería el menú de otro restaurante encima del que se está
+    // editando, que es exactamente el cruce de datos que se está corrigiendo.
+    void cargarDesdeNube(slugActivo);
   };
 
   const revisar = async () => {
@@ -119,6 +124,13 @@ export function EstadoConexion() {
           </Insignia>
         )}
 
+        {estado === "no-existe" && (
+          <Insignia tono="error">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            El restaurante no existe en la base
+          </Insignia>
+        )}
+
         {estado === "error" && (
           <Insignia tono="error">
             <AlertTriangle className="h-3.5 w-3.5" />
@@ -175,6 +187,14 @@ export function EstadoConexion() {
       </div>
 
       {/* --- Explicaciones accionables --- */}
+      {estado === "no-existe" && (
+        <p className="text-xs leading-relaxed text-rose-300/80">
+          El restaurante <code>{slugActivo}</code> no está en la base de datos.
+          Créalo desde el panel de plataforma, o pulsa{" "}
+          <strong>Publicar en Supabase</strong> para darlo de alta con este menú.
+        </p>
+      )}
+
       {estado === "sin-sembrar" && (
         <p className="text-xs leading-relaxed text-amber-300/80">
           Estás conectado, pero el menú todavía no existe en Supabase. Pulsa{" "}

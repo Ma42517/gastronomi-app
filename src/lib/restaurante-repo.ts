@@ -144,6 +144,12 @@ export function filaATema(
   };
 }
 
-/** Portada genérica de comida para restaurantes que aún no subieron la suya. */
-const PORTADA_DE_RESPALDO =
+/**
+ * Portada genérica de comida para restaurantes que aún no subieron la suya.
+ *
+ * Se exporta para que el directorio use EXACTAMENTE la misma imagen de respaldo
+ * que la vista del menú: si cada pantalla eligiera la suya, el mismo restaurante
+ * se vería con dos fotos distintas según por dónde se entrara.
+ */
+export const PORTADA_DE_RESPALDO =
   "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=1200&q=80";

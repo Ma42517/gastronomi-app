@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Pacifico } from "next/font/google";
-import { LayoutDashboard, Smartphone, Store, Terminal } from "lucide-react";
+import { Compass, LayoutDashboard, Smartphone, Store, Terminal } from "lucide-react";
 
 const pacifico = Pacifico({
   weight: "400",
@@ -21,6 +21,15 @@ const VISTAS = [
     icon: Smartphone,
     // Acento por tarjeta (glow en hover)
     accent: "245, 158, 11", // amber
+  },
+  {
+    titulo: "Vista Aplicación Cliente",
+    descripcion:
+      "Directorio de restaurantes: el comensal elige dónde comer y abre su menú.",
+    etiqueta: "Mobile-First",
+    href: "/explorar",
+    icon: Compass,
+    accent: "244, 63, 94", // rose
   },
   {
     titulo: "Vista Restaurante",
@@ -142,17 +151,18 @@ export default function Home() {
         Escanea. Ordena. Paga. Así de fácil.
       </p>
 
-      {/* --- Menú de las 4 vistas (glassmorphism) --- */}
+      {/* --- Menú de las 5 vistas (glassmorphism) --- */}
       <section
-        className={`relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 pb-16 pt-56 transition-opacity duration-500 ${
+        className={`relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col justify-center px-6 pb-16 pt-56 transition-opacity duration-500 ${
           mostrarMenu ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         aria-hidden={!mostrarMenu}
       >
-        {/* Cuatro accesos: en móvil una columna, en tablet dos y en escritorio
-            las cuatro en fila. Con `sm:grid-cols-4` las tarjetas quedarían
-            demasiado estrechas para su texto en pantallas medianas. */}
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Cinco accesos: una columna en móvil, dos en tablet, tres en
+            escritorio y los cinco en fila solo en pantallas anchas. Forzar cinco
+            columnas antes de `xl` dejaría cada tarjeta demasiado estrecha para
+            su propio texto. */}
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {VISTAS.map((vista, i) => {
             const Icon = vista.icon;
             return (

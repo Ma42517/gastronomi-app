@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import Link from "next/link";
 import {
+  Compass,
   Gift,
   HeartCrack,
   MapPin,
   SearchX,
   Sparkles,
+  Store,
   User,
   UserCircle2,
   X,
@@ -74,22 +77,50 @@ export function VistaClienteMesa({
   const lealtadConfig = useRestauranteStore((s) => s.lealtad);
 
   /**
+   * ¿LOS DATOS DEL STORE SON DE ESTE RESTAURANTE?
+   *
+   * `slugActual` dice a qué negocio pertenece lo que hay en memoria. Mientras no
+   * coincida con el slug de la URL, lo que hubiera cargado antes (o la semilla
+   * del mock) es de otro restaurante y NO se pinta: se muestra el esqueleto de
+   * carga. Así se elimina el destello en el que la carta de la Taquería El Primo
+   * aparecía durante un instante en la mesa de otro restaurante.
+   *
+   * En modo demostración (sin Supabase) no hay nada que esperar y el mock es
+   * legítimo, así que se muestra directamente.
+   */
+  const estadoNube = useRestauranteStore((s) => s.estadoNube);
+  const slugActual = useRestauranteStore((s) => s.slugActual);
+  const modoDemostracion = estadoNube === "local";
+  const datosDeEsteRestaurante = modoDemostracion || slugActual === (slug ?? null);
+
+  /**
    * SECCIONES DEL MENÚ. El orden base lo define el restaurante
    * (`restaurante.categorias`), pero si el administrador inventa una categoría
    * nueva en el panel, se añade al final en lugar de quedar invisible.
    * La categoría del platillo héroe se omite: ya tiene su tarjeta destacada.
    */
   const categorias = (() => {
-    const base = restaurante.categorias;
     const categoriaHero = menu.find((m) => m.id === hero.item_id)?.categoria;
-    const nuevas = Array.from(new Set(menu.map((m) => m.categoria))).filter(
+
+    // Las secciones salen del MENÚ QUE SE ESTÁ SIRVIENDO, no del mock.
+    //
+    // Antes se partía de `restaurante.categorias` (siempre las de la Taquería
+    // El Primo, porque llega como prop desde la página) y se le añadían las
+    // nuevas. Resultado: cualquier restaurante mostraba "Tacos", "Tortas" y
+    // "Volcanes" aunque no vendiera nada de eso, con las secciones vacías.
+    const presentes = Array.from(new Set(menu.map((m) => m.categoria))).filter(
       (c) =>
-        !base.includes(c) &&
         c !== categoriaHero &&
         // "Postres" existe solo para el cross-sell del carrito.
         c !== "Postres",
     );
-    return [...base, ...nuevas];
+
+    // Del mock se conserva únicamente el ORDEN preferido, que está pensado para
+    // que la carta se lea de salado a dulce. Las categorías que no existan en
+    // este restaurante simplemente no aparecen.
+    const ordenadas = restaurante.categorias.filter((c) => presentes.includes(c));
+    const resto = presentes.filter((c) => !ordenadas.includes(c));
+    return [...ordenadas, ...resto];
   })();
 
   const [categoriaActiva, setCategoriaActiva] = useState(categorias[0]);
@@ -260,6 +291,26 @@ export function VistaClienteMesa({
     );
   };
 
+  /**
+   * La categoría activa se fija al montar, cuando el menú puede estar todavía
+   * vacío. Cuando llega el del restaurante correcto, la que estaba seleccionada
+   * puede no existir en él (o ser `undefined`), y las pills se quedarían sin
+   * ninguna marcada. Se reengancha a la primera sección real.
+   */
+  const claveCategorias = categorias.join("|");
+  useEffect(() => {
+    if (categorias.length === 0) return;
+    if (
+      categoriaActiva !== CATEGORIA_FAVORITOS &&
+      !categorias.includes(categoriaActiva)
+    ) {
+      setCategoriaActiva(categorias[0]);
+    }
+    // `claveCategorias` en vez del array: se recrea en cada render y dispararía
+    // el efecto siempre.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claveCategorias]);
+
   // --- Ñom AI: nombre del restaurante y escena activa ---
   useEffect(() => {
     setRestauranteNombre(tema.nombre_restaurante);
@@ -404,6 +455,90 @@ export function VistaClienteMesa({
     "--brand": tema.color_primario,
     fontFamily: pilaDeFuente(plataforma.fuente),
   } as CSSProperties;
+
+  // ===== EL SLUG DE LA URL NO ES DE NINGÚN RESTAURANTE =====
+  // Antes este caso terminaba mostrando la carta y la marca de la Taquería El
+  // Primo, porque al no haber datos remotos se caía al mock. Un comensal podía
+  // acabar pidiendo de un menú que no era el de su mesa.
+  if (estadoNube === "no-existe") {
+    return (
+      <div className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 bg-gray-50 px-8 text-center shadow-2xl sm:border-x sm:border-gray-200">
+        {/* Se mantiene montado: si se navega a otro slug, hay que reintentar la
+            carga. Sin esto la pantalla de error se quedaría pegada. */}
+        <HidratarRestaurante slug={slug} />
+
+        <span className="grid h-16 w-16 place-items-center rounded-3xl bg-white text-gray-300 shadow-sm ring-1 ring-gray-100">
+          <Store className="h-8 w-8" strokeWidth={1.5} />
+        </span>
+
+        <h1 className="text-xl font-extrabold leading-tight text-zinc-950">
+          Este restaurante no está disponible
+        </h1>
+        <p className="text-sm leading-relaxed text-gray-500">
+          No encontramos ningún restaurante en{" "}
+          <code className="rounded bg-gray-200 px-1.5 py-0.5 font-mono text-xs text-gray-700">
+            /{slug}
+          </code>
+          . Puede que el enlace esté mal escrito o que el negocio ya no esté
+          publicado.
+        </p>
+
+        <Link
+          href="/explorar"
+          className="mt-2 inline-flex items-center gap-2 rounded-full bg-zinc-900 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-zinc-800 active:scale-95"
+        >
+          <Compass className="h-4 w-4" />
+          Ver restaurantes disponibles
+        </Link>
+      </div>
+    );
+  }
+
+  // ===== TODAVÍA NO SABEMOS QUÉ CARTA TOCA =====
+  // Lo que hay en memoria pertenece a otro restaurante (o aún no hay nada). Se
+  // muestra un esqueleto en lugar de una carta ajena: es la diferencia entre
+  // "espera un segundo" y "aquí tienes el menú equivocado".
+  if (!datosDeEsteRestaurante) {
+    return (
+      <div className="relative mx-auto flex min-h-screen max-w-md flex-col bg-gray-50 shadow-2xl sm:border-x sm:border-gray-200">
+        <HidratarRestaurante slug={slug} />
+
+        <div className="h-52 w-full shrink-0 animate-pulse bg-gray-200" />
+
+        <div className="-mt-4 flex-1 space-y-5 rounded-t-3xl bg-gray-50 px-5 pt-6">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 shrink-0 animate-pulse rounded-2xl bg-gray-200" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" />
+              <div className="h-3 w-1/3 animate-pulse rounded bg-gray-200" />
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-8 w-24 shrink-0 animate-pulse rounded-full bg-gray-200"
+              />
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-24 w-full animate-pulse rounded-3xl bg-gray-200"
+              />
+            ))}
+          </div>
+
+          <p className="pb-8 text-center text-xs text-gray-400">
+            Cargando el menú…
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -684,6 +819,20 @@ export function VistaClienteMesa({
               </div>
             }
           />
+        ) : menu.length === 0 ? (
+          /* --- El restaurante existe, pero su carta está vacía ---
+             Se dice tal cual. Rellenar el hueco con los platillos de otro
+             negocio es justo el fallo que se está corrigiendo. */
+          <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-white/60 px-6 py-14 text-center">
+            <Store className="h-12 w-12 text-gray-300" strokeWidth={1.5} />
+            <p className="mt-4 text-sm font-bold text-gray-700">
+              {tema.nombre_restaurante} aún no publicó su menú
+            </p>
+            <p className="mt-1 max-w-[17rem] text-sm leading-relaxed text-gray-500">
+              El restaurante ya está registrado, pero todavía no ha dado de alta
+              sus platillos. Vuelve a intentarlo en un rato.
+            </p>
+          </div>
         ) : (
           <>
             {/* Selección del Chef — fija arriba para dirigir la atención */}

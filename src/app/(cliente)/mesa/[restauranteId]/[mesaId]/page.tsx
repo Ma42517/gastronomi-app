@@ -5,9 +5,12 @@ import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
  * VISTA CLIENTE (Mobile-First) — destino del QR físico de la mesa.
  * URL: /mesa/[restauranteId]/[mesaId]
  *
- * DATOS: por ahora 100% MOCK (Taquería El Primo).
- * Cuando conectemos Supabase, aquí se buscará el restaurante por
- * `restauranteId` y la sesión de mesa por `mesaId`.
+ * DE DÓNDE SALEN LOS DATOS
+ * El menú, el nombre, el color y la portada los carga la propia vista desde
+ * Supabase filtrando por el `restauranteId` de la URL. El mock que se pasa como
+ * prop NO es el contenido: aporta solo el ORDEN preferido de las secciones y qué
+ * platillo va destacado como Selección del Chef, y se ignora en cuanto responde
+ * la base de datos.
  */
 interface PageProps {
   params: {
@@ -17,7 +20,8 @@ interface PageProps {
 }
 
 export default function Page({ params }: PageProps) {
-  // TODO(supabase): reemplazar por fetch real según params.restauranteId.
+  // Plantilla de presentación (orden de secciones y platillo destacado). Los
+  // datos reales del restaurante los pide la vista con el slug de la URL.
   const restaurante = TAQUERIA_EL_PRIMO;
 
   return (

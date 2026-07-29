@@ -42,7 +42,8 @@ export type EstadoNube =
   | "local" // Sin Supabase configurado: todo vive en el navegador.
   | "cargando"
   | "sincronizado"
-  | "sin-sembrar" // Conectado, pero la base todavía no tiene el menú.
+  | "sin-sembrar" // Conectado, pero este restaurante no tiene platillos.
+  | "no-existe" // El slug de la URL no corresponde a ningún restaurante.
   | "error";
 
 interface RestauranteState {
@@ -100,46 +101,70 @@ export const useRestauranteStore = create<RestauranteState>()(
           return;
         }
 
-        // CAMBIO DE RESTAURANTE: la caché de localStorage pertenece a OTRO
-        // negocio, así que se descarta antes de pedir el nuevo menú.
+        // ===== AISLAMIENTO ENTRE RESTAURANTES =====
+        // La caché de localStorage y el menú semilla del mock pertenecen a OTRO
+        // negocio, así que se descartan ANTES de pedir el nuevo menú.
         //
-        // No es cosmético. Sin esto, el panel pintaría los platillos del
-        // restaurante anterior durante el viaje de red, y quien pulsara "Editar"
-        // en ese instante guardaría un platillo ajeno DENTRO del restaurante
-        // recién seleccionado. Se compara contra `slugActual` y solo se limpia
-        // cuando de verdad cambia: en la carga normal (mismo slug, o el primero
-        // de la sesión) se conserva la caché y el menú aparece al instante.
+        // Aquí estaba el bug de los menús cruzados. Antes solo se limpiaba
+        // cuando ya había un `slugActual` distinto, de modo que en una pestaña
+        // recién abierta —`slugActual` a null y el menú sembrado con el mock de
+        // la Taquería El Primo— cualquier restaurante heredaba esa carta.
+        //
+        // Ahora se limpia en cuanto el slug pedido no coincide con el que hay en
+        // memoria, incluido el caso `null`. Nótese que este código solo se
+        // alcanza con Supabase configurado (arriba hay un return): en modo
+        // demostración el mock sigue siendo legítimo y no se toca.
         const anterior = get().slugActual;
-        if (slug && anterior && slug !== anterior) {
-          set({ menu: [], tema: null, slugActual: slug });
+        const cambioDeRestaurante = slug !== anterior;
+
+        if (cambioDeRestaurante) {
+          set({ menu: [], tema: null, slugActual: slug ?? null });
         }
 
         set({ estadoNube: "cargando", errorNube: null });
         const remoto = await leerRestauranteRemoto(slug);
 
-        if (!remoto) {
-          // Conectado pero sin datos (o error ya registrado en consola): se
-          // conserva el menú local para no dejar al cliente con la carta vacía.
-          //
-          // `slugActual` se anota igualmente: es la marca de "a qué restaurante
-          // pertenece lo que hay en memoria". Sin ella, un restaurante todavía
-          // sin sembrar no dejaría rastro y el siguiente cambio no detectaría
-          // que hubo un salto, saltándose la limpieza de la caché.
-          set({ estadoNube: "sin-sembrar", slugActual: slug ?? anterior ?? null });
+        // --- El slug de la URL no es de nadie ---
+        // Se deja la carta vacía a propósito. Servir aquí el menú del último
+        // restaurante visto sería el peor resultado posible: el comensal pediría
+        // de una carta que no es la de su mesa.
+        if (remoto.estado === "no-existe") {
+          set({
+            menu: [],
+            tema: null,
+            slugActual: slug ?? null,
+            estadoNube: "no-existe",
+          });
           return;
         }
 
+        // --- Error de red o Supabase apagado a media sesión ---
+        // Se conservan los datos locales, que para este slug ya están limpios si
+        // hubo cambio de restaurante.
+        if (remoto.estado === "error" || remoto.estado === "sin-supabase") {
+          set({
+            estadoNube: remoto.estado === "error" ? "error" : "local",
+            slugActual: slug ?? anterior ?? null,
+          });
+          return;
+        }
+
+        const { datos } = remoto;
+
         set({
-          menu: remoto.menu,
-          tema: remoto.tema,
+          // El menú remoto MANDA, incluso si viene vacío: un restaurante recién
+          // creado tiene la carta en blanco, y mostrar la de otro para rellenar
+          // el hueco es exactamente el fallo que se está corrigiendo.
+          menu: datos.menu,
+          tema: datos.tema,
           slugActual: slug ?? null,
           // El progreso de sellos del comensal es local; de la nube solo vienen
           // la meta y el premio.
           lealtad: {
-            ...remoto.lealtad,
+            ...datos.lealtad,
             sellos_actuales: get().lealtad.sellos_actuales,
           },
-          estadoNube: "sincronizado",
+          estadoNube: datos.menu.length > 0 ? "sincronizado" : "sin-sembrar",
         });
       },
 
