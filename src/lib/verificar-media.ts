@@ -55,9 +55,11 @@ export async function verificarUrlMedia(
     (dominio) => limpio.toLowerCase().includes(dominio),
   );
   if (plataforma) {
+    // El mensaje dice QUÉ HACER, no solo qué está mal. Un "no se puede" a secas
+    // deja a la persona con el mismo problema con el que llegó.
     return {
       estado: "error",
-      motivo: `${plataforma} es una página de reproductor, no un archivo. Hace falta el enlace directo a un .mp4, .webm o .gif.`,
+      motivo: `Un enlace de ${plataforma} no se puede reproducir aquí: es una página con reproductor, controles y anuncios, no un archivo de video. Descarga el video y súbelo en la pestaña "Subir video" — así se reproduce solo, en bucle y sin sonido sobre el platillo.`,
     };
   }
 

@@ -40,9 +40,19 @@ export const IMAGENES_OK = [
 ];
 export const VIDEOS_OK = ["video/mp4", "video/webm", "video/quicktime"];
 
+/**
+ * Por qué falló, cuando el motivo cambia lo que la interfaz debe ofrecer.
+ *
+ *   "sin-bucket"      -> el almacenamiento existe pero no está preparado. Se
+ *                        puede resolver con un botón, sin salir del formulario.
+ *   "sin-configurar"  -> el servidor no tiene las llaves de Supabase. No hay
+ *                        nada que preparar; es el modo demostración.
+ */
+export type MotivoFallo = "sin-bucket" | "sin-configurar";
+
 export type ResultadoSubida =
   | { ok: true; url: string }
-  | { ok: false; error: string; /** true si Storage no está instalado. */ sinStorage?: boolean };
+  | { ok: false; error: string; motivo?: MotivoFallo };
 
 interface Permiso {
   url?: string;
@@ -50,6 +60,10 @@ interface Permiso {
   path?: string;
   publicUrl?: string;
   error?: string;
+  /** Lo manda la guardia cuando faltan las variables de entorno. */
+  configurado?: boolean;
+  /** Lo manda la ruta de subida cuando el bucket no está listo. */
+  sinStorage?: boolean;
 }
 
 export async function subirMedia(
@@ -88,13 +102,21 @@ export async function subirMedia(
     const permiso = (await res.json()) as Permiso;
 
     if (!res.ok || !permiso.token || !permiso.path) {
+      // Se distinguen los dos 503 posibles, porque llevan a acciones opuestas:
+      // uno se arregla con un botón y el otro exige configurar el servidor.
+      // Tratarlos igual fue lo que hizo que una foto acabara en base64 cuando en
+      // realidad solo faltaba crear el bucket.
+      const motivo: MotivoFallo | undefined =
+        permiso.configurado === false
+          ? "sin-configurar"
+          : permiso.sinStorage || res.status === 503
+            ? "sin-bucket"
+            : undefined;
+
       return {
         ok: false,
         error: permiso.error ?? `El servidor respondió ${res.status}.`,
-        // 503 = Supabase o los buckets no están listos. Quien llama puede
-        // ofrecer entonces una alternativa (por ejemplo guardar la imagen
-        // comprimida en local) en lugar de dejar al dueño sin salida.
-        sinStorage: res.status === 503,
+        motivo,
       };
     }
 
@@ -129,6 +151,34 @@ export async function subirMedia(
       ok: false,
       error: "Sin conexión con el almacenamiento. Revisa tu red e inténtalo otra vez.",
     };
+  }
+}
+
+/**
+ * Crea los buckets si faltan. Lo llama la interfaz cuando una subida falla por
+ * almacenamiento no preparado, para poder resolverlo sin salir del formulario.
+ */
+export async function prepararAlmacenamiento(): Promise<
+  { ok: true; resumen: string } | { ok: false; error: string }
+> {
+  try {
+    const res = await fetch("/api/admin/almacenamiento", { method: "POST" });
+    const datos = (await res.json()) as {
+      listo?: boolean;
+      resumen?: string;
+      error?: string;
+    };
+
+    if (!res.ok || !datos.listo) {
+      return {
+        ok: false,
+        error: datos.resumen ?? datos.error ?? `El servidor respondió ${res.status}.`,
+      };
+    }
+
+    return { ok: true, resumen: datos.resumen ?? "Almacenamiento listo." };
+  } catch {
+    return { ok: false, error: "Sin conexión con el servidor." };
   }
 }
 

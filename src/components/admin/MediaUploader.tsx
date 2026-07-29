@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   Film,
+  HardDriveUpload,
   ImagePlus,
   Link2,
   Loader2,
@@ -11,9 +12,11 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { archivoAImagen } from "@/lib/restaurante-store";
+import { supabaseConfigurado } from "@/lib/supabase/config";
 import {
   IMAGENES_OK,
   VIDEOS_OK,
+  prepararAlmacenamiento,
   subirMedia,
   type BucketMedia,
 } from "@/lib/subir-media";
@@ -103,6 +106,16 @@ export function MediaUploader({
   const [verificando, setVerificando] = useState(false);
 
   /**
+   * Archivo que no se pudo subir porque el almacenamiento no estaba preparado.
+   *
+   * Se guarda para poder reintentar tras crear el bucket sin obligar a buscar el
+   * archivo otra vez: quien acaba de arrastrar un video de 40 MB no debería tener
+   * que repetir la operación por un problema de infraestructura.
+   */
+  const [pendiente, setPendiente] = useState<File | null>(null);
+  const [preparando, setPreparando] = useState(false);
+
+  /**
    * Los `blob:` hay que revocarlos a mano: el navegador los mantiene vivos —con
    * su memoria— hasta que se cierra la pestaña. Sin esto, probar diez videos en
    * una sesión de edición deja diez archivos retenidos.
@@ -137,6 +150,8 @@ export function MediaUploader({
     setError(null);
     setAviso(null);
     setErrorCarga(false);
+    // Un archivo nuevo invalida el que estuviera esperando reintento.
+    setPendiente(null);
 
     // Se comprueba contra los tipos de ESTE campo: quien suelta un video en el
     // hueco de la foto debe saber por qué no funcionó.
@@ -188,26 +203,38 @@ export function MediaUploader({
         return;
       }
 
-      // RESPALDO SOLO PARA IMÁGENES.
-      // Si Storage no está instalado todavía, la foto se comprime y se guarda
-      // como antes: el dueño puede seguir trabajando. Con un video no se hace lo
-      // mismo a propósito — meter megabytes en una columna de texto haría que
-      // cada lectura del menú los arrastrase, que es justo lo que se evitó.
-      if (res.sinStorage && esImagen && file.type !== "image/gif") {
+      // RESPALDO A BASE64: SOLO EN MODO DEMOSTRACIÓN.
+      //
+      // Antes cualquier 503 mandaba la foto comprimida a la base de datos, así
+      // que una instalación con Supabase perfectamente configurada —a la que solo
+      // le faltaba crear el bucket— acababa guardando imágenes dentro de una
+      // columna de texto sin que nadie lo hubiera pedido. Ahora el respaldo solo
+      // entra cuando NO hay Supabase en absoluto, que es el único caso en el que
+      // no existe alternativa. Con Supabase presente, todo va a Storage.
+      const enDemostracion = !supabaseConfigurado();
+
+      if (
+        res.motivo === "sin-configurar" &&
+        enDemostracion &&
+        esImagen &&
+        file.type !== "image/gif"
+      ) {
         onCambiar(await archivoAImagen(file));
         liberarPrevia(blobUrl);
         setPreviaLocal(null);
         setAviso(
-          "El almacenamiento no está disponible, así que la foto se guardó comprimida en la base de datos.",
+          "Modo demostración: no hay Supabase configurado, así que la foto se guardó solo en este navegador.",
         );
         return;
       }
 
-      // Sin respaldo posible: se descarta la previa para no aparentar que quedó
-      // guardado algo que no se subió.
+      // Se descarta la previa para no aparentar que quedó guardado algo que no se
+      // subió. El archivo SÍ se recuerda: si el problema es que falta preparar el
+      // almacenamiento, se puede reintentar sin volver a elegirlo.
       liberarPrevia(blobUrl);
       setPreviaLocal(null);
       setError(res.error);
+      if (res.motivo === "sin-bucket") setPendiente(file);
     } catch {
       liberarPrevia(blobUrl);
       setPreviaLocal(null);
@@ -430,10 +457,50 @@ export function MediaUploader({
 
       {/* ===== MENSAJES ===== */}
       {error && (
-        <p className="mt-2 flex gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] leading-relaxed text-rose-300">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span>{error}</span>
-        </p>
+        <div className="mt-2 space-y-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2">
+          <p className="flex gap-1.5 text-[11px] leading-relaxed text-rose-300">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>{error}</span>
+          </p>
+
+          {/* SALIDA AL PROBLEMA, EN LUGAR DE UN CALLEJÓN.
+              Cuando lo único que falta es crear el bucket, se ofrece hacerlo aquí
+              y se reintenta con el MISMO archivo. Mandar a alguien al SQL Editor
+              de Supabase para poder subir la foto de un taco es pedirle que
+              resuelva un problema que no es suyo. */}
+          {pendiente && (
+            <button
+              type="button"
+              disabled={preparando}
+              onClick={async () => {
+                setPreparando(true);
+                const res = await prepararAlmacenamiento();
+                setPreparando(false);
+
+                if (!res.ok) {
+                  setError(`No se pudo preparar el almacenamiento. ${res.error}`);
+                  return;
+                }
+
+                const archivo = pendiente;
+                setPendiente(null);
+                setError(null);
+                setAviso(res.resumen);
+                await procesar(archivo);
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20 disabled:opacity-50"
+            >
+              {preparando ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <HardDriveUpload className="h-3.5 w-3.5" />
+              )}
+              {preparando
+                ? "Preparando el almacenamiento…"
+                : "Preparar el almacenamiento y reintentar"}
+            </button>
+          )}
+        </div>
       )}
 
       {aviso && (

@@ -121,13 +121,27 @@ export async function POST(req: Request) {
       if (!creado.ok) {
         return Response.json(
           {
-            error: `No existe el bucket "${bucket}" y no se pudo crear automáticamente (${creado.error}). Corre supabase/migrations/010_media_y_personalizacion.sql en el SQL Editor de Supabase.`,
+            error: `El almacenamiento no está preparado y no se pudo crear solo. Motivo: ${creado.error}`,
+            // Permite a la interfaz ofrecer el botón de "preparar" en lugar de
+            // dejar al dueño en un callejón sin salida.
+            sinStorage: true,
           },
           { status: 503 },
         );
       }
 
       ({ data, error } = await firmar());
+
+      // Se creó el bucket y AUN ASÍ no se pudo firmar: no es "falta el bucket",
+      // es otra cosa, y decir lo contrario mandaría a buscar donde no está.
+      if (error) {
+        return Response.json(
+          {
+            error: `El bucket "${bucket}" quedó creado, pero Storage sigue rechazando la subida: ${mensajeDeError(error)}`,
+          },
+          { status: 502 },
+        );
+      }
     }
 
     if (error) throw error;
@@ -150,13 +164,23 @@ export async function POST(req: Request) {
     const mensaje = mensajeDeError(error);
     console.error("[admin/subir] POST:", mensaje);
 
-    // El fallo más habitual en una instalación nueva es que los buckets no
-    // existan todavía, y el mensaje crudo de Storage no lo deja claro.
-    if (/not found|does not exist|bucket/i.test(mensaje)) {
+    // AQUÍ YA NO SE DIAGNOSTICA NADA SOBRE EL BUCKET.
+    //
+    // Antes este bloque tenía su propia expresión regular, más suelta que
+    // `esBucketInexistente`, y por ese hueco respondía "no se encontró el
+    // bucket" sin que la autorreparación se hubiera intentado siquiera. El
+    // resultado era un mensaje que mandaba al SQL Editor cuando el problema podía
+    // ser otro, y además idéntico al de "no se pudo crear": imposible saber cuál
+    // de los dos había ocurrido.
+    //
+    // La única decisión sobre buckets vive arriba, con `esBucketInexistente`. Si
+    // aun así el error habla de un bucket que falta, se reconoce como tal pero
+    // diciendo que el intento de crearlo NO llegó a hacerse.
+    if (esBucketInexistente(error)) {
       return Response.json(
         {
-          error:
-            "No se encontró el bucket de almacenamiento. Corre supabase/migrations/010_media_y_personalizacion.sql en el SQL Editor de Supabase.",
+          error: `Storage dice que falta el bucket, pero el intento de crearlo no se ejecutó. Detalle: ${mensaje}`,
+          sinStorage: true,
         },
         { status: 503 },
       );
