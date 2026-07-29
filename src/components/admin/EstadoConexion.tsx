@@ -34,6 +34,7 @@ export function EstadoConexion() {
   const slugActivo = useSlugActivo();
   const estado = useRestauranteStore((s) => s.estadoNube);
   const error = useRestauranteStore((s) => s.errorNube);
+  const aviso = useRestauranteStore((s) => s.avisoNube);
   const publicarEnNube = useRestauranteStore((s) => s.publicarEnNube);
   const cargarDesdeNube = useRestauranteStore((s) => s.cargarDesdeNube);
 
@@ -215,6 +216,14 @@ export function EstadoConexion() {
       {error && (
         <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-medium leading-relaxed text-rose-300">
           {error}
+        </p>
+      )}
+
+      {/* Ámbar y no rojo: el cambio SÍ se guardó, pero incompleto. */}
+      {aviso && (
+        <p className="flex gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-medium leading-relaxed text-amber-300">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          {aviso}
         </p>
       )}
 

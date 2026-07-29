@@ -3,6 +3,7 @@ import { verificarDueno } from "@/lib/admin-auth";
 import { slugActivoServidor } from "@/lib/restaurante-activo-servidor";
 import { platilloAUpsert } from "@/lib/restaurante-repo";
 import { mensajeDeError } from "@/lib/supabase/errores";
+import { VIDEO_PLATILLO, guardarTolerando } from "@/lib/columnas-pendientes";
 import { TAQUERIA_EL_PRIMO } from "@/lib/mock-data";
 import type { MenuItemMock } from "@/lib/mock-data";
 import type { LealtadEditable } from "@/lib/restaurante-store";
@@ -144,13 +145,20 @@ export async function POST(req: Request) {
       orden: i,
     }));
 
-    const { error: errorMenu } = await supabase
-      .from("menu_items")
-      .upsert(filas as never, { onConflict: "restaurante_id,slug" });
+    // Igual que al guardar un platillo suelto: si falta la migración 009, se
+    // publica el menú sin los videos en lugar de no publicar nada.
+    const { error: errorMenu, aviso } = await guardarTolerando(
+      VIDEO_PLATILLO,
+      (lote) =>
+        supabase
+          .from("menu_items")
+          .upsert(lote as never, { onConflict: "restaurante_id,slug" }),
+      filas as unknown as Record<string, unknown>[],
+    );
 
     if (errorMenu) throw errorMenu;
 
-    return Response.json({ ok: true, platillos: filas.length });
+    return Response.json({ ok: true, platillos: filas.length, aviso });
   } catch (error) {
     const mensaje = mensajeDeError(error);
     console.error("[Supabase][admin/sembrar] POST:", mensaje);

@@ -88,6 +88,13 @@ export function PanelPlataforma() {
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
 
+  /**
+   * Advertencia no bloqueante del servidor. Hoy solo la usa un caso: se guardó
+   * el restaurante pero la personalización se quedó fuera porque falta la
+   * migración 010. Es distinto de `error`, que significa "no se guardó nada".
+   */
+  const [aviso, setAviso] = useState<string | null>(null);
+
   /** Slug que el Panel Administrador está editando ahora mismo. */
   const [slugActivo, setSlugActivo] = useState<string | null>(null);
   /** Slug en proceso de selección, para deshabilitar su botón. */
@@ -181,6 +188,7 @@ export function PanelPlataforma() {
     if (!form) return;
     setGuardando(true);
     setError(null);
+    setAviso(null);
     try {
       const editando = Boolean(form.id);
       const res = await fetch("/api/dev/restaurantes", {
@@ -188,8 +196,10 @@ export function PanelPlataforma() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as { error?: string; aviso?: string };
       if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
+      // El guardado salió bien, pero puede venir con matices.
+      if (data.aviso) setAviso(data.aviso);
       setForm(null);
       await cargar();
     } catch (e) {
@@ -296,6 +306,14 @@ export function PanelPlataforma() {
         <p className="flex gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs font-medium leading-relaxed text-rose-300">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           {error}
+        </p>
+      )}
+
+      {/* Ámbar y no rojo: se guardó, pero incompleto. */}
+      {aviso && (
+        <p className="flex gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-medium leading-relaxed text-amber-300">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          {aviso}
         </p>
       )}
 

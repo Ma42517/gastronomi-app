@@ -4,6 +4,7 @@ import { verificarSuperAdmin } from "@/lib/dev-auth";
 import { bloqueado, leerConfigServidor } from "@/lib/candados";
 import { platilloAUpsert } from "@/lib/restaurante-repo";
 import { mensajeDeError } from "@/lib/supabase/errores";
+import { VIDEO_PLATILLO, guardarTolerando } from "@/lib/columnas-pendientes";
 import type { MenuItemMock } from "@/lib/mock-data";
 
 /**
@@ -71,19 +72,27 @@ export async function POST(req: Request) {
       }
     }
 
-    const { error } = await supabase.from("menu_items").upsert(
+    // Si la migración 009 todavía no se corrió, `video_url` no existe y Postgres
+    // rechazaría TODO el platillo. Se guarda sin el video y se avisa, en lugar de
+    // impedir editar el menú por una columna que quizá ni se está usando.
+    const { error, aviso } = await guardarTolerando(
+      VIDEO_PLATILLO,
+      (fila) =>
+        supabase.from("menu_items").upsert(
+          fila as never,
+          // El upsert se resuelve por (restaurante_id, slug), que es el índice
+          // único que crea la migración 001. Sin esto, cada guardado insertaría
+          // un duplicado en lugar de actualizar.
+          { onConflict: "restaurante_id,slug" },
+        ),
       {
         ...platilloAUpsert(platillo),
         restaurante_id: restauranteId,
-      } as never,
-      // El upsert se resuelve por (restaurante_id, slug), que es el índice único
-      // que crea la migración 001. Sin esto, cada guardado insertaría un
-      // duplicado en lugar de actualizar.
-      { onConflict: "restaurante_id,slug" },
+      },
     );
 
     if (error) throw error;
-    return Response.json({ ok: true });
+    return Response.json({ ok: true, aviso });
   } catch (error) {
     const mensaje = mensajeDeError(error);
     console.error("[Supabase][admin/menu] POST:", mensaje);

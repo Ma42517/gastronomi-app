@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verificarSuperAdmin } from "@/lib/dev-auth";
 import { mensajeDeError } from "@/lib/supabase/errores";
+import { PERSONALIZACION, guardarTolerando } from "@/lib/columnas-pendientes";
 
 /**
  * GESTIÓN DE RESTAURANTES DE LA PLATAFORMA — solo super admin.
@@ -219,15 +220,20 @@ export async function POST(req: Request) {
       );
     }
 
-    const { data, error } = await supabase
-      .from("restaurantes")
-      .insert(fila as never)
-      .select("id, slug")
-      .single();
+    const { data, error, aviso } = await guardarTolerando(
+      PERSONALIZACION,
+      (f) =>
+        supabase
+          .from("restaurantes")
+          .insert(f as never)
+          .select("id, slug")
+          .single(),
+      fila,
+    );
 
     if (error) throw error;
 
-    return Response.json({ ok: true, restaurante: data });
+    return Response.json({ ok: true, restaurante: data, aviso });
   } catch (error) {
     const mensaje = mensajeDeError(error);
     console.error("[dev/restaurantes] POST:", mensaje);
@@ -247,6 +253,11 @@ export async function PATCH(req: Request) {
     if (!payload.id) {
       return Response.json({ error: "Falta el id del restaurante." }, { status: 400 });
     }
+    // Se copia a una constante porque más abajo se usa dentro de una función:
+    // TypeScript no conserva ahí el estrechamiento del `if` de arriba, ya que no
+    // puede garantizar que la propiedad no cambie entre medias.
+    const id = payload.id;
+
     const fallo = validar(payload);
     if (fallo) return Response.json({ error: fallo }, { status: 400 });
 
@@ -258,7 +269,7 @@ export async function PATCH(req: Request) {
       .from("restaurantes")
       .select("id")
       .eq("slug", fila.slug)
-      .neq("id", payload.id)
+      .neq("id", id)
       .maybeSingle();
 
     if (choque) {
@@ -268,13 +279,18 @@ export async function PATCH(req: Request) {
       );
     }
 
-    const { error } = await supabase
-      .from("restaurantes")
-      .update(fila as never)
-      .eq("id", payload.id);
+    const { error, aviso } = await guardarTolerando(
+      PERSONALIZACION,
+      (f) =>
+        supabase
+          .from("restaurantes")
+          .update(f as never)
+          .eq("id", id),
+      fila,
+    );
 
     if (error) throw error;
-    return Response.json({ ok: true });
+    return Response.json({ ok: true, aviso });
   } catch (error) {
     const mensaje = mensajeDeError(error);
     console.error("[dev/restaurantes] PATCH:", mensaje);

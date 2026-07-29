@@ -61,6 +61,13 @@ interface RestauranteState {
   estadoNube: EstadoNube;
   /** Último error de escritura, para mostrarlo en el panel. */
   errorNube: string | null;
+  /**
+   * Advertencia NO bloqueante de la última escritura: se guardó, pero algo se
+   * quedó fuera. Hoy la produce un solo caso —falta una migración y la columna
+   * no existe— y es distinta de `errorNube`, que significa "no se guardó nada".
+   * Sin este canal, el dueño subiría un video y lo vería desaparecer sin motivo.
+   */
+  avisoNube: string | null;
 
   /** Trae un restaurante desde Supabase y reemplaza el estado local. */
   cargarDesdeNube: (slug?: string) => Promise<void>;
@@ -93,6 +100,7 @@ export const useRestauranteStore = create<RestauranteState>()(
       slugActual: null,
       estadoNube: supabaseConfigurado() ? "cargando" : "local",
       errorNube: null,
+      avisoNube: null,
 
       // --- LECTURA ---------------------------------------------------------
       cargarDesdeNube: async (slug) => {
@@ -182,7 +190,7 @@ export const useRestauranteStore = create<RestauranteState>()(
           set({ estadoNube: "error", errorNube: res.error });
           return false;
         }
-        set({ estadoNube: "sincronizado" });
+        set({ estadoNube: "sincronizado", avisoNube: res.aviso ?? null });
         return true;
       },
 
@@ -238,10 +246,17 @@ export const useRestauranteStore = create<RestauranteState>()(
           lealtad,
         });
         if (!res.ok) set({ errorNube: res.error });
+        else set({ avisoNube: res.aviso ?? null });
       },
 
       restablecer: () =>
-        set({ ...ESTADO_INICIAL, tema: null, slugActual: null, errorNube: null }),
+        set({
+          ...ESTADO_INICIAL,
+          tema: null,
+          slugActual: null,
+          errorNube: null,
+          avisoNube: null,
+        }),
     }),
     {
       name: "nom-restaurante",
@@ -268,7 +283,7 @@ export const useRestauranteStore = create<RestauranteState>()(
 // Auxiliares de red
 // ---------------------------------------------------------------------------
 
-type Resultado = { ok: true } | { ok: false; error: string };
+type Resultado = { ok: true; aviso?: string } | { ok: false; error: string };
 type Set = (parcial: Partial<RestauranteState>) => void;
 
 /** Llama a una ruta /api/admin/* y normaliza el error para la interfaz. */
@@ -284,7 +299,13 @@ async function escribirEnNube(
       body: cuerpo ? JSON.stringify(cuerpo) : undefined,
     });
 
-    if (res.ok) return { ok: true };
+    if (res.ok) {
+      // El cuerpo se lee también cuando todo va bien: puede traer un `aviso`
+      // (por ejemplo, se guardó el platillo pero no su video porque falta la
+      // migración 009). Descartarlo dejaría al dueño sin explicación.
+      const data = (await res.json().catch(() => ({}))) as { aviso?: string };
+      return { ok: true, aviso: data.aviso };
+    }
 
     const data = (await res.json().catch(() => ({}))) as { error?: string };
     return {
@@ -306,7 +327,11 @@ async function escribirEnNube(
 async function sincronizarPlatillo(platillo: MenuItemMock, set: Set) {
   if (!supabaseConfigurado()) return;
   const res = await escribirEnNube("/api/admin/menu", "POST", { platillo });
-  if (!res.ok) set({ errorNube: res.error });
+  if (!res.ok) {
+    set({ errorNube: res.error });
+    return;
+  }
+  set({ avisoNube: res.aviso ?? null });
 }
 
 // ---------------------------------------------------------------------------
