@@ -30,6 +30,19 @@ export type Restaurante = {
   iniciales: string | null;
 }
 
+/** Valoración del servicio que deja el comensal al pagar. Migración 008. */
+export type Calificacion = {
+  id: string;
+  restaurante_id: string;
+  mesa: string | null;
+  estrellas: number;
+  etiquetas: unknown;
+  comentario: string | null;
+  propina: number;
+  total_pagado: number;
+  created_at: string;
+};
+
 /** Ajustes globales de la app (fila única, id = 1). Migración 007. */
 export type PlataformaConfig = {
   id: number;
@@ -137,6 +150,13 @@ export type Database = {
         Update: Partial<Restaurante>;
         Relationships: [];
       };
+      calificaciones: {
+        Row: Calificacion;
+        Insert: Omit<Calificacion, "id" | "created_at"> &
+          Partial<Pick<Calificacion, "id" | "created_at">>;
+        Update: Partial<Calificacion>;
+        Relationships: [];
+      };
       plataforma_config: {
         Row: PlataformaConfig;
         Insert: Partial<PlataformaConfig> & { id: number };
@@ -218,6 +238,20 @@ export type Database = {
       es_dueno: {
         Args: { p_restaurante: string };
         Returns: boolean;
+      };
+      /** Resumen de calificaciones de un restaurante (promedio y reparto). */
+      resumen_calificaciones: {
+        Args: { p_restaurante: string };
+        Returns: {
+          total: number;
+          promedio: number;
+          cinco: number;
+          cuatro: number;
+          tres: number;
+          dos: number;
+          una: number;
+          propina_media: number;
+        }[];
       };
       /** Saldo de sellos de un comensal en un restaurante. */
       saldo_sellos: {

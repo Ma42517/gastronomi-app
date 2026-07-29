@@ -230,14 +230,21 @@ export function DetallePlatillo({ abierto, item, onCerrar }: DetallePlatilloProp
 
   // Cada toque actualiza `selecciones`: la fuente de verdad del copiloto.
   const toggle = (grupo: GrupoModificador, opcionId: string) => {
-    const actual = selecciones[grupo.id] ?? [];
-    const nuevas =
-      grupo.tipo === "single"
-        ? [opcionId]
-        : actual.includes(opcionId)
-          ? actual.filter((x) => x !== opcionId)
-          : [...actual, opcionId];
-    setSelecciones({ ...selecciones, [grupo.id]: nuevas });
+    // Se usa la forma de ACTUALIZACIÓN (prev => …) y no el valor del closure.
+    // Con `{ ...selecciones }` dos toques seguidos dentro del mismo ciclo de
+    // render leen la misma foto del estado, así que el segundo descarta al
+    // primero: elegir salsa y preparación muy rápido perdía la salsa y el botón
+    // se quedaba deshabilitado sin motivo aparente.
+    setSelecciones((prev) => {
+      const actual = prev[grupo.id] ?? [];
+      const nuevas =
+        grupo.tipo === "single"
+          ? [opcionId]
+          : actual.includes(opcionId)
+            ? actual.filter((x) => x !== opcionId)
+            : [...actual, opcionId];
+      return { ...prev, [grupo.id]: nuevas };
+    });
 
     // El término cambia la foto: se acompaña con un pulso háptico para que el
     // cambio visual se sienta físico.

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CreditCard, Minus, Plus, Users, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { RastreadorOrden } from "./RastreadorOrden";
+import { CalificacionMesero } from "./CalificacionMesero";
 import type { Modalidad } from "./SelectorModalidad";
 
 interface ModalPagoProps {
@@ -17,10 +18,12 @@ interface ModalPagoProps {
   mesa: string;
   /** Propina incluida en el total (solo informativa en el desglose). */
   propina?: number;
+  /** Slug del restaurante, para guardar la calificación donde corresponde. */
+  slug?: string;
 }
 
 type Modo = "completo" | "dividir";
-type Fase = "seleccion" | "procesando" | "exito";
+type Fase = "seleccion" | "procesando" | "exito" | "calificacion";
 
 export function ModalPago({
   abierto,
@@ -30,25 +33,39 @@ export function ModalPago({
   modalidad,
   mesa,
   propina = 0,
+  slug,
 }: ModalPagoProps) {
   const [modo, setModo] = useState<Modo>("completo");
   const [personas, setPersonas] = useState(2);
   const [fase, setFase] = useState<Fase>("seleccion");
+  /**
+   * Importe realmente cobrado, CONGELADO al confirmar el pago.
+   *
+   * `onPagoExitoso` vacía el carrito, así que a partir de ese momento `total`
+   * vale 0. Sin esta copia, el rastreador mostraba "$0.00" y los porcentajes de
+   * propina se calculaban sobre cero: salían todos en $0.00.
+   */
+  const [montoPagado, setMontoPagado] = useState(0);
 
   if (!abierto) return null;
 
   const montoAPagar = modo === "dividir" ? total / personas : total;
 
   const procesarPago = () => {
+    // Se guarda ANTES de tocar el carrito.
+    setMontoPagado(montoAPagar);
     setFase("procesando");
     // Simulación de la pasarela de pago (Mercado Pago / Stripe).
     setTimeout(() => {
       setFase("exito");
-      // Se mantiene el rastreador en pantalla para que el cliente vea el
-      // avance de "Recibida" a "En preparación" antes de cerrar.
+      // El rastreador se queda un momento para que el cliente vea el avance de
+      // "Recibida" a "En preparación", y DESPUÉS se pide la calificación: es el
+      // final natural del pedido, cuando ya vivió el servicio completo.
       setTimeout(() => {
+        // El sello de lealtad se suma ya aquí: el pago está hecho y no debe
+        // depender de que además se moleste en calificar.
         onPagoExitoso();
-        cerrarYReset();
+        setFase("calificacion");
       }, 7000);
     }, 1400);
   };
@@ -60,6 +77,7 @@ export function ModalPago({
       setFase("seleccion");
       setModo("completo");
       setPersonas(2);
+      setMontoPagado(0);
     }, 200);
   };
 
@@ -70,15 +88,25 @@ export function ModalPago({
         type="button"
         aria-label="Cerrar"
         onClick={fase === "seleccion" ? cerrarYReset : undefined}
+        // Durante el rastreador y la calificación el backdrop no cierra: un
+        // toque accidental fuera del panel descartaría la valoración.
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
       />
 
       {/* Sheet */}
       <div className="relative w-full max-w-md rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-3xl">
-        {fase === "exito" ? (
+        {fase === "calificacion" ? (
+          <CalificacionMesero
+            total={montoPagado}
+            propinaPrevia={propina}
+            slug={slug}
+            mesa={modalidad === "local" ? mesa : undefined}
+            onListo={cerrarYReset}
+          />
+        ) : fase === "exito" ? (
           /* RASTREADOR DE ORDEN: sustituye la pantalla estática de éxito */
           <RastreadorOrden
-            total={montoAPagar}
+            total={montoPagado}
             modalidad={modalidad}
             mesa={mesa}
           />

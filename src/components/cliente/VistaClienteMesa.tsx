@@ -742,6 +742,7 @@ export function VistaClienteMesa({
         propina={propina}
         modalidad={modalidad}
         mesa={numeroMesa}
+        slug={slug}
         onCerrar={() => setModalPagoAbierto(false)}
         onPagoExitoso={handlePaymentSuccess}
       />

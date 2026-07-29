@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Gift, Pencil, Plus, RotateCcw, UtensilsCrossed } from "lucide-react";
+import {
+  ArrowLeft,
+  Gift,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Star,
+  UtensilsCrossed,
+} from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItemMock } from "@/lib/mock-data";
 import { platilloVacio, useRestauranteStore } from "@/lib/restaurante-store";
@@ -12,6 +20,7 @@ import { SesionDueno } from "@/components/admin/SesionDueno";
 import { AccesoPlataforma } from "@/components/admin/AccesoPlataforma";
 import { ModalPlatillo } from "@/components/admin/ModalPlatillo";
 import { PanelRecompensas } from "@/components/admin/PanelRecompensas";
+import { PanelCalificaciones } from "@/components/admin/PanelCalificaciones";
 import { Switch } from "@/components/admin/Switch";
 
 /**
@@ -27,8 +36,9 @@ import { Switch } from "@/components/admin/Switch";
  * volver al menú.
  */
 
-/** Pestaña virtual del módulo de lealtad (no es una categoría del menú). */
+/** Pestañas virtuales: no son categorías del menú. */
 const TAB_RECOMPENSAS = "Recompensas";
+const TAB_CALIFICACIONES = "Calificaciones";
 
 export default function PanelAdmin() {
   const menu = useRestauranteStore((s) => s.menu);
@@ -40,7 +50,7 @@ export default function PanelAdmin() {
   // Las categorías se derivan del menú vivo: si el dueño crea un platillo en
   // una categoría nueva, la pestaña aparece sola.
   const categorias = Array.from(new Set(menu.map((m) => m.categoria)));
-  const tabs = [...categorias, TAB_RECOMPENSAS];
+  const tabs = [...categorias, TAB_RECOMPENSAS, TAB_CALIFICACIONES];
 
   const [tab, setTab] = useState(categorias[0] ?? TAB_RECOMPENSAS);
   const [editando, setEditando] = useState<MenuItemMock | null>(null);
@@ -122,6 +132,8 @@ export default function PanelAdmin() {
           {tabs.map((t) => {
             const activa = t === tab;
             const esRecompensas = t === TAB_RECOMPENSAS;
+            const esCalificaciones = t === TAB_CALIFICACIONES;
+            const esVirtual = esRecompensas || esCalificaciones;
             return (
               <button
                 key={t}
@@ -134,8 +146,9 @@ export default function PanelAdmin() {
                 }`}
               >
                 {esRecompensas && <Gift className="h-3.5 w-3.5" />}
+                {esCalificaciones && <Star className="h-3.5 w-3.5" />}
                 {t}
-                {!esRecompensas && (
+                {!esVirtual && (
                   <span className="text-[11px] font-semibold text-white/35">
                     {menu.filter((m) => m.categoria === t).length}
                   </span>
@@ -148,6 +161,8 @@ export default function PanelAdmin() {
         {/* ===== CONTENIDO ===== */}
         {tab === TAB_RECOMPENSAS ? (
           <PanelRecompensas />
+        ) : tab === TAB_CALIFICACIONES ? (
+          <PanelCalificaciones />
         ) : (
           <section>
             <div className="mb-4 flex items-center justify-between gap-3">
