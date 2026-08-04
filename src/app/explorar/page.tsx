@@ -45,7 +45,15 @@ export default async function PaginaExplorar() {
         : [];
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-stone-50">
+      {/* ===== HEADER FIJO ===== */}
+      <div className="sticky top-0 z-40 flex h-16 items-center justify-center border-b border-stone-200/50 bg-stone-50/80 backdrop-blur-md">
+        <div className="flex items-center gap-2 text-orange-600">
+          <UtensilsCrossed className="h-6 w-6" />
+          <span className="text-xl font-black tracking-tight">Ñom Ñom</span>
+        </div>
+      </div>
+
       <div className="mx-auto max-w-2xl px-5 pb-16 pt-6">
         {/* ===== CABECERA ===== */}
         <header className="mb-6">
@@ -132,7 +140,7 @@ function TarjetaRestaurante({
       // quien llega por el directorio no escaneó ninguna mesa. Dentro de la
       // vista puede cambiar a "Para llevar".
       href={`/mesa/${r.slug}/1`}
-      className="group block overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gray-100 transition hover:shadow-lg active:scale-[0.99]"
+      className="group block overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-stone-200/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:ring-stone-300 active:scale-[0.98]"
     >
       {/* --- Portada --- */}
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-gray-100">
